@@ -6,14 +6,18 @@ needed to resume is in the repository; the previous chat is not required.
 ## Current checkpoint
 
 - Branch: `codex/nabd-chat-salesforce`. It equals `main` on GitHub at the end
-  of Phase 3; finished phases are merged into `main`.
+  of Phase 3 (merge `7e61e48`, plus later note-only commits); finished phases
+  are merged into `main`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
   (`02178fa` plus handoff commits). Real-model English run: 10/12, then the two
   failures fixed and passing on a recheck.
 - Completed: **NABD Phase 3 — complaint intelligence and reliable cases**
-  (`9879593` plus the handoff commit). Real-model run: Phase 3 set 7/8 then the failure passed on recheck; Phase 2 set 9/12 (after two check fixes), then 2 of 3 failures passed on recheck.
+  (`9879593` plus the handoff commit `10c6c88`). Real-model run, once each:
+  the 8 new case flows 7/8 and the 12 Phase 2 flows 9/12; after two prompt
+  fixes 3 of those 4 failures passed a recheck, and `several_orders_needs_info`
+  still fails its expectation (it lists returnable items instead of asking).
 - Next: **NABD Phase 4 — multilingual behavior**, not started. Its starting
   points are in
   [status](status.md#starting-points-for-phase-4-facts-about-the-code-not-decisions).
@@ -95,6 +99,9 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 - Apex SOQL in the gateway must state `WITH SYSTEM_MODE`: implicit-mode queries
   on objects the integration user cannot read failed at runtime although the
   Apex tests (run as admin) passed.
+- Browser checks use free scripted models on the real stack:
+  `backend/scripts/browser_stack.py` (see its docstring). It writes a real
+  test case to the org; close it afterwards.
 - Git: commit and push as `badrafyf77` with no AI attribution lines; merge a
   finished phase into `main` and push (the owner's standing instruction).
 - Product commitments are fixed unless the user changes them. Tunable technical

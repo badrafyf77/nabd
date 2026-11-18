@@ -5,7 +5,8 @@ Updated: 18 November 2026 (Africa/Casablanca).
 ## Current work
 
 **Phases 0–3 are complete. Phases 4–7 are pending.** Working branch:
-`codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 3.
+`codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 3
+(merge commit `7e61e48`; later commits only update notes).
 Continue Phase 4 on that branch and merge it into `main` when Phase 4 is
 finished.
 
@@ -181,7 +182,8 @@ First step when Phase 4 is requested: write `docs/nabd/phases/04-multilingual.md
   cross-language matching is the model's job, not code's.
 - **Tests to reuse**: scripted flows in `tests/nabd/test_complaints.py`; the
   paid harness `tests/nabd/live_turns.py` supports multi-turn conversations
-  (real Salesforce reads, fixture cases).
+  (real Salesforce reads, fixture cases); `backend/scripts/browser_stack.py`
+  runs the real stack with scripted models for browser checks.
 - **Phase 3 caveats carried forward**: see the
   [Phase 3 known limitations](phases/03-complaints.md#known-limitations).
 

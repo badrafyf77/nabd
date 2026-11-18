@@ -221,6 +221,12 @@ cd backend
 They use real models, real Salesforce reads and the in-memory gateway for
 cases, so they are repeatable and leave no cases in the org.
 
+Browser check without model costs: `.venv-text/bin/python scripts/browser_stack.py`
+from `backend/` (real API, both MCP servers, Salesforce and the dev database on
+8083/8093/8094 with scripted models), then
+`NABD_API_ORIGIN=http://127.0.0.1:8083 npm run dev` in `frontend/`. Its demo
+story writes a real test case for C006; close it in Salesforce afterwards.
+
 ## Verification
 
 ```bash
