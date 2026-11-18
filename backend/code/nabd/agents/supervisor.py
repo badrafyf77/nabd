@@ -13,6 +13,8 @@ the graph had already completed, and otherwise starts the turn.
 """
 from __future__ import annotations
 
+import json
+import logging
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -25,11 +27,21 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.graph import START, StateGraph
 
 from nabd.agents.loop import LoopState, add_loop, invoke_model, run_tool_calls, tools_allowed
+from nabd.agents.language import arabic_words, kept_references, to_arabizi, violates_latin_script
 from nabd.agents.mcp_tools import McpTools, tool_activity
 from nabd.agents.orders import OrdersSpecialist
 from nabd.runtime.events import Activity, DeltaBuffer, RunContext
 
+log = logging.getLogger(__name__)
+
 PROMPT = Path(__file__).with_name("prompts") / "supervisor.md"
+LATIN_REWRITE = (
+    "You fix the writing system of a ShopEasy customer-support reply in Moroccan Darija. The customer "
+    "reads Darija in Latin letters (Arabizi, with 3, 7 and 9 for Arabic sounds). The reply contains the "
+    "listed words in Arabic letters. Rewrite each of them as Latin-letter Darija (for example ila, mazal, "
+    "dyal, 7tta, flous). Keep every other word, and every fact, amount, date and case/order number, "
+    "exactly as written. Do not add or remove information. Return only the corrected reply."
+)
 TOOLS = ("get_knowledge", "list_cases")
 ASK_ORDERS = {
     "type": "function",
@@ -127,7 +139,8 @@ def reply_text(messages: list[Any], message_id: str) -> str:
     start = next((i for i, m in enumerate(messages) if isinstance(m, HumanMessage) and m.id == message_id), None)
     if start is None:
         return ""
-    parts = [m.text.strip() for m in messages[start + 1:] if isinstance(m, AIMessage) and m.text.strip()]
+    parts = [m.text.strip() for m in messages[start + 1:]
+             if isinstance(m, AIMessage) and not m.tool_calls and m.text.strip()]
     return "\n\n".join(parts)
 
 
@@ -152,7 +165,32 @@ class Supervisor:
                 .replace("{today}", human_date(turn.today))
                 .replace("{customer_name}", turn.customer_name)
                 .replace("{case_work}", case_work_text(case_notes))
+                .replace("{language}", json.dumps((case_notes or {}).get("language")))
+                .replace("{order_options}", json.dumps((case_notes or {}).get("order_options", []), ensure_ascii=False))
                 .replace("{knowledge_index}", _index_lines(turn.knowledge_index)))
+
+    async def _latin_darija(self, schemas: list[dict[str, Any]], draft: str, language: dict[str, str],
+                            run: RunContext) -> str:
+        """Bring a Latin Darija draft that contains Arabic letters into Latin script.
+
+        A writing-system contract, not a semantic evaluator. One focused rewrite
+        (same model, tools disabled, only the draft and its exact Arabic-letter
+        words, so the conversation's Arabic text cannot prime it again). The
+        rewrite is used only if it keeps every number of the draft. Any Arabic
+        letters still left are converted to Arabizi in code, so the turn never
+        fails on the script alone.
+        """
+        words = arabic_words(draft)
+        rewrite = await invoke_model(self.model, schemas, LATIN_REWRITE, [HumanMessage(
+            "Words written in Arabic letters: " + json.dumps(words, ensure_ascii=False) + "\n\nReply:\n" + draft)],
+            allow_tools=False)
+        text = rewrite.text.strip()
+        if rewrite.tool_calls or not text or not kept_references(draft, text):
+            text = draft
+        if violates_latin_script(text, language):
+            log.warning("latin darija fallback conversion (run %s, %d words)", run.run_id, len(arabic_words(text)))
+            text = to_arabizi(text)
+        return text
 
     def graph(self, run: RunContext, tools: McpTools, turn: Turn, deltas: DeltaBuffer, me: Activity,
               stage: ComplaintStageCall | None = None):
@@ -165,6 +203,9 @@ class Supervisor:
 
         async def model_node(state: dict[str, Any]) -> dict[str, Any]:
             prompt = self.system_prompt(turn, state.get("case_notes"))
+            language = (state.get("case_notes") or {}).get("language")
+            latin = bool(language and language.get("reply_language") == "ary"
+                         and language.get("reply_script") == "latin")
             first = True
 
             async def on_text(piece: str) -> None:
@@ -175,7 +216,11 @@ class Supervisor:
                 await deltas.add(piece)
 
             reply = await invoke_model(self.model, schemas, prompt, state["messages"],
-                                       allow_tools=tools_allowed(state, run), on_text=on_text)
+                                       allow_tools=tools_allowed(state, run), on_text=None if latin else on_text)
+            if not reply.tool_calls and latin:
+                if violates_latin_script(reply.text, language):
+                    reply = AIMessage(await self._latin_darija(schemas, reply.text, language, run))
+                await on_text(reply.text)  # rejected drafts were never streamed or checkpointed
             update: dict[str, Any] = {"messages": [reply]}
             if not reply.tool_calls:
                 update["completed_run"] = state.get("run_id")
@@ -189,7 +234,12 @@ class Supervisor:
             await orders.start()
             await me.wait("dependency", on=orders.id)
             try:
-                findings = await specialist.investigate(run, request, orders)
+                original = json.dumps({"current_customer_message": turn.text,
+                                       "recent_customer_messages": [line.text for line in turn.history
+                                                                    if line.role == "customer"][-4:]},
+                                      ensure_ascii=False)
+                findings = await specialist.investigate(run, request + "\nOriginal customer wording: " + original,
+                                                         orders)
             except Exception:
                 await orders.fail("failed")
                 raise

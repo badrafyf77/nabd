@@ -15,6 +15,7 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field
 
 EventType = Literal[
+    "conversation.language",
     "message.created", "message.delta", "message.completed",
     "run.queued", "run.started", "run.retrying", "run.completed", "run.failed",
     "activity",

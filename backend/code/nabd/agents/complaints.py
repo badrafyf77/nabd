@@ -27,6 +27,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import START, StateGraph
 from pydantic import BaseModel, Field, ValidationError
 
+from nabd.agents.language import MessageLanguage, TurnLanguage, original_script
 from nabd.agents.loop import LoopState, add_loop, invoke_model, run_tool_calls, tools_allowed
 from nabd.agents.mcp_tools import McpTools, tool_activity
 from nabd.runtime.events import Activity, RunContext
@@ -80,6 +81,11 @@ class ComplaintAssessment(BaseModel):
     outcome: Literal["no_complaint", "needs_clarification", "issues"]
     question: str | None = Field(description="For needs_clarification: the one question to ask the customer.")
     issues: list[IssueIn]
+    language: TurnLanguage | None = Field(default=None, description="Select the response language/script on EVERY "
+                                         "turn, including greetings and non-complaints, using the current message "
+                                         "and explicit preferences; use history for short/mixed replies.")
+    message_languages: list[MessageLanguage] = Field(default_factory=list, description="Language of each cited "
+                                                    "customer evidence message, using its exact message ID.")
 
 
 @dataclass(frozen=True)
@@ -156,15 +162,19 @@ class Assessment:
     issues: list[Issue] = field(default_factory=list)
     unverified: list[str] = field(default_factory=list)
     tool_calls: int = 0
+    language: dict[str, str] | None = None
+    message_languages: dict[str, str] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
         return {"outcome": self.outcome, "question": self.question, "unverified": self.unverified,
-                "tool_calls": self.tool_calls, "issues": [issue.to_json() for issue in self.issues]}
+                "tool_calls": self.tool_calls, "issues": [issue.to_json() for issue in self.issues],
+                "language": self.language, "message_languages": self.message_languages}
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> Assessment:
         return cls(outcome=data["outcome"], question=data.get("question"), unverified=data.get("unverified", []),
                    tool_calls=data.get("tool_calls", 0),
+                   language=data.get("language"), message_languages=data.get("message_languages", {}),
                    issues=[Issue.from_json(issue) for issue in data.get("issues", [])])
 
     def public(self) -> dict[str, Any]:
@@ -220,7 +230,13 @@ def verify_assessment(raw: str, *, evidence: set[str], orders_seen: set[str], ca
     question = None
     if outcome == "needs_clarification":
         question = (parsed.question or "").strip() or "Could you tell me a little more about the problem?"
-    return Assessment(outcome, question, issues, unverified, tool_calls)
+    labels = {label.message_id: label.language for label in parsed.message_languages
+              if label.message_id in customer_messages}
+    current = customer_messages.get(current_message_id)
+    language = parsed.language.public(original_script(current.text) if current else None) if parsed.language else None
+    if language:
+        labels[current_message_id] = language["input_language"]
+    return Assessment(outcome, question, issues, unverified, tool_calls, language, labels)
 
 
 class ComplaintState(LoopState, total=False):
@@ -264,7 +280,8 @@ class ComplaintSpecialist:
         return PROMPT.read_text(encoding="utf-8").replace("{today}", human_date(self.today))
 
     @staticmethod
-    def request(history: list[ChatLine], current: ChatLine, case_history: dict[str, Any]) -> str:
+    def request(history: list[ChatLine], current: ChatLine, case_history: dict[str, Any],
+                order_overview: dict[str, Any] | None = None) -> str:
         lines = ["Conversation so far (oldest first):"]
         earlier = [line for line in history if line.message_id != current.message_id]
         for line in earlier or []:
@@ -275,6 +292,9 @@ class ComplaintSpecialist:
         lines += ["", f"Current customer message: [customer {current.message_id}] {current.text}", "",
                   "The customer's cases from Salesforce (list_case_history):",
                   json.dumps(case_history, ensure_ascii=False)]
+        if order_overview is not None:
+            lines += ["", "The customer's authorized order overview (list_orders):",
+                      json.dumps(order_overview, ensure_ascii=False)]
         return "\n".join(lines)
 
     def _graph(self, run: RunContext, activity: Activity):

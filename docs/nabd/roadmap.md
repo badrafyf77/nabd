@@ -4,7 +4,7 @@ Implementation order: phases 0–7. Complete and verify one phase before startin
 the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Phase 0
 is complete at `512e03b`; Phase 1 is complete at `1a04f52`; Phase 2 is complete at
 `02178fa` (plus handoff commits); Phase 3 is complete at 9879593 (plus
-handoff commit); phases 4–7 are pending. [Accepted decisions](decisions.md)
+handoff commit); Phase 4 is complete at `b4d5f71`; phases 5–7 are pending. [Accepted decisions](decisions.md)
 and [architecture](architecture.md) apply to every phase.
 
 ## Phase 0 — Foundation
@@ -74,6 +74,9 @@ real-model English run Phase 3 set 7/8 then the failure passed on recheck; Phase
 - Handoff: customer-to-case demonstration and fault-injection results.
 
 ## Phase 4 — Multilingual behavior
+
+Plan and handoff: [04-multilingual](phases/04-multilingual.md) — **complete**;
+real-model results are separate approved measurements, not a fresh full run.
 
 Depends on Phase 3.
 

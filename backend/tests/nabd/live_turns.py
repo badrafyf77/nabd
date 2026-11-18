@@ -71,6 +71,7 @@ class TurnResult:
     events: list
     commands: list  # gateway commands sent this turn
     confirmed: list[str]  # case numbers Salesforce (fake) confirmed this turn
+    assessment: dict  # verified complaint assessment, for diagnosing scenario failures
 
     def completed(self) -> list[str]:
         return [e.code for e in self.events if e.type == "activity" and e.state == "completed"]
@@ -124,7 +125,8 @@ class LiveConversation:
         self.history += [line, ChatLine("assistant", f"reply-{run_id}", reply, now)]
         confirmed = [e.payload["result"]["case_number"] for e in sink.events
                      if e.type == "activity" and (e.code or "").startswith("case.") and e.state == "completed"]
-        return TurnResult(reply, sink.events, self.gateway.calls[sent:], confirmed)
+        return TurnResult(reply, sink.events, self.gateway.calls[sent:], confirmed,
+                          self.store.plans[run_id]["assessment"])
 
 
 def live_models(settings):

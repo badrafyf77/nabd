@@ -113,3 +113,37 @@ they do not require repeating the product interview.
 - **Phase 3 priority after creation (18 November 2026).** NABD only raises a
   case's priority, and only while staff have not changed it; category and
   owner are set once, on creation. Lowering or re-routing is staff work.
+- **Phase 4 knowledge translation (18 November 2026).** Keep one canonical
+  published English knowledge revision in Salesforce. The Supervisor translates
+  the retrieved content for customers; cards retain the source revision, with
+  English record findings labeled. A language switch does not select a different
+  policy, change GBP, or create a second policy database.
+- **Phase 4 language state (18 November 2026).** Reuse the mandatory Complaint
+  specialist's structured result to select turn language/script, including on
+  non-complaints. Persist it with the complaint plan and publish enum-only
+  language events. Per-message evidence labels are independent of case language;
+  code copies the original text and determines its writing systems with Unicode.
+- **Phase 4 evaluated defaults (18 November 2026).** The initial paid run used
+  Supervisor reasoning `none` and Complaints `low`, and exposed script leakage,
+  missed refund cases and repeated-contact errors. The recheck uses the same
+  `gpt-5.4-mini` models with Supervisor `low`, Orders `low`, Complaints `medium`,
+  stronger language/receipt instructions and an explicit script-preference flag.
+  Prompts ask non-English customer replies to use exact ISO values from tools,
+  while staff findings retain full English dates plus ISO, avoiding unreliable month/day
+  translation. No dates or policy decisions are recomputed by a model.
+- **Phase 4 reference and script contracts (18 November 2026).** The paid
+  recheck exposed missing reference lookups and Arabic letters in Latin Darija.
+  Read the scoped order overview together with case history before classifying;
+  save its product/number index for clarification. Models still resolve meaning
+  and request details; eligibility is never inferred from the index. A Unicode
+  check permits one same-Supervisor format-only rewrite with tools disabled for
+  invalid Latin Darija. Rejected drafts stay out of SSE/checkpoints. This adds
+  no agent or semantic evaluator and cannot repeat case side effects.
+
+- **Latin Darija script repair (18 November 2026).** The focused confirmation
+  showed a full-conversation rewrite still producing Arabic letters. The
+  default changed from "a second invalid draft fails the attempt" to: one focused
+  rewrite given only the draft and its exact Arabic-letter words, accepted only
+  if every number survives, then mechanical Arabizi conversion of any remaining
+  Arabic letters in code. A customer gets a Latin reply instead of a failed turn;
+  the conversion is a writing-system transform and never decides meaning.

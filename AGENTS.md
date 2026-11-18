@@ -14,8 +14,9 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
 - [Architecture](docs/nabd/architecture.md) and [contracts](docs/nabd/contracts.md)
   describe the target; status identifies what actually exists.
 - Phases 0 (`512e03b`), 1 (Salesforce business system, `1a04f52`), 2
-  (support chat, `02178fa`) and 3 (complaint cases, `9879593`) are
-  complete. Phase 4 is the next pending phase. Later phase completions must
+  (support chat, `02178fa`), 3 (complaint cases, `9879593`) and 4
+  (multilingual, `b4d5f71`) are complete. Phase 5 is next.
+  Later phase completions must
   update status and this pointer.
 - Implement only the phase the user requests. Update its plan/status/handoff,
   verify it, and create a local checkpoint before declaring it complete. Then

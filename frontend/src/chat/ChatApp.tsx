@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ActivityPanel from "./ActivityPanel";
 import { ApiError, EVENT_TYPES, api } from "./api";
-import { CASE_STATUS } from "./messages";
+import { direction, localeOf, ref, statusText, t, teamText } from "./i18n";
 import { applyEvents, emptyState, fromSnapshot } from "./reducer";
 import type { ConversationState, ConversationSummary, DemoCustomer, ServerEvent, Session } from "./types";
 import "./chat.css";
@@ -83,6 +83,7 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
   const [notice, setNotice] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const lastSequence = useRef(0);
+  const locale = localeOf(state.language);
 
   const handleAuthError = useCallback((error: unknown) => {
     if (error instanceof ApiError && error.status === 401) onSignedOut();
@@ -260,63 +261,63 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
   }, [state.activities]);
 
   return (
-    <div className="chat-shell">
+    <div className="chat-shell" lang={state.language.reply_language} dir={direction(locale)}>
       <aside className="sidebar">
         <div className="brand">
           <p className="eyebrow">ShopEasy</p>
-          <h1>Support</h1>
+          <h1>{t(locale, "support")}</h1>
         </div>
-        <button type="button" className="new-chat" onClick={newConversation}>New conversation</button>
-        <nav aria-label="Conversations">
+        <button type="button" className="new-chat" onClick={newConversation}>{t(locale, "newChat")}</button>
+        <nav aria-label={t(locale, "conversations")}>
           <ul className="conversation-list">
             {conversations.map((c) => (
               <li key={c.id}>
                 <button type="button" className={c.id === currentId ? "current" : ""}
                         onClick={() => selectConversation(c.id)}>
-                  {c.title || "New conversation"}
+                  <bdi>{c.title || t(locale, "newChat")}</bdi>
                 </button>
               </li>
             ))}
           </ul>
         </nav>
         <div className="who">
-          <span>Signed in as <strong>{session.display_name}</strong></span>
-          <span className="muted">{session.customer_id} · demo account</span>
-          <button type="button" className="link" onClick={signOut}>Sign out</button>
+          <span>{t(locale, "signedIn")} <strong><bdi>{session.display_name}</bdi></strong></span>
+          <span className="muted"><bdi>{session.customer_id}</bdi> · demo</span>
+          <button type="button" className="link" onClick={signOut}>{t(locale, "signOut")}</button>
         </div>
       </aside>
 
       <main className="chat-main">
         <header className="chat-header">
           <div>
-            <h2>Hi {session.first_name}, how can we help?</h2>
-            <p className="muted">Ask about your orders, deliveries, returns or ShopEasy&apos;s policies.</p>
+            <h2>{t(locale, "greeting", { name: ref(session.first_name) })}</h2>
+            <p className="muted">{t(locale, "hint")}</p>
           </div>
           <span className={`connection connection-${connection}`} role="status">
-            {connection === "live" ? "Live" : connection === "connecting" ? "Connecting…" : "Reconnecting…"}
+            {t(locale, connection)}
           </span>
         </header>
         {Object.keys(state.cases).length > 0 && (
-          <ul className="case-strip" aria-label="Support cases in this conversation">
+          <ul className="case-strip" aria-label={t(locale, "casesLabel")}>
             {Object.values(state.cases).map((c) => (
               <li key={c.case_number}>
-                <strong>Case {c.case_number}</strong>
-                <span>{c.department ? `${c.department} team` : "a team member"}</span>
-                {c.status && <span className="muted">{CASE_STATUS[c.status] || c.status}</span>}
+                <strong>{t(locale, "caseLabel", { number: ref(c.case_number) })}</strong>
+                <span>{teamText(c.department, locale)}</span>
+                {c.status && <span className="muted">{statusText(c.status, locale)}</span>}
               </li>
             ))}
           </ul>
         )}
         {notice && (
           <p className="error banner" role="alert">
-            Something went wrong ({notice}). <button type="button" className="link" onClick={() => setNotice(null)}>Dismiss</button>
+            {t(locale, "notice")} (<bdi>{notice}</bdi>). <button type="button" className="link" onClick={() => setNotice(null)}>{t(locale, "dismiss")}</button>
           </p>
         )}
 
         <div className="timeline" aria-busy={loading}>
-          {loading && <p className="muted">Loading conversation…</p>}
+          {loading && <p className="muted">{t(locale, "loading")}</p>}
           {!loading && state.runOrder.length === 0 && pending.length === 0 && (
-            <p className="empty">Try “Where is my order?” or “How much does delivery cost?”</p>
+            <p className="empty">{t(locale, "empty")}</p>
           )}
           {state.runOrder.map((runId) => {
             const run = state.runs[runId];
@@ -335,7 +336,7 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
                 )}
                 {run.status === "failed" && texts.customer && (
                   <button type="button" className="link retry" onClick={() => send(texts.customer!)}>
-                    Send this message again
+                    {t(locale, "sendAgain")}
                   </button>
                 )}
               </div>
@@ -345,7 +346,7 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
             <div key={p.clientId} className="turn">
               <div className="bubble customer pending" dir="auto">{p.text}</div>
               <p className={p.failed ? "error small" : "muted small"}>
-                {p.failed ? <>Not sent. <button type="button" className="link" onClick={() => send(p.text, p.clientId)}>Retry</button></> : "Sending…"}
+                {p.failed ? <>{t(locale, "notSent")} <button type="button" className="link" onClick={() => send(p.text, p.clientId)}>{t(locale, "retry")}</button></> : t(locale, "sending")}
               </p>
             </div>
           ))}
@@ -359,9 +360,9 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
           setDraft("");
           send(text);
         }}>
-          <label htmlFor="message" className="visually-hidden">Message</label>
+          <label htmlFor="message" className="visually-hidden">{t(locale, "message")}</label>
           <textarea id="message" value={draft} rows={2} maxLength={4000} dir="auto"
-                    placeholder={active ? "You can keep typing; your next message will queue." : "Write a message…"}
+                    placeholder={t(locale, active ? "queuedPlaceholder" : "placeholder")}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -369,7 +370,7 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
                         e.currentTarget.form?.requestSubmit();
                       }
                     }} />
-          <button type="submit" disabled={!draft.trim() || !currentId}>Send</button>
+          <button type="submit" disabled={!draft.trim() || !currentId}>{t(locale, "send")}</button>
         </form>
       </main>
     </div>

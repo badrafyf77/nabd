@@ -261,3 +261,31 @@ def test_a_backend_restart_resumes_the_interrupted_run(database):
     assert len(cards) == 1  # one stable card for the one tool call
     history = second.requests[0]["messages"]
     assert sum(1 for m in history if m.type == "human") == 1
+
+
+def test_language_switch_is_persisted_replayed_and_restored_after_restart(database):
+    from multilingual_examples import FORMS
+    from test_multilingual import answer
+    reads = FixtureReads()
+    models = AgentModels(FakeChatModel(replies=[say("بشحال نعاونوك؟"), say("Bonjour !")]), FakeChatModel(),
+                         FakeChatModel(replies=[answer(FORMS[4]), answer(FORMS[1])]))
+    with live_server(database, models, reads) as base:
+        client = sign_in(base, "C011")
+        conversation = client.post("/api/conversations").json()["id"]
+        for i, text in enumerate(["سلام", "Bonjour"]):
+            accepted = client.post(f"/api/conversations/{conversation}/messages",
+                                   json={"client_message_id": f"language-{i:04d}", "text": text}).json()
+            events = read_events(client, conversation, until=completed(accepted["run_id"]))
+            assert events[-1]["type"] == "run.completed"
+        snapshot = client.get(f"/api/conversations/{conversation}").json()
+        languages = [e["payload"] for e in snapshot["events"] if e["type"] == "conversation.language"]
+        assert languages == [FORMS[4].selection, FORMS[1].selection]
+        assert snapshot["language"] == FORMS[1].selection
+        assert not snapshot["cases"]
+        cookie = client.cookies
+    with live_server(database, models, reads) as base:
+        restored = httpx.Client(base_url=base, cookies=cookie)
+        after = restored.get(f"/api/conversations/{conversation}").json()
+        assert after["language"] == FORMS[1].selection
+        assert [e for e in after["events"] if e["type"] == "conversation.language"] == [
+            e for e in snapshot["events"] if e["type"] == "conversation.language"]

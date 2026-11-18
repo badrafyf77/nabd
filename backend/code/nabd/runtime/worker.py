@@ -27,7 +27,6 @@ from nabd.settings import BusinessSettings, ChatSettings, ReadMcpSettings, Write
 
 logger = logging.getLogger(__name__)
 
-EMPTY_REPLY = "Sorry, I couldn't put an answer together. Could you say that another way?"
 POLL_SECONDS = 1.0
 
 
@@ -110,7 +109,9 @@ class TurnExecutor:
                     return await self.complaints.run(context, turn, case_reads, writes)
 
                 text = await self.supervisor.run_turn(context, tools, turn, stage=stage)
-        await store.complete_run(run, assistant_message_id(run.id), text or EMPTY_REPLY)
+        if not text.strip():
+            raise RuntimeError("empty_reply")  # localized failure card; never inject an English fallback
+        await store.complete_run(run, assistant_message_id(run.id), text)
 
     async def reconcile(self, store: Store, row: CommandRow) -> None:
         """Settle one case command whose run ended before Salesforce gave a definite answer."""

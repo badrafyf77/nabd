@@ -28,7 +28,40 @@ flowchart TD
     SF --> STAFF[Salesforce staff workspace and dashboards]
 ```
 
-## Current boundary: Phases 0–3
+## Phase 4 language boundary
+
+The Complaint specialist selects input/reply language and reply script on every
+turn as part of its existing structured output; there is no extra language
+model or keyword routing. The durable complaint plan and graph checkpoint keep
+the selection through retries. `conversation.language` events and the snapshot's
+latest language restore localized chat chrome and per-run activity cards.
+Darija has separate Arabic/Latin templates; references use bidi isolation and
+layouts use logical CSS properties. Tool-derived English details are labeled.
+
+The complaint stage reads an authorized order reference index alongside case
+history before classification. This prevents asking for an order number that a
+unique product reference already identifies. Both models still resolve meaning
+and choose detail tools; return eligibility always requires `get_order` and its
+computed check. The Supervisor can clarify a choice from this reference index
+without a redundant Orders invocation. The index is saved with the durable plan.
+
+For Latin Darija, code checks Unicode writing-system compliance before publishing
+the answer. If needed, the same model gets one focused format-only rewrite with
+tools disabled, seeing only the draft and its exact Arabic-letter words; the
+rewrite must keep every number of the draft. Arabic letters still left are
+converted to Arabizi in code. Rejected text is neither streamed nor
+checkpointed, and a checkpoint resume reuses confirmed case work. This is a
+bounded output-format contract, not the Phase 7 semantic quality evaluator.
+
+All three agents interpret English, French, Arabic, both Darija scripts and
+mixed input. The Supervisor translates retrieved Salesforce knowledge and
+staff findings, preserving policy outcomes, identifiers, amounts and tool dates.
+The Orders specialist also receives the original customer wording. The case
+workflow copies exact evidence by stored message ID, with a per-message model
+language label and Unicode-derived original script. Salesforce remains the
+single published knowledge authority, with source/revision-bearing reads.
+
+## Phases 0–3 boundary
 
 Phase 3 adds the Complaint specialist, the validated case workflow, the write
 MCP server and the Salesforce case command gateway; background summary/risk

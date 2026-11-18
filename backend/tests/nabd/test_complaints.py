@@ -230,11 +230,11 @@ def test_a_refund_request_becomes_a_returns_and_refunds_staff_case():
     world = World()
     complaints = scripted(assessment(issue(
         title="Refund request for Bluetooth speaker SE-1051", category="Returns_Refunds", staff_action="refund",
-        order_numbers=["SE-1051"], customer_message_ids=[MID], sentiment="neutral")))
-    # SE-1051 was not seen in a tool result here, so code drops the order link rather than trust it.
+        order_numbers=["SE-1051", "SE-1042"], customer_message_ids=[MID], sentiment="neutral")))
+    # The Phase 4 scoped index proves SE-1051 belongs to C002; SE-1042 is still excluded.
     reply, _ = turn(world, "I want a refund for my Bluetooth speaker.", complaints, customer="C002")
     [command] = world.gateway.calls
-    assert (command.category, command.staff_action, command.order_number) == ("Returns_Refunds", "refund", None)
+    assert (command.category, command.staff_action, command.order_number) == ("Returns_Refunds", "refund", "SE-1051")
     assert world.reads.case("00002001").queue == "NABD_Returns_Refunds"
     assert "with the Returns & Refunds team" in reply
 

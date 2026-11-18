@@ -4,11 +4,12 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 ## Current work
 
-**Phases 0–3 are complete. Phases 4–7 are pending.** Working branch:
-`codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 3
-(merge commit `7e61e48`; later commits only update notes).
-Continue Phase 4 on that branch and merge it into `main` when Phase 4 is
-finished.
+**Phases 0–4 are complete; Phases 5–7 are pending.** Working branch:
+`codex/nabd-chat-salesforce`, merged into `main` at the end of Phase 4.
+Phase 4 measured its real-model results in six approved runs (21/36, then
+rechecks of the failures down to 1/1); every failing scenario passed after
+its fix, but no fresh full 36-scenario run of the final version exists. See
+the [Phase 4 handoff](phases/04-multilingual.md#completion-summary).
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
@@ -16,10 +17,11 @@ finished.
 | 1 — Salesforce business system | `1a04f5257292a6cfe16cc67c93207985638acdd6` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
 | 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; docs and real-model results in later commits) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 | 3 — Complaint intelligence and reliable cases | `987959317beae7339f3bb51958032df0cb427b45` (implementation; handoff in the next commit) | [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026) |
+| 4 — Multilingual behavior | `b4d5f710f2ea5289bbda8762c8f078081d9cac61` (last implementation commit; earlier `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`) | [Phase 4 handoff](phases/04-multilingual.md#handoff) |
 
 Completed phases are merged into `main` on GitHub
 (`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
-on 18 November 2026. Inspect a checkpoint with `git show --stat <commit>`.
+on 18 November 2026, Phase 4 later the same day. Inspect a checkpoint with `git show --stat <commit>`.
 Later documentation commits are handoff updates, not new implementation phases.
 
 ## Delivered so far
@@ -77,8 +79,12 @@ Phase 3 — complaints become reliable Salesforce cases during the chat:
 - live **case cards** and a confirmed-case strip in the chat; the Supervisor
   cites only confirmed case work.
 
-Other languages, staff-to-chat updates, risk warnings and quality review do
-not exist yet.
+Phase 4 implements language/script selection in the complaint assessment,
+durable language events/snapshots, original evidence scripts, multilingual
+agent prompts, localized chat/activity templates and RTL, plus a fresh
+customer-scoped order index before classification and a Latin Darija script
+repair (focused rewrite, then code Arabizi conversion). Staff-to-chat updates,
+risk warnings and quality review do not exist yet.
 
 ## Verification
 
@@ -98,6 +104,8 @@ not exist yet.
 | Docker Compose `nabd-backend:phase3` | migrate 0003; `read-mcp`, `write-mcp`, `api` healthy; ready |
 | Frontend `tsc` | Clean |
 | `pip check`, `git diff --check`, secret scan | Clean |
+| Offline suite, macOS, real PostgreSQL (Phase 4 final) | **275 passed**; 101 paid scenarios deselected |
+| Real-model multilingual scenarios (Phase 4, approved runs) | 21/36, recheck 13/19, focused 3/6, then 0/3, 2/3, 1/1; every failure passed after its fix; no fresh 36/36 run |
 | Real-model English scenarios (20, `-m llm`, once each) | Phase 3 set **7/8**, Phase 2 set as full turns **9/12** (after two over-strict checks were fixed); after two prompt fixes 3 of the 4 failures **pass** on recheck; `several_orders_needs_info` still fails its expectation |
 
 Details are in the [Phase 3 handoff](phases/03-complaints.md#verification-results),
@@ -120,6 +128,12 @@ voice work is deferred and they do not block NABD phases.
   (`read-mcp` 8091, `write-mcp` 8092, `api` 8081, image
   `nabd-backend:phase3`) was started and healthy. The dev database is at
   migration 0003.
+- Phase 4 observation: `nabd-backend:phase4` is healthy on the same ports with
+  migration 0003. The standard registry-backed build timed out; cached Phase 3
+  images plus current source verified the unchanged dependencies locally.
+  The free scripted browser stack is stopped; the frontend on 3000 now points
+  to the real API on 8081. The C006 browser case 00001044 was closed as withdrawn
+  after the multilingual checks (directly verified in Salesforce).
 - Test data in the org from Phase 3 checks: smoke case 00001043 (C008,
   closed), probe 00001042 (C008, closed as withdrawn) and browser case
   00001044 (C006, closed as withdrawn).
@@ -155,39 +169,14 @@ run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-**Phase 4 — multilingual behavior** is next and has not started. Scope and
-gate are in the [roadmap](roadmap.md#phase-4--multilingual-behavior); the
-language rules are in [decisions](decisions.md#product-and-data). Entry
-criteria: the resume commands above pass.
+**Phase 5 — live staff follow-up.** Scope and gate are in the
+[roadmap](roadmap.md#phase-5--live-staff-follow-up). Entry criteria: the
+resume commands above pass, and the [Phase 4 limitations](phases/04-multilingual.md#current-limitations-to-carry-forward)
+and [Phase 3 limitations](phases/03-complaints.md#known-limitations) are
+carried forward. Write `docs/nabd/phases/05-staff-follow-up.md` first, in the
+same form as the Phase 4 plan.
 
-First step when Phase 4 is requested: write `docs/nabd/phases/04-multilingual.md`
-(plan, boundaries, checks) in the same form as the Phase 3 plan, then implement.
-
-### Starting points for Phase 4 (facts about the code, not decisions)
-
-- **Prompts are English-only**: `nabd/agents/prompts/supervisor.md` says
-  "English"; `orders.md` and `complaints.md` assume English input. The
-  Complaint specialist already returns a `language` per issue
-  (`en`/`fr`/`ar`/`ary`/`mixed`), stored as `Customer_Language__c` and on
-  evidence as `Original_Language__c`; `Original_Script__c` is not set yet.
-- **Knowledge** has `Language__c` with only `en`; the read MCP returns
-  English revisions. Policy outcomes come from code (`return_check`).
-- **Activity texts** are English templates keyed by stable codes in
-  `frontend/src/chat/messages.ts`; bubbles use `dir="auto"`, cards do not set
-  direction.
-- **Fixtures** already hold Darija (both scripts), Arabic, French and mixed
-  customers C011–C016 with cases and original wording; FX-ISSUE-0002 (C011)
-  waits on the customer.
-- **Case matching** compares new messages with English case summaries;
-  cross-language matching is the model's job, not code's.
-- **Tests to reuse**: scripted flows in `tests/nabd/test_complaints.py`; the
-  paid harness `tests/nabd/live_turns.py` supports multi-turn conversations
-  (real Salesforce reads, fixture cases); `backend/scripts/browser_stack.py`
-  runs the real stack with scripted models for browser checks.
-- **Phase 3 caveats carried forward**: see the
-  [Phase 3 known limitations](phases/03-complaints.md#known-limitations).
-
-When Phase 4 is finished: update its handoff, this status, START_HERE, the
+When Phase 5 is finished: update its handoff, this status, START_HERE, the
 roadmap and the AGENTS pointer, commit as `badrafyf77`, then merge into `main`
 and push both branches.
 
