@@ -20,7 +20,8 @@
  * a required staff action cannot be closed until staff mark it completed.
  *
  * Runs in system mode without sharing because the integration user has no
- * object create/edit permission: these rules are its only write path.
+ * object create/edit permission: these rules are its only write path. Its
+ * transactions publish no NABD_Case_Change__e: NABD already knows what it wrote.
  */
 @RestResource(urlMapping='/nabd/v1/case-commands/*')
 global without sharing class NabdCaseCommands {
@@ -151,6 +152,17 @@ global without sharing class NabdCaseCommands {
     // --- Execution ------------------------------------------------------------------
 
     static Result execute(Command command, String fingerprint) {
+        // NABD's own case writes must not come back to the chat as staff changes (NabdCaseChanges).
+        Boolean previous = NabdCaseChanges.suppressed;
+        NabdCaseChanges.suppressed = true;
+        try {
+            return run(command, fingerprint);
+        } finally {
+            NabdCaseChanges.suppressed = previous;
+        }
+    }
+
+    static Result run(Command command, String fingerprint) {
         NABD_Operation_Receipt__c existing = findReceipt(command.operationId);
         if (existing != null) {
             return replay(command, existing, fingerprint);

@@ -84,8 +84,10 @@ def test_case_statuses_match_the_accepted_lifecycle():
 
 def test_integration_user_reads_only_customer_safe_data():
     readable = {obj.name for obj in s.OBJECTS if obj.integration_readable}
+    # Phase 5: public case comments (the read adapter filters IsPublished = true; CaseComment access
+    # follows the case) and subscribing to the case change event, which carries identifiers only.
     assert readable == {"Account", "Contact", "ShopEasy_Order__c", "ShopEasy_Order_Item__c",
-                        "ShopEasy_Delivery__c", "Case", "KnowledgeEntry__c"}
+                        "ShopEasy_Delivery__c", "Case", "CaseComment", "KnowledgeEntry__c", "NABD_Case_Change__e"}
     case_fields = {field.name for field in s.CASE.fields if field.integration_readable}
     assert not case_fields & INTERNAL_CASE_FIELDS
     for obj in s.OBJECTS:

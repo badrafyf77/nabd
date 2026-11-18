@@ -130,6 +130,14 @@ class SObject:
     related_lists: tuple[RelatedList, ...] = ()
     # Standard objects keep their existing layout and gain these additions.
     standard_layout: str | None = None
+    # "event" is a platform event: published after commit, read by subscribing.
+    kind: Literal["object", "event"] = "object"
+    # False when the platform derives access from a parent (CaseComment follows its Case).
+    object_permissions: bool = True
+
+    @property
+    def is_event(self) -> bool:
+        return self.kind == "event"
 
     @property
     def folder(self) -> str:
@@ -547,6 +555,45 @@ TASK = SObject(
     ),
 )
 
+CASE_COMMENT = SObject(
+    name="CaseComment", label="Case Comment", plural_label="Case Comments", custom=False,
+    description="Staff comments on a case. Public comments (IsPublished) are replies the customer sees in "
+                "the NABD chat; all other comments are private staff notes.",
+    integration_readable=True,
+    # CaseComment has no object or field permissions of its own: access follows the parent case. The
+    # read adapter therefore enforces IsPublished = true in every query, so private notes are never read.
+    object_permissions=False,
+    fields=(
+        _std("ParentId", "Case", "Lookup", permissionable=False, reference_to="Case", integration=True,
+             staff_editable=False),
+        _std("CommentBody", "Body", "LongTextArea", permissionable=False, integration=True),
+        _std("IsPublished", "Public", "Checkbox", permissionable=False, integration=True),
+        _std("CreatedDate", "Created Date", "DateTime", permissionable=False, integration=True,
+             staff_editable=False),
+        _std("LastModifiedDate", "Last Modified Date", "DateTime", permissionable=False, integration=True,
+             staff_editable=False),
+    ),
+)
+
+# --- Staff change feed (Phase 5) ------------------------------------------------
+
+CASE_CHANGE_EVENT = SObject(
+    name="NABD_Case_Change__e", label="NABD Case Change", plural_label="NABD Case Changes",
+    description="Published after commit when staff change a customer-visible part of a NABD case or its "
+                "public comments. Carries identifiers only; the backend re-reads the case's current state.",
+    kind="event", integration_readable=True, staff_access="read",
+    fields=(
+        Field("Case_Id__c", "Case ID", "Text", length=18, required=True, permissionable=False,
+              integration_readable=True, description="The changed case."),
+        Field("Comment_Id__c", "Comment ID", "Text", length=18, permissionable=False, integration_readable=True,
+              description="The case comment involved, if the change was a comment."),
+        Field("Change__c", "Change", "Text", length=20, required=True, permissionable=False,
+              integration_readable=True,
+              description="case, comment, case_deleted or case_restored. Diagnostic only; every change means "
+                          "re-read the case."),
+    ),
+)
+
 # --- Knowledge ------------------------------------------------------------------
 
 KNOWLEDGE = SObject(
@@ -723,8 +770,8 @@ OPERATION_RECEIPT = SObject(
 )
 
 OBJECTS: tuple[SObject, ...] = (
-    ACCOUNT, CONTACT, ORDER, ORDER_ITEM, DELIVERY, CASE, EVIDENCE, TASK, KNOWLEDGE,
-    RISK_RULE, RISK_EPISODE, RISK_EVIDENCE, OPERATION_RECEIPT,
+    ACCOUNT, CONTACT, ORDER, ORDER_ITEM, DELIVERY, CASE, CASE_COMMENT, EVIDENCE, TASK, KNOWLEDGE,
+    RISK_RULE, RISK_EPISODE, RISK_EVIDENCE, OPERATION_RECEIPT, CASE_CHANGE_EVENT,
 )
 OBJECTS_BY_NAME = {item.name: item for item in OBJECTS}
 
@@ -765,6 +812,9 @@ INTEGRATION_PERMISSION_SET = "NABD_Integration_Read"
 # Execute-only access to the typed case command gateway; no object create/edit rights.
 GATEWAY_PERMISSION_SET = "NABD_Integration_Gateway"
 GATEWAY_CLASS = "NabdCaseCommands"
+# Hand-written Apex triggers that publish CASE_CHANGE_EVENT (Phase 5); verify checks they are active.
+CHANGE_TRIGGERS = ("NabdCaseChangeTrigger", "NabdCaseCommentTrigger")
+CHANGE_TOPIC = f"/event/{CASE_CHANGE_EVENT.name}"
 INTEGRATION_PERMISSION_SET_LICENSE = "SalesforceAPIIntegrationPsl"
 INTEGRATION_PROFILE = "Minimum Access - API Only Integrations"
 

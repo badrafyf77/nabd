@@ -80,7 +80,22 @@ def _external_sharing(model: str) -> str:
     return "ControlledByParent" if model == "ControlledByParent" else "Private"
 
 
+def event_file(obj: s.SObject) -> str:
+    """A high-volume platform event that Apex publishes only after the transaction commits."""
+    return document(
+        "CustomObject",
+        n("deploymentStatus", "Deployed"),
+        n("description", obj.description),
+        n("eventType", "HighVolume"),
+        n("label", obj.label),
+        n("pluralLabel", obj.plural_label),
+        n("publishBehavior", "PublishAfterCommit"),
+    )
+
+
 def object_file(obj: s.SObject) -> str:
+    if obj.is_event:
+        return event_file(obj)
     name_field = n(
         "nameField",
         n("displayFormat", obj.name_format) if obj.name_type == "AutoNumber" else None,
@@ -144,8 +159,8 @@ def field_file(obj: s.SObject, field: s.Field) -> str:
         n("reparentableMasterDetail", False) if is_md else None,
         n("required", field.required) if field.type not in ("Checkbox", "MasterDetail", "LongTextArea") else None,
         n("scale", field.scale) if field.type == "Number" else None,
-        n("trackHistory", track) if obj.custom else None,
-        n("trackTrending", False),
+        n("trackHistory", track) if obj.custom and not obj.is_event else None,
+        n("trackTrending", False) if not obj.is_event else None,
         n("type", field.type),
         n("unique", field.unique) if is_text else None,
         _value_set(field.values) if field.type == "Picklist" else None,
@@ -313,6 +328,10 @@ def _from_element(element: ET.Element) -> Node:
     return Node(tag, element.text if element.text is not None else None)
 
 
+# Staff answer customers with public Case Comments (Phase 5), so that list comes first on the case.
+FIRST_RELATED_LIST = {"Case": "RelatedCommentsList"}
+
+
 def standard_layout_file(obj: s.SObject, base_text: str) -> str:
     """Add NABD sections and related lists to a retrieved standard layout."""
     root = _from_element(ET.fromstring(base_text))
@@ -321,6 +340,16 @@ def standard_layout_file(obj: s.SObject, base_text: str) -> str:
     insert_at = sections[0] + 1 if sections else 0
     added = [_section(obj, section) for section in obj.layout_sections]
     children[insert_at:insert_at] = added
+    first = FIRST_RELATED_LIST.get(obj.name)
+    if first:
+        lists = [child for child in children if child.tag == "relatedLists"]
+        chosen = [item for item in lists if any(c.tag == "relatedList" and c.text == first
+                                                 for c in item.children or [])]
+        if chosen:
+            positions = [i for i, child in enumerate(children) if child.tag == "relatedLists"]
+            ordered = chosen + [item for item in lists if item not in chosen]
+            for position, item in zip(positions, ordered):
+                children[position] = item
     related = [i for i, child in enumerate(children) if child.tag == "relatedLists"]
     if obj.related_lists:
         position = (related[-1] + 1) if related else len(children)
@@ -374,7 +403,8 @@ def _staff_view_all(obj: s.SObject) -> bool:
 
 
 def staff_permission_set() -> str:
-    objects = [obj for obj in s.OBJECTS if obj.name != "Task"]
+    # Staff never subscribe to the change event; Apex publishes it in system mode.
+    objects = [obj for obj in s.OBJECTS if obj.name != "Task" and obj.object_permissions and not obj.is_event]
     permissions = []
     for obj in sorted(objects, key=lambda item: item.name):
         edit = obj.staff_access == "edit"
@@ -395,11 +425,13 @@ def staff_permission_set() -> str:
 
 
 def integration_permission_set() -> str:
-    readable = sorted((obj for obj in s.OBJECTS if obj.integration_readable), key=lambda item: item.name)
+    readable = sorted((obj for obj in s.OBJECTS if obj.integration_readable and obj.object_permissions),
+                      key=lambda item: item.name)
     return document(
         "PermissionSet",
         n("description", "Read-only API access for the NABD backend integration user. Covers only the "
-                         "fields the read adapter returns. Writes go only through the case command gateway."),
+                         "fields the read adapter returns, and subscribing to the NABD case change event. "
+                         "Writes go only through the case command gateway."),
         *_field_permissions(readable, integration=True),
         n("hasActivationRequired", False),
         n("label", "NABD Integration Read"),
@@ -495,7 +527,8 @@ def render() -> dict[str, str]:
         base = f"objects/{obj.folder}"
         if obj.custom:
             files[f"{base}/{obj.name}.object-meta.xml"] = object_file(obj)
-            files[f"layouts/{layout_name(obj)}.layout-meta.xml"] = custom_layout_file(obj)
+            if not obj.is_event:
+                files[f"layouts/{layout_name(obj)}.layout-meta.xml"] = custom_layout_file(obj)
         elif obj.standard_layout:
             base_text = (BASE_LAYOUTS / f"{obj.standard_layout}.layout-meta.xml").read_text(encoding="utf-8")
             files[f"layouts/{obj.standard_layout}.layout-meta.xml"] = standard_layout_file(obj, base_text)
