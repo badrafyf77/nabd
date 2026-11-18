@@ -190,6 +190,11 @@ were made in Phase 1.
   planned for Phase 4.
 - Staff inspection was verified through metadata, layouts, permissions and
   data checks, not a recorded click-through of the Salesforce UI.
+- Found after the checkpoint while checking the UI: custom object tabs
+  (ShopEasy Orders, Knowledge Entries, risk and receipt objects) have no "All"
+  list view, so they open on an empty "Recently Viewed" list. The records are
+  reachable from accounts, cases and global search; see
+  [viewing the data](../salesforce.md#viewing-the-data-in-salesforce).
 
 ### Resume commands
 

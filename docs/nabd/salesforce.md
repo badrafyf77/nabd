@@ -103,6 +103,28 @@ so the same seed date always gives the same records.
 Fixtures are deployment and test inputs. The running product never reads
 them or the legacy SQLite database as a fallback.
 
+## Viewing the data in Salesforce
+
+Log in at login.salesforce.com, open the App Launcher (nine dots) and choose
+**NABD Support**.
+
+| To see | Where |
+| --- | --- |
+| Customers | Accounts tab → **All Accounts** |
+| A customer's orders | Open the account → **ShopEasy Orders** related list |
+| Items and delivery | Open an order → its item and delivery lists |
+| Complaints | Cases tab → **NABD Delivery**, **NABD Billing & Payments**, … or **NABD Needs Review**; evidence is on each case |
+| Follow-up tasks | Open a case (for example FX-ISSUE-0001) → activity |
+| FAQs and policies | Global search (for example "delivery cost") |
+
+Known gap: custom objects deployed through metadata have no "All" list view,
+so the ShopEasy Orders, Knowledge Entries, Risk Rules, Risk Episodes and
+Operation Receipts tabs only offer the empty "Recently Viewed" list. Add
+`All` list views to the generator (planned as the first small task of
+Phase 2). Salesforce also auto-created a queue list view per queue
+("Delivery", …) beside the generated "NABD Delivery", … views; the duplicates
+are harmless.
+
 ## Commands
 
 Run from `backend/` with `PYTHONPATH=code .venv-text/bin/python -m nabd salesforce …`:

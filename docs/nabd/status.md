@@ -99,7 +99,23 @@ If `sf org display` reports an expired session, run
 ## Next phase
 
 Phase 2 — support chat and real-time agent progress — is next and has not
-started. Entry criteria: the commands above pass. Its read MCP should wrap
-`nabd.salesforce.reads.SalesforceReads`; extend `NABD_Integration_Read` only
-together with the features that need more fields. Start Phase 2 only when the
-user requests it.
+started. Entry criteria: the commands above pass. Scope is in the
+[roadmap](roadmap.md#phase-2--support-chat-and-real-time-agent-progress):
+English support chat with demo sign-in, a read-only MCP server over Salesforce,
+the Supervisor and Orders agents moved from SQLite to that MCP, persisted
+conversations and activity events, HTTP/SSE endpoints and the Next.js chat with
+activity cards. Complaint case writes (Phase 3) and other languages (Phase 4)
+stay out of Phase 2.
+
+Agreed first steps when Phase 2 is requested:
+
+1. Write `docs/nabd/phases/02-support-chat.md` (plan, boundaries, checks) in
+   the same form as the Phase 1 plan.
+2. Add `All` list views for the custom objects (see the known gap in
+   [NABD Salesforce](salesforce.md#viewing-the-data-in-salesforce)),
+   regenerate, deploy, and rerun `verify`.
+3. Build the read MCP on `nabd.salesforce.reads.SalesforceReads`; extend
+   `NABD_Integration_Read` only together with features that need more fields.
+
+Model costs: the user pays for OpenAI. Use the free fake-model tests for most
+checks, and ask the user before any paid `pytest -m llm` or other real-model run.

@@ -74,8 +74,10 @@ reset to the checkpoint or overwrite other work.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md.
-> Phases 0 and 1 are complete. Write and follow a Phase 2 plan from the roadmap,
-> building on docs/nabd/salesforce.md. Start Phase 2 only, preserve all accepted
-> decisions, and update the phase handoff and verification results when finished.
+> Phases 0 and 1 are complete. Start Phase 2 with the first steps listed in
+> docs/nabd/status.md: write the Phase 2 plan, add the missing Salesforce "All"
+> list views, then build on docs/nabd/salesforce.md. Start Phase 2 only, preserve
+> all accepted decisions, ask me before paid model runs, and update the phase
+> handoff and verification results when finished.
 
 For a later phase, replace the phase number and follow the then-current status.
