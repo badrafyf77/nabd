@@ -1,6 +1,7 @@
 """Model-selected language; Unicode script inspection never interprets intent."""
 from __future__ import annotations
 
+import re
 import unicodedata
 from typing import Literal
 
@@ -51,3 +52,70 @@ def violates_latin_script(text: str, language: dict[str, str] | None) -> bool:
     return bool(language and language.get("reply_language") == "ary" and language.get("reply_script") == "latin"
                 and any(unicodedata.category(c).startswith("L") and "ARABIC" in unicodedata.name(c, "")
                         for c in text))
+
+
+# --- Latin Darija writing-system repair (format only; never meaning) ---------
+
+def _arabic_letter(char: str) -> bool:
+    return unicodedata.category(char).startswith("L") and "ARABIC" in unicodedata.name(char, "")
+
+
+def arabic_words(text: str) -> list[str]:
+    """Whitespace-separated words containing Arabic letters, in order, without repeats."""
+    return list(dict.fromkeys(word for word in text.split() if any(_arabic_letter(c) for c in word)))
+
+
+_STANDALONE_NUMBER = re.compile(r"(?<![^\W\d_])\d+(?:[.,]\d+)*(?![^\W\d_])")
+
+
+def kept_references(draft: str, rewrite: str) -> bool:
+    """True when every standalone number in the draft (order/case numbers, amounts,
+    dates, days) is still in the rewrite. Arabizi digits inside words are ignored."""
+    return set(_STANDALONE_NUMBER.findall(draft)) <= set(_STANDALONE_NUMBER.findall(rewrite))
+
+
+_CONSONANTS = {
+    "ب": "b", "ت": "t", "ث": "t", "ج": "j", "ح": "7", "خ": "kh", "د": "d", "ذ": "d", "ر": "r", "ز": "z",
+    "س": "s", "ش": "ch", "ص": "s", "ض": "d", "ط": "t", "ظ": "d", "ع": "3", "غ": "gh", "ف": "f", "ق": "9",
+    "ك": "k", "ک": "k", "ل": "l", "م": "m", "ن": "n", "ه": "h", "ڤ": "v", "گ": "g", "ݣ": "g", "پ": "p",
+    "چ": "ch", "ڭ": "g", "ء": "",
+}
+_VOWELS = {"ا": "a", "أ": "a", "إ": "i", "آ": "a", "ى": "a", "ة": "a", "ؤ": "o", "ئ": "i", "ٱ": "a"}
+_PUNCTUATION = str.maketrans({"،": ",", "؛": ";", "؟": "?", "٪": "%", **{chr(0x0660 + i): str(i) for i in range(10)},
+                              **{chr(0x06F0 + i): str(i) for i in range(10)}})
+_SHADDA = "ّ"
+
+
+def _arabizi_word(word: str) -> str:
+    letters = [c for c in word if c == _SHADDA or not (unicodedata.category(c) == "Mn" or c == "ـ")]
+    if word.startswith("ال") and len(word) > 3:
+        letters = ["l", *letters[2:]]  # definite article
+    out: list[str] = []
+    base = [c for c in letters if c != _SHADDA]
+    position = 0
+    for char in letters:
+        if char == _SHADDA:
+            if out:
+                out.append(out[-1])
+            continue
+        previous = base[position - 1] if position else None
+        following = base[position + 1] if position + 1 < len(base) else None
+        position += 1
+        if char in ("و", "ي", "ی"):
+            glide = previous is None or following in _VOWELS or following in ("و", "ي", "ی")
+            out.append(("w" if char == "و" else "y") if glide else ("o" if char == "و" else "i"))
+        elif char in _VOWELS:
+            out.append(_VOWELS[char])
+        else:
+            out.append(_CONSONANTS.get(char, "" if _arabic_letter(char) else char))  # never emit Arabic
+    return "".join(out)
+
+
+def to_arabizi(text: str) -> str:
+    """Last-resort writing-system conversion of remaining Arabic letters to Arabizi.
+
+    Only Arabic-letter runs and Arabic punctuation/digits change; every Latin
+    word, number and identifier is kept character for character.
+    """
+    text = text.translate(_PUNCTUATION)
+    return re.sub(r"[؀-ۿݐ-ݿ]+", lambda m: _arabizi_word(m.group(0)), text)

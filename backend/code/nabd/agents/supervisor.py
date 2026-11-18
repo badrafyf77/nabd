@@ -14,6 +14,7 @@ the graph had already completed, and otherwise starts the turn.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -22,16 +23,25 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.graph import START, StateGraph
 
 from nabd.agents.loop import LoopState, add_loop, invoke_model, run_tool_calls, tools_allowed
-from nabd.agents.language import violates_latin_script
+from nabd.agents.language import arabic_words, kept_references, to_arabizi, violates_latin_script
 from nabd.agents.mcp_tools import McpTools, tool_activity
 from nabd.agents.orders import OrdersSpecialist
 from nabd.runtime.events import Activity, DeltaBuffer, RunContext
 
+log = logging.getLogger(__name__)
+
 PROMPT = Path(__file__).with_name("prompts") / "supervisor.md"
+LATIN_REWRITE = (
+    "You fix the writing system of a ShopEasy customer-support reply in Moroccan Darija. The customer "
+    "reads Darija in Latin letters (Arabizi, with 3, 7 and 9 for Arabic sounds). The reply contains the "
+    "listed words in Arabic letters. Rewrite each of them as Latin-letter Darija (for example ila, mazal, "
+    "dyal, 7tta, flous). Keep every other word, and every fact, amount, date and case/order number, "
+    "exactly as written. Do not add or remove information. Return only the corrected reply."
+)
 TOOLS = ("get_knowledge", "list_cases")
 ASK_ORDERS = {
     "type": "function",
@@ -159,6 +169,29 @@ class Supervisor:
                 .replace("{order_options}", json.dumps((case_notes or {}).get("order_options", []), ensure_ascii=False))
                 .replace("{knowledge_index}", _index_lines(turn.knowledge_index)))
 
+    async def _latin_darija(self, schemas: list[dict[str, Any]], draft: str, language: dict[str, str],
+                            run: RunContext) -> str:
+        """Bring a Latin Darija draft that contains Arabic letters into Latin script.
+
+        A writing-system contract, not a semantic evaluator. One focused rewrite
+        (same model, tools disabled, only the draft and its exact Arabic-letter
+        words, so the conversation's Arabic text cannot prime it again). The
+        rewrite is used only if it keeps every number of the draft. Any Arabic
+        letters still left are converted to Arabizi in code, so the turn never
+        fails on the script alone.
+        """
+        words = arabic_words(draft)
+        rewrite = await invoke_model(self.model, schemas, LATIN_REWRITE, [HumanMessage(
+            "Words written in Arabic letters: " + json.dumps(words, ensure_ascii=False) + "\n\nReply:\n" + draft)],
+            allow_tools=False)
+        text = rewrite.text.strip()
+        if rewrite.tool_calls or not text or not kept_references(draft, text):
+            text = draft
+        if violates_latin_script(text, language):
+            log.warning("latin darija fallback conversion (run %s, %d words)", run.run_id, len(arabic_words(text)))
+            text = to_arabizi(text)
+        return text
+
     def graph(self, run: RunContext, tools: McpTools, turn: Turn, deltas: DeltaBuffer, me: Activity,
               stage: ComplaintStageCall | None = None):
         schemas = [*tools.schemas(TOOLS), ASK_ORDERS]
@@ -186,15 +219,7 @@ class Supervisor:
                                        allow_tools=tools_allowed(state, run), on_text=None if latin else on_text)
             if not reply.tool_calls and latin:
                 if violates_latin_script(reply.text, language):
-                    # A writing-system contract check, not a semantic quality
-                    # evaluator. One same-model rewrite, with all tools disabled.
-                    reply = await invoke_model(self.model, schemas, prompt, [*state["messages"], reply,
-                        SystemMessage("Rewrite your last answer in Moroccan Darija using ONLY Latin letters "
-                                      "and Arabizi numerals. No Arabic letters, including short words. Keep "
-                                      "every fact, amount, date and case/order number unchanged. Return only "
-                                      "the corrected customer answer; do not call tools.")], allow_tools=False)
-                if reply.tool_calls or violates_latin_script(reply.text, language):
-                    raise RuntimeError("reply_script_invalid")
+                    reply = AIMessage(await self._latin_darija(schemas, reply.text, language, run))
                 await on_text(reply.text)  # rejected drafts were never streamed or checkpointed
             update: dict[str, Any] = {"messages": [reply]}
             if not reply.tool_calls:

@@ -128,25 +128,38 @@ def test_latin_script_check_rewrites_once_without_exposing_draft_or_repeating_ca
                        customer="C002", supervisor=supervisor)
     assert reply == "Ttsjjel case 00002001, chokran."
     assert len(supervisor.requests) == 2 and supervisor.requests[1]["tool_choice"] == "none"
+    # The rewrite sees only the draft and its exact Arabic-letter words, not the conversation.
+    rewrite = supervisor.requests[1]["messages"]
+    assert len(rewrite) == 2 and '["شكراً."]' in rewrite[1].content and form.refund not in rewrite[1].content
     streamed = "".join(e.payload["text"] for e in sink.events if e.type == "message.delta")
     assert streamed == reply and len(world.gateway.calls) == 1
 
 
-def test_latin_script_check_is_bounded_and_fails_instead_of_publishing_invalid_text():
+def test_latin_script_check_is_bounded_and_converts_remaining_arabic_letters_in_code():
     form, world = FORMS[3], World()
-    supervisor = scripted(say("شكراً"), say("شكراً"))
-    with pytest.raises(RuntimeError, match="reply_script_invalid"):
-        turn(world, form.knowledge, scripted(answer(form)), customer="C001", supervisor=supervisor)
+    supervisor = scripted(say("Mazal محلول حتى 2026-12-08."), say("Mazal m7lol حتى 2026-12-08."))
+    reply, sink = turn(world, form.knowledge, scripted(answer(form)), customer="C001", supervisor=supervisor)
+    assert reply == "Mazal m7lol 7ta 2026-12-08."
     assert len(supervisor.requests) == 2 and not world.gateway.calls
+    assert "".join(e.payload["text"] for e in sink.events if e.type == "message.delta") == reply
 
 
-def test_a_failed_script_rewrite_resumes_without_repeating_confirmed_case_work():
+def test_a_rewrite_that_drops_a_reference_is_rejected_and_the_draft_is_converted():
     form, world = FORMS[3], World()
-    with pytest.raises(RuntimeError, match="reply_script_invalid"):
-        turn(world, form.refund,
-             scripted(answer(form, issue(category="Returns_Refunds", staff_action="refund", customer_message_ids=[MID]))),
-             customer="C002", supervisor=scripted(say("شكراً"), say("شكراً")))
-    unused = FakeChatModel()
-    reply, _ = turn(world, form.refund, unused, customer="C002", attempt=2,
-                    supervisor=scripted(say("Ttsjjel case 00002001.")))
-    assert reply == "Ttsjjel case 00002001." and len(world.gateway.calls) == 1 and not unused.requests
+    supervisor = scripted(say("Ttsjjel case 00002001 dyal SE-1051, شكراً."), say("Ttsjjel case, chokran."))
+    reply, _ = turn(world, form.refund,
+                    scripted(answer(form, issue(category="Returns_Refunds", staff_action="refund",
+                                                customer_message_ids=[MID]))),
+                    customer="C002", supervisor=supervisor)
+    assert reply == "Ttsjjel case 00002001 dyal SE-1051, chkra."
+    assert len(world.gateway.calls) == 1
+
+
+def test_arabizi_conversion_changes_only_arabic_letters():
+    from nabd.agents.language import kept_references, original_script, to_arabizi
+    text = "Iyah، SE-1051 mazal محلول 7tta Tuesday 8 December 2026 (2026-12-08), £3.99؟ nshرح ديال واش"
+    converted = to_arabizi(text)
+    assert converted == "Iyah, SE-1051 mazal m7lol 7tta Tuesday 8 December 2026 (2026-12-08), £3.99? nshr7 dyal wach"
+    assert original_script(converted) == "latin" and kept_references(text, converted)
+    assert not kept_references("case 00002001 on 2026-12-08", "case on 2026-12-08")
+    assert kept_references("3afak, £40", "40£ 3la khatrk")  # Arabizi digits inside words are not references

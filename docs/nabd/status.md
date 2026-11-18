@@ -7,8 +7,13 @@ Updated: 18 November 2026 (Africa/Casablanca).
 **Phases 0–3 are complete. Phase 4 is in progress; Phases 5–7 are pending.**
 Phase 4's [plan and running handoff](phases/04-multilingual.md) record the
 implementation, free checks and approved paid evaluation. Working branch:
-`codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 3
-(merge commit `7e61e48`; later commits only update notes).
+`codex/nabd-chat-salesforce`, started from the Phase 3 handoff `603545d`.
+Phase 4 checkpoints: `e352b0a`, `94957e5`, latest `e7c876a`.
+The first paid run measured 21/36 automatic passes; its 19-scenario recheck
+passed 13/19. The focused confirmation of the final six passed 3/6: two
+over-strict checks (now fixed) and one genuine Latin Darija script failure,
+fixed by a focused rewrite plus a code Arabizi fallback. 275 free tests pass;
+a paid recheck of those three needs approval. `main` still holds Phase 3.
 Continue Phase 4 on that branch and merge it into `main` when Phase 4 is
 finished.
 
@@ -125,6 +130,12 @@ voice work is deferred and they do not block NABD phases.
   (`read-mcp` 8091, `write-mcp` 8092, `api` 8081, image
   `nabd-backend:phase3`) was started and healthy. The dev database is at
   migration 0003.
+- Phase 4 observation: `nabd-backend:phase4` is healthy on the same ports with
+  migration 0003. The standard registry-backed build timed out; cached Phase 3
+  images plus current source verified the unchanged dependencies locally.
+  The free scripted browser stack is stopped; the frontend on 3000 now points
+  to the real API on 8081. The C006 browser case 00001044 was closed as withdrawn
+  after the multilingual checks (directly verified in Salesforce).
 - Test data in the org from Phase 3 checks: smoke case 00001043 (C008,
   closed), probe 00001042 (C008, closed as withdrawn) and browser case
   00001044 (C006, closed as withdrawn).

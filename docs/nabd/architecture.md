@@ -46,10 +46,12 @@ computed check. The Supervisor can clarify a choice from this reference index
 without a redundant Orders invocation. The index is saved with the durable plan.
 
 For Latin Darija, code checks Unicode writing-system compliance before publishing
-the answer. If needed, the same Supervisor gets one format-only rewrite with tools
-disabled. Rejected text is neither streamed nor checkpointed; a second invalid
-draft fails the attempt. A checkpoint resume reuses confirmed case work. This is
-a bounded output-format contract, not the Phase 7 semantic quality evaluator.
+the answer. If needed, the same model gets one focused format-only rewrite with
+tools disabled, seeing only the draft and its exact Arabic-letter words; the
+rewrite must keep every number of the draft. Arabic letters still left are
+converted to Arabizi in code. Rejected text is neither streamed nor
+checkpointed, and a checkpoint resume reuses confirmed case work. This is a
+bounded output-format contract, not the Phase 7 semantic quality evaluator.
 
 All three agents interpret English, French, Arabic, both Darija scripts and
 mixed input. The Supervisor translates retrieved Salesforce knowledge and

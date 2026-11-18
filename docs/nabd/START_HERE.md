@@ -5,9 +5,10 @@ needed to resume is in the repository; the previous chat is not required.
 
 ## Current checkpoint
 
-- Branch: `codex/nabd-chat-salesforce`. It equals `main` on GitHub at the end
-  of Phase 3 (merge `7e61e48`, plus later note-only commits); finished phases
-  are merged into `main`.
+- Branch: `codex/nabd-chat-salesforce`. Phase 4 implementation checkpoints are
+  `e352b0a`, `94957e5`, latest `e7c876a`; `main` still holds Phase 3 at `603545d`.
+  Phase 4 remains unmerged: the focused confirmation passed 3/6, its three
+  failures are fixed (see the Phase 4 handoff), and a paid recheck needs approval.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
@@ -39,11 +40,11 @@ needed to resume is in the repository; the previous chat is not required.
    is verified and what is not. The [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026)
    covers the chat underneath and the [Salesforce reference](salesforce.md)
    the org, schema, gateway and adapter.
-4. Phase 4's scope and gate in the
+4. [Phase 4 plan and running handoff](phases/04-multilingual.md), its scope and gate in the
    [roadmap](roadmap.md#phase-4--multilingual-behavior), the language rules in
    [decisions](decisions.md#product-and-data), and the starting points in
-   [status](status.md#next-step). Write `docs/nabd/phases/04-multilingual.md`
-   first when Phase 4 is requested.
+   [status](status.md#next-step). Continue the existing implementation rather
+   than writing a new plan or restarting its evaluation.
 5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
    responsibilities, data ownership, agent flow, and future public interfaces.
 6. [Roadmap](roadmap.md) and [development commands](README.md): later sequence,
@@ -111,10 +112,10 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md,
-> then docs/nabd/status.md. Phases 0–3 are complete. Start Phase 4 (multilingual
-> behavior): first write docs/nabd/phases/04-multilingual.md in the same form as
-> the Phase 3 plan, then implement Phase 4 only. Preserve all accepted
-> decisions, ask me before any paid model run, update the phase handoff and
+> then docs/nabd/status.md. Phases 0–3 are complete. Continue the existing Phase 4
+> implementation at e7c876a and its plan/handoff; the initial paid evaluation and
+> approved recheck are recorded there. Do not repeat paid runs without new approval.
+> Preserve all accepted decisions, update the phase handoff and
 > verification results, and when Phase 4 is finished merge it into main and
 > push as badrafyf77.
 

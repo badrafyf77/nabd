@@ -153,7 +153,8 @@ one recheck of failures after the free code checks passed. Results pending.
   eligibility still requires the specialist's computed `get_order` check.
 - Latin Darija now has a deterministic Unicode format check and at most one
   same-Supervisor rewrite with tools disabled. Invalid drafts are buffered and
-  never streamed or checkpointed. A second invalid draft fails the attempt;
+  never streamed or checkpointed. A second invalid draft fails the attempt
+  (superseded after the focused confirmation, below);
   retry resumes without repeating confirmed cases. This is a writing-system
   contract, not a new semantic evaluator. Other languages retain streaming.
 - Evaluation clarifications: a French-dominant mixed message may label its input
@@ -163,3 +164,54 @@ one recheck of failures after the free code checks passed. Results pending.
   is unnecessary when the fresh authorized index already supplies them.
 - The approved recheck is exhausted. Any focused paid confirmation of these
   final fixes needs a new explicit approval. Free verification continues first.
+
+### Focused confirmation of `e7c876a` and follow-up fixes
+
+- Approved focused run of the six remaining scenarios, once each
+  (`english-refund`, `english-ambiguous`, `darija_latin-returns`,
+  `darija_latin-refund`, `darija_latin-ambiguous`, `darija_arabic-returns`):
+  **3/6 automated passes**. Both refund flows opened the Returns & Refunds case
+  and cited it; Latin Darija `ambiguous` listed the four owned orders.
+- Two failures were over-strict checks, not product faults:
+  `english-ambiguous` asked "Which item…: Bike lights, Personalised mug, Cycling
+  gloves, or Bike helmet?" (owned products, no order numbers), and
+  `darija_arabic-returns` asked a named clarification from the authorized index
+  (SE-1051/1052/1053) without calling Orders, which the check required before
+  reaching its planned clarification step. The checks now accept owned choices
+  named by product or order number, and the Arabic Darija return may ask that one
+  clarification (from Orders or the index) before Orders must check eligibility.
+- One genuine failure: `darija_latin-returns` raised `reply_script_invalid`
+  because both the draft and its rewrite contained Arabic letters. Earlier runs
+  show the pattern: whole Arabic words and even half-words (`nshرح`) inside
+  Latin Darija. The rewrite had run inside the full conversation, whose system
+  prompt and history contain Arabic text.
+- Fix (`nabd/agents/supervisor.py`, `nabd/agents/language.py`): the one rewrite
+  is now a focused call with tools disabled that receives only the draft and the
+  exact list of Arabic-letter words to convert. It is accepted only if every
+  standalone number of the draft (order/case numbers, amounts, dates) survives;
+  otherwise the draft is kept. Any Arabic letters still left are converted to
+  Arabizi in code (letters only; Latin text, numbers and identifiers unchanged)
+  and a warning is logged. The turn no longer fails on the writing system alone.
+  This is still a format contract, not a semantic evaluator; the code
+  conversion is mechanical and can read less naturally than model Darija.
+- Free suite after the fixes, macOS, real PostgreSQL: **275 passed**, 101 paid
+  scenarios deselected. A focused paid confirmation of the three failed
+  scenarios needs a new explicit approval.
+
+### Current limitations to carry forward
+
+- Correct calendar dates are preserved, but some non-English model replies still
+  copy English month/day names instead of following the requested ISO rendering.
+  The ISO instruction is a prompt rule, not a deterministic date renderer.
+- Darija fluency/orthography varies; human/native-speaker usability acceptance has
+  not been claimed. Regional spelling may need one reference clarification.
+- The script guard checks writing systems, not meaning. Its one focused rewrite has
+  tools disabled and must keep every number; semantic translation quality still
+  needs the Phase 7 evaluations. It adds one model invocation only when the first
+  Latin Darija draft contains Arabic letters. Words the rewrite leaves in Arabic
+  letters are transliterated mechanically, which keeps the script but may read
+  awkwardly; logs show how often that happens.
+- No full 36-scenario rerun of the final version, repeated release measurement,
+  full unchanged Phase 2/3 paid regression, cost or latency claim is made.
+- Phase 3 limitations, including staff-sync absence and the bounded case-history
+  window, still apply. Native browser checks use scripted models.

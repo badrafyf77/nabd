@@ -10,9 +10,23 @@ import pytest
 from live_turns import CASE_NUMBER, LiveConversation, live_models
 from multilingual_examples import FORMS
 from nabd.agents.language import original_script
+from nabd.salesforce import fixtures as fx
 from nabd.settings import ModelSettings, SalesforceSettings
 
 pytestmark = pytest.mark.llm
+ORDERS = fx.build().orders
+
+
+def named_orders(reply, customer):
+    """The customer's own orders a reply names, by order number or by product name."""
+    text = reply.lower()
+    return {o.order_number for o in ORDERS if o.customer_id == customer
+            and (o.order_number.lower() in text or any(i.product.lower() in text for i in o.items))}
+
+
+def orders_findings(result):
+    return next((e.payload["result"] for e in result.events
+                 if e.code == "agent.orders" and e.state == "completed"), None)
 
 @dataclass(frozen=True)
 class Scenario:
@@ -90,19 +104,19 @@ def test_multilingual_scenario(scenario, live, loop):
         for text, anchor in [(f.allowed_return, r"2026-12-08|8 December|December 8|8 décembre|8 دجنبر|8 ديسمبر|8 decembre|8 décembre"),
                              (f.late_return, r"30|thirty|trente|ثلاثين|ثلاثون")]:
             result = say(text, operations=[])
-            assert "agent.orders" in result.completed() and "tool.get_order" in result.completed()
-            # Tool-derived English findings are checked independently of free reply wording.
-            findings = next(e.payload["result"] for e in result.events
-                            if e.code == "agent.orders" and e.state == "completed")
-            if f.name == "darija_arabic" and findings["outcome"] == "needs_information":
-                # The regional spelling of enceinte can be ambiguous; a valid
-                # named clarification is preferable to choosing the wrong item.
+            findings = orders_findings(result)
+            if f.name == "darija_arabic" and (findings is None or findings["outcome"] == "needs_information"):
+                # The regional spelling of enceinte can be ambiguous; one named
+                # clarification (from the Orders specialist or straight from the
+                # authorized order index) is preferable to choosing the wrong item.
+                if findings is None:
+                    assert len(named_orders(result.reply, c.customer)) >= 2, "clarification must name owned choices"
                 clarification = ("كنقصد السبيكر ديال البلوتوث فالطلب SE-1051. واش مازال نقدر نرجعو؟"
                                  if text == f.allowed_return else
                                  "كنقصد صباط الترايل فالطلب SE-1053. واش مازال نقدر نرجعو؟")
                 result = say(clarification, operations=[])
-                findings = next(e.payload["result"] for e in result.events
-                                if e.code == "agent.orders" and e.state == "completed")
+                findings = orders_findings(result)
+            assert "agent.orders" in result.completed() and "tool.get_order" in result.completed()
             assert findings["outcome"] == "done" and findings["facts"]
             if text == f.allowed_return:
                 assert re.search(anchor, result.reply, re.I), "return deadline missing/changed"
@@ -121,10 +135,10 @@ def test_multilingual_scenario(scenario, live, loop):
     elif flow == "ambiguous":
         result = say(f.ambiguous, operations=[])
         assert "tool.list_orders" in result.completed()
-        assert len(set(re.findall(r"SE-113[1-4]", result.reply))) >= 2, "clarification must name owned choices"
+        # Owned choices may be named by product, order number or both.
+        assert len(named_orders(result.reply, c.customer)) >= 2, "clarification must name owned choices"
         if "agent.orders" in result.completed():
-            findings = next(e.payload["result"] for e in result.events
-                            if e.code == "agent.orders" and e.state == "completed")
+            findings = orders_findings(result)
             assert findings["outcome"] == "needs_information" and findings["questions"]
     elif f.name == "english":
         c.customer = "C003"

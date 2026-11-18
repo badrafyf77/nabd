@@ -128,8 +128,8 @@ they do not require repeating the product interview.
   missed refund cases and repeated-contact errors. The recheck uses the same
   `gpt-5.4-mini` models with Supervisor `low`, Orders `low`, Complaints `medium`,
   stronger language/receipt instructions and an explicit script-preference flag.
-  Non-English customer dates use exact ISO values from tools, while staff
-  findings retain full English dates plus ISO, avoiding unreliable month/day
+  Prompts ask non-English customer replies to use exact ISO values from tools,
+  while staff findings retain full English dates plus ISO, avoiding unreliable month/day
   translation. No dates or policy decisions are recomputed by a model.
 - **Phase 4 reference and script contracts (18 November 2026).** The paid
   recheck exposed missing reference lookups and Arabic letters in Latin Darija.
@@ -139,3 +139,11 @@ they do not require repeating the product interview.
   check permits one same-Supervisor format-only rewrite with tools disabled for
   invalid Latin Darija. Rejected drafts stay out of SSE/checkpoints. This adds
   no agent or semantic evaluator and cannot repeat case side effects.
+
+- **Latin Darija script repair (18 November 2026).** The focused confirmation
+  showed a full-conversation rewrite still producing Arabic letters. The
+  default changed from "a second invalid draft fails the attempt" to: one focused
+  rewrite given only the draft and its exact Arabic-letter words, accepted only
+  if every number survives, then mechanical Arabizi conversion of any remaining
+  Arabic letters in code. A customer gets a Latin reply instead of a failed turn;
+  the conversion is a writing-system transform and never decides meaning.
