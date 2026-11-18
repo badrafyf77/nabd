@@ -4,7 +4,10 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 ## Current work
 
-**Phases 0–2 are complete. Phases 3–7 are pending.** Branch: `codex/nabd-chat-salesforce`.
+**Phases 0–2 are complete. Phases 3–7 are pending.** Working branch:
+`codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 2
+(`57d648c`). Continue Phase 3 on that branch and merge it into `main` when
+Phase 3 is finished.
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
@@ -93,6 +96,11 @@ voice work is deferred and they do not block NABD phases.
 - Docker: dev `db` (55432), `test-db` (55433) and the **Phase 0** API image
   on 8081 were running. That container and the dev database were left at
   migration 0001; Phase 2 needs `up -d --build` (below), which migrates to 0002.
+- GitHub: `origin` is `badrafyf77/customer-support-voice-agent` (private).
+  `main` and `codex/nabd-chat-salesforce` were both pushed at `57d648c`. The
+  macOS keychain may hold another GitHub account, so pushes use the GitHub CLI
+  login: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …`
+  after checking `gh api user -q .login` prints `badrafyf77`.
 
 Recheck these in every new session; a recorded healthy state does not imply
 the CLI session, Docker or containers are still available.
@@ -120,12 +128,57 @@ reports an expired session, run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-Phase 3 — complaint intelligence and reliable cases — is next and has not
-started. Scope is in the
-[roadmap](roadmap.md#phase-3--complaint-intelligence-and-reliable-cases); write
-its plan first, in the same form as the Phase 2 plan. Phase 2's real-model
-evidence is single runs (see the
-[handoff](phases/02-support-chat.md#real-model-english-run--18-november-2026)).
+**Phase 3 — complaint intelligence and reliable cases** is next and has not
+started. Scope and gate are in the
+[roadmap](roadmap.md#phase-3--complaint-intelligence-and-reliable-cases); the
+product rules are in [decisions](decisions.md#complaints-and-staff-workflow) and
+the target interfaces in [contracts](contracts.md) (complaint assessment,
+Salesforce command/result). Entry criteria: the resume commands above pass.
+
+First step when Phase 3 is requested: write `docs/nabd/phases/03-complaints.md`
+(plan, boundaries, checks) in the same form as the Phase 2 plan, then implement.
+
+### Starting points for Phase 3 (facts about the code, not decisions)
+
+- **Turn pipeline**: `nabd/runtime/worker.py` (`TurnExecutor`) runs
+  `Supervisor.run_turn` in `nabd/agents/supervisor.py`, a single checkpointed
+  `model <-> tools` loop. There is no node yet for the mandatory Complaint
+  analysis or for commands (architecture turn steps 3, 4 and 6).
+- **Reads**: the read MCP server (`nabd/read_mcp/server.py`) exposes
+  `list_cases` with public fields only (number, subject, status, category,
+  order, dates). Semantic case matching will need more case context; extend
+  `NABD_Integration_Read` and the schema contract together with that feature.
+- **Writes do not exist**: the integration user is read-only (Salesforce
+  refuses its writes with `CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY`). There is no
+  write MCP server and no Apex command gateway yet.
+- **Salesforce structure ready for Phase 3**: Case NABD fields
+  (`NABD_Issue_Id__c`, category, customer language, sentiment, urgency,
+  classification confidence, needs-review flag, English summary, resolution and
+  reopen fields, `NABD_Conversation_Id__c`), `Complaint_Evidence__c`,
+  `NABD_Operation_Receipt__c` (empty), five category queues with
+  `NABD_Category_Route__mdt`, and the five agreed statuses.
+- **Signed context**: `nabd/context.py` already takes an audience and scopes,
+  so a write server can require its own audience/scope.
+- **PostgreSQL**: migration `0002_chat_runtime` has sessions, conversations,
+  messages, runs and events. Issue links, execution receipts and durable
+  command jobs (architecture data table) do not exist yet.
+- **Activity cards**: backend codes `agent.*` / `tool.*`
+  (`nabd/agents/mcp_tools.py`, `nabd/runtime/events.py`); English texts in
+  `frontend/src/chat/messages.ts`. New complaint/case activities need codes
+  and texts there.
+- **Tests to reuse**: scripted models (`tests/fakes.py`), `FixtureReads` and the
+  in-memory read MCP server (`tests/nabd_fakes.py`), agent tests
+  (`tests/nabd/test_agents.py`), the uvicorn + PostgreSQL API tests
+  (`tests/nabd/test_chat_postgres.py`), and the paid English scenarios
+  (`tests/nabd/test_chat_scenarios.py`, `-m llm`, ask first).
+- **Phase 2 caveats carried forward**: real-model evidence is single runs (the
+  last two fixes were rechecked only on their own scenarios); the assistant now
+  tells customers it cannot open cases or arrange refunds, which Phase 3 must
+  change once those exist.
+
+When Phase 3 is finished: update its handoff, this status, START_HERE, the
+roadmap and the AGENTS pointer, commit as `badrafyf77`, then merge into `main`
+and push both branches.
 
 Model costs: the user pays for OpenAI. Use the free fake-model tests for most
 checks, and ask the user before any paid `pytest -m llm` or other real-model run.
