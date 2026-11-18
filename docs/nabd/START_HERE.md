@@ -8,9 +8,10 @@ needed to resume is in the repository; the previous chat is not required.
 - Branch: `codex/nabd-chat-salesforce`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
-- **NABD Phase 2 — support chat and real-time agent progress** is implemented
-  (`02178fa`). Its real-model English run passed 10 of 12 scenarios; two
-  behaviour fixes are open (see [status](status.md#next-step)).
+- Completed: **NABD Phase 2 — support chat and real-time agent progress**
+  (`02178fa` plus handoff commits). Real-model English run: 10/12, then the two
+  failures fixed and passing on a recheck.
+- Next: **NABD Phase 3 — complaint intelligence and reliable cases**, not started.
 - Last measured suite: **213 passed** (57 paid scenarios deselected) on macOS
   with real PostgreSQL. Real-org `salesforce verify` 39/39, `salesforce smoke`
   12/12, `read-mcp smoke` 12/12. See [status](status.md) for limits.
@@ -70,7 +71,8 @@ reset to the checkpoint or overwrite other work.
 - `backend/code/server.py` and `docs/plans/phase-1-status.md` are legacy voice
   artifacts. Their Phase 1 is not NABD's next Phase 1.
 - The legacy 113 unit tests still pass. The 45 legacy and 12 NABD paid
-  scenario runs are deselected by default and were not executed in Phases 0–2.
+  scenario runs are deselected by default. The 12 NABD scenarios ran once each
+  in Phase 2 with the user's approval; ask before any further paid run.
 - NABD agents live in `backend/code/nabd/agents/`; the legacy
   `agents/support` and `agents/orders` graphs are voice-era code kept for
   their tests, not the NABD runtime.
@@ -81,8 +83,7 @@ reset to the checkpoint or overwrite other work.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md.
-> Phase 2 is implemented; two real-model behaviour fixes remain (see
-> docs/nabd/status.md). Ask me before any paid model run. When Phase 3
+> Phases 0–2 are complete. Ask me before any paid model run. When Phase 3
 > is requested, write its plan first, start Phase 3 only, preserve all accepted
 > decisions, and update the phase handoff and verification results when done.
 

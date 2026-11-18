@@ -91,8 +91,13 @@ def evidence_ref(record: sf.RecordRef) -> str:
 
 
 def day(value: date | None) -> str | None:
-    """2026-11-10 -> "2026-11-10 (Tuesday)", so models never work out weekdays."""
-    return None if value is None else f"{value.isoformat()} ({value.strftime('%A')})"
+    """2026-10-04 -> "Sunday 4 October 2026 (2026-10-04)".
+
+    Written out in full so models copy dates instead of converting them; a
+    real-model run turned "2026-10-04 (Sunday)" next to a November deadline
+    into "Sunday 4 November".
+    """
+    return None if value is None else f"{value.strftime('%A')} {value.day} {value.strftime('%B %Y')} ({value.isoformat()})"
 
 
 class Profile(BaseModel):

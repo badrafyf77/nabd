@@ -1,8 +1,7 @@
 # Phase 2 — Support chat and real-time agent progress
 
-**Status: implemented (18 November 2026). The real-model English run passed
-10 of 12 scenarios; two behaviour fixes (a misreported date, a missing refund
-statement) are open.**
+**Status: complete (18 November 2026).** The real-model English run passed 10
+of 12 scenarios; the two failures were fixed and both pass on a recheck.
 Depends on completed [Phase 1](01-salesforce.md), checkpoint `1a04f52`. The
 handoff at the end of this page records what was delivered and verified.
 
@@ -195,7 +194,7 @@ Git checkpoint: `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (*Build NABD support 
 | `read-mcp smoke` against the real org | **12/12**: no-context and expired tokens refused, tools listed, scoped profile/orders, other customer's order not found, published-only knowledge and current revision, scoped resource, return window from policy, public case fields, scoped prompt |
 | Browser (scripted models, real API, MCP and Salesforce) | Sign-in from Salesforce, streamed reply, nested cards with findings, waiting state, queued second message, reload mid-run restored, backend killed mid-run → "Reconnecting…" → run resumed (attempt 2) and finished live |
 | Frontend `tsc` and `next build` | Clean |
-| Real-model English scenarios (`-m llm`, 12, once each, `gpt-5.4-mini`) | **10/12 pass** (details below) |
+| Real-model English scenarios (`-m llm`, 12, once each, `gpt-5.4-mini`) | **10/12 pass**; after two fixes the 2 failures pass on one recheck (details below) |
 
 Linux image results are in [status](../status.md).
 
@@ -228,6 +227,20 @@ calls. The user approved running the 6 unanswered scenarios once.
 No reply claimed an action the assistant cannot take. Each scenario ran once,
 so these are single observations, not a success rate.
 
+**Fixes and recheck (user-approved, the two failed scenarios once each):**
+
+1. Tool results now write dates out in full, `Sunday 4 October 2026
+   (2026-10-04)`, and both prompts tell the agents to copy dates exactly. The
+   recheck said "delivered on Sunday 4 October 2026" and "the 30-day return
+   window ended on Tuesday 3 November 2026". **Pass.**
+2. The Supervisor prompt now requires saying that a refund can't be arranged
+   from chat. The recheck explained the return window and the published refund
+   policy, then said "I can't arrange a refund from this chat." **Pass.**
+
+Side effect seen once: the return-window reply also added the refund sentence
+although that customer had not asked for a refund. The other 10 scenarios last
+ran before these two changes; Phase 7 reruns every scenario three times.
+
 ### Findings worth keeping
 
 - MCP Python SDK 2.x renamed `FastMCP` to `MCPServer`, uses snake_case model
@@ -243,15 +256,15 @@ so these are single observations, not a success rate.
 - `langchain-openai` caches its async HTTP client across instances; code that
   runs several `asyncio.run` loops in one process must share one loop.
 - Text checks on model replies must accept typographic apostrophes (’).
+- Give models dates already written out with weekday and month; converting ISO
+  dates is where a real run produced a wrong month.
 
 ### Known limitations
 
-- Real-model gate: 10/12. Open fixes: (1) the model restated a delivery date
-  with the wrong month, likely while converting `2026-10-04 (Sunday)` next to
-  a November deadline; candidate fix is human-readable dates with the month in
-  tool results. (2) The refund reply omitted that refunds can't be arranged
-  from chat; candidate fix is an explicit refund instruction in the Supervisor
-  prompt. Both need a real-model check of those two scenarios.
+- Real-model evidence is single runs: 10/12 first, then both fixed scenarios
+  passed once. The other 10 were not rerun after the date and refund changes.
+- The refund instruction can make the assistant mention refunds when the
+  customer did not ask about them.
 - No write tools: cases, refunds, order changes and hand-offs cannot be done
   from chat yet (Phase 3); the Supervisor is told to say so.
 - English only; activity texts are English templates keyed by stable codes.

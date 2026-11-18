@@ -4,15 +4,13 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 ## Current work
 
-**Phases 0 and 1 are complete. Phase 2 is implemented; its real-model English
-run passed 10 of 12 scenarios, with two behaviour fixes open.** Phases 3–7
-are pending. Branch: `codex/nabd-chat-salesforce`.
+**Phases 0–2 are complete. Phases 3–7 are pending.** Branch: `codex/nabd-chat-salesforce`.
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
 | 0 — Foundation | `512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b` | [Phase 0 plan](phases/00-foundation.md) |
 | 1 — Salesforce business system | `1a04f5257292a6cfe16cc67c93207985638acdd6` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
-| 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; real-model run 10/12) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
+| 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; docs and real-model results in later commits) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 
 Inspect a checkpoint with `git show --stat <commit>`. Later documentation
 commits are handoff updates, not new implementation phases.
@@ -73,7 +71,7 @@ Case writes, complaint analysis and other languages do not exist yet.
 | Browser check (scripted models; real API, MCP, Salesforce, PostgreSQL) | Sign-in, streaming, nested cards, queueing, reload restore, API kill → reconnect → resumed run |
 | Frontend `tsc`, `next build` | Clean |
 | `pip check`, `git diff --check`, secret scan | Clean |
-| Real-model English scenarios (12, `-m llm`, once each) | **10/12 pass**; return_too_late misstated a delivery month, refund_request omitted the chat limitation |
+| Real-model English scenarios (12, `-m llm`, once each) | **10/12 pass**; the 2 failures (a wrong delivery month, a missing refund statement) were fixed and **pass** on one recheck |
 
 Details are in the [Phase 2 handoff](phases/02-support-chat.md#verification-results)
 and the [Phase 1 handoff](phases/01-salesforce.md#verification-results). No
@@ -87,7 +85,7 @@ voice work is deferred and they do not block NABD phases.
 
 - Salesforce: `nabd-dev` connected to `sf` CLI 2.158.7; integration user active.
 - `backend/.env.nabd` (Git-ignored) has database, Salesforce and
-  `NABD_OPENAI_API_KEY` settings. It does not yet have
+  `NABD_OPENAI_API_KEY` settings (values never recorded). It does not yet have
   `NABD_READ_MCP_CONTEXT_SECRET`, so the browser chat stays disabled (503
   `chat_not_configured`) until it is added.
 - Docker: dev `db` (55432), `test-db` (55433) and the **Phase 0** API image
@@ -120,11 +118,12 @@ reports an expired session, run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-Phase 2's real-model run passed 10/12 (see the
+Phase 3 — complaint intelligence and reliable cases — is next and has not
+started. Scope is in the
+[roadmap](roadmap.md#phase-3--complaint-intelligence-and-reliable-cases); write
+its plan first, in the same form as the Phase 2 plan. Phase 2's real-model
+evidence is single runs (see the
 [handoff](phases/02-support-chat.md#real-model-english-run--18-november-2026)).
-Fix the two open behaviours, check only `return_too_late` and `refund_request`
-with the user's approval, record the result, then mark Phase 2 complete. Phase 3 (complaint intelligence and reliable cases) has
-not started; its scope is in the [roadmap](roadmap.md#phase-3--complaint-intelligence-and-reliable-cases).
 
 Model costs: the user pays for OpenAI. Use the free fake-model tests for most
 checks, and ask the user before any paid `pytest -m llm` or other real-model run.

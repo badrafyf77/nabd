@@ -13,10 +13,9 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
   them forward instead of repeating the product interview.
 - [Architecture](docs/nabd/architecture.md) and [contracts](docs/nabd/contracts.md)
   describe the target; status identifies what actually exists.
-- Phases 0 (`512e03b`) and 1 (Salesforce business system, `1a04f52`) are
-  complete. Phase 2 (support chat, `02178fa`) is implemented; its real-model English
-  run passed 10/12, with two behaviour fixes open; Phase 3 follows. Later phase completions
-  must update status and this pointer.
+- Phases 0 (`512e03b`), 1 (Salesforce business system, `1a04f52`) and 2
+  (support chat, `02178fa`) are complete. Phase 3 is the next pending phase.
+  Later phase completions must update status and this pointer.
 - Implement only the phase the user requests. Update its plan/status/handoff,
   verify it, and create a local checkpoint before declaring it complete.
 - `docs/goals/`, `docs/plans/phase-1-*`, `backend/code/server.py`, and the original

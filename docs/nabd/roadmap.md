@@ -2,8 +2,8 @@
 
 Implementation order: phases 0–7. Complete and verify one phase before starting
 the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Phase 0
-is complete at `512e03b`; Phase 1 is complete at `1a04f52`; Phase 2 is implemented
-(real-model English run 10/12, two fixes open); phases 3–7 are pending. [Accepted decisions](decisions.md)
+is complete at `512e03b`; Phase 1 is complete at `1a04f52`; Phase 2 is complete at
+`02178fa` (plus handoff commits); phases 3–7 are pending. [Accepted decisions](decisions.md)
 and [architecture](architecture.md) apply to every phase.
 
 ## Phase 0 — Foundation
@@ -39,8 +39,8 @@ against the real `nabd-dev` org. Reference: [NABD Salesforce](salesforce.md).
 
 Depends on Phase 1.
 
-Plan and handoff: [02-support-chat](phases/02-support-chat.md) — implemented; real-model
-English run 10/12 with two behaviour fixes open.
+Plan and handoff: [02-support-chat](phases/02-support-chat.md) — **complete**; real-model
+English run 10/12, then both failures fixed and rechecked.
 
 - Build authenticated read MCP: customer context, orders/deliveries, FAQ/policies,
   resources, and staff review prompt. Use real transport calls from the agents.
