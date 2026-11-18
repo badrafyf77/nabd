@@ -76,7 +76,7 @@ real-model English run Phase 3 set 7/8 then the failure passed on recheck; Phase
 ## Phase 4 — Multilingual behavior
 
 Plan and handoff: [04-multilingual](phases/04-multilingual.md) — **complete**;
-real-model results are separate approved measurements, not a fresh full run.
+final version 36/36 in one full real-model run.
 
 Depends on Phase 3.
 

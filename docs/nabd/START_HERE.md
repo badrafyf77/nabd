@@ -18,9 +18,9 @@ needed to resume is in the repository; the previous chat is not required.
   fixes 3 of those 4 failures passed a recheck, and `several_orders_needs_info`
   still fails its expectation (it lists returnable items instead of asking).
 - Completed: **NABD Phase 4 — multilingual behavior** (`b4d5f71`). Approved
-  real-model runs: 21/36, then rechecks of the failures down to 1/1; every
-  failing scenario passed after its fix, but there is no fresh full 36/36 run
-  of the final version. See the [Phase 4 handoff](phases/04-multilingual.md#completion-summary).
+  real-model runs: 21/36, rechecks of the failures down to 1/1, then the final
+  version **36/36** in one full run; manual review found wording slips only.
+  See the [Phase 4 handoff](phases/04-multilingual.md#completion-summary).
 - Next: **NABD Phase 5 — live staff follow-up** (not started).
 - Last measured suite: **275 passed** (101 paid scenarios deselected) on macOS
   with real PostgreSQL. Real-org `salesforce verify` 41/41, Apex 17/17,

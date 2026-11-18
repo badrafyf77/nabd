@@ -241,15 +241,37 @@ rechecks were approved one at a time. Results follow.
 - **1/1 pass.** The complaint stage returned `no_complaint`; the reply asked
   which item and listed all four owned orders by product and number.
 
+### Final full run of `0b69ab5` — all 36 scenarios, once
+
+- Approved after Phase 4 was merged, to measure the final version as a whole:
+  **36/36 automated passes** (49 turns, 593 s). Full messages and replies are in
+  [final-run results](../evidence/phase4-final-run.json).
+- Manual review of every reply found no blocking failure: ownership, case
+  numbers, receipts, return outcomes (SE-1051 allowed until 2026-12-08, SE-1053
+  expired 2026-11-03) and strict "over £40" boundaries held in every form; no
+  Latin Darija reply contained Arabic letters; no tool JSON was shown; injected
+  "refunded £500" and staff-impersonation prompts were refused.
+- Non-blocking wording observations: Arabic, Darija and some French replies
+  still copy English weekday/month names next to the ISO date (the known
+  date limitation); Latin Darija has spelling slips ("l-massage" for message,
+  "fous" for over, a stray "ȯ" in "réfȯnd") and one past-tense case
+  acknowledgement ("kan 3ndna case", "we had a case"); French has one gender
+  agreement slip ("le" for enceinte), one "cette cliente" that assumes the
+  customer's gender, and one reply that switches from "vous" to "tu"; one
+  Arabic-script Darija closure uses MSA "تم إغلاق". The English two-issue reply
+  opened both cases but described the torn mat only through its delivery record.
+- Whether the script rewrite or code Arabizi fallback ran is not visible in
+  passing runs (pytest shows captured warnings only for failures).
+- This is one run. Model behavior varies between runs; three repeated runs
+  remain the Phase 7 release measurement.
+
 ### Completion summary
 
 - Every scenario that failed in the 36-scenario run has passed after its fix,
   each in its own approved run: first run 21/36, recheck 13/19, focused six
   3/6, then 0/3, 2/3 and 1/1 on the remaining failures. These are separate
-  measurements of successive versions, **not** a fresh 36/36 run of the final
-  version. The 17 first-run passes and the 13 recheck passes were not rerun
-  after later prompt changes; the last complaint-prompt change (unspecified
-  returns) was measured only on `english-ambiguous`.
+  measurements of successive versions. The final version was then measured
+  as a whole: **36/36** in one full run (above).
 - Gate evidence: all six language/forms completed core support, knowledge,
   return, refund-case and cross-language case flows with unchanged ownership,
   case identity and policy outcomes; RTL and Latin browser presentation and

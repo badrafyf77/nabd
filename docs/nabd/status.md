@@ -6,10 +6,10 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 **Phases 0–4 are complete; Phases 5–7 are pending.** Working branch:
 `codex/nabd-chat-salesforce`, merged into `main` at the end of Phase 4.
-Phase 4 measured its real-model results in six approved runs (21/36, then
-rechecks of the failures down to 1/1); every failing scenario passed after
-its fix, but no fresh full 36-scenario run of the final version exists. See
-the [Phase 4 handoff](phases/04-multilingual.md#completion-summary).
+Phase 4's final version passed **36/36** multilingual scenarios in one full
+real-model run, after earlier runs and rechecks (21/36 down to 1/1). Manual
+review found wording slips but no blocking failure. See the
+[Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b69ab5--all-36-scenarios-once).
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
@@ -105,7 +105,7 @@ risk warnings and quality review do not exist yet.
 | Frontend `tsc` | Clean |
 | `pip check`, `git diff --check`, secret scan | Clean |
 | Offline suite, macOS, real PostgreSQL (Phase 4 final) | **275 passed**; 101 paid scenarios deselected |
-| Real-model multilingual scenarios (Phase 4, approved runs) | 21/36, recheck 13/19, focused 3/6, then 0/3, 2/3, 1/1; every failure passed after its fix; no fresh 36/36 run |
+| Real-model multilingual scenarios (Phase 4, approved runs) | 21/36, recheck 13/19, focused 3/6, then 0/3, 2/3, 1/1; final version **36/36** in one full run (manual review: wording slips only) |
 | Real-model English scenarios (20, `-m llm`, once each) | Phase 3 set **7/8**, Phase 2 set as full turns **9/12** (after two over-strict checks were fixed); after two prompt fixes 3 of the 4 failures **pass** on recheck; `several_orders_needs_info` still fails its expectation |
 
 Details are in the [Phase 3 handoff](phases/03-complaints.md#verification-results),
