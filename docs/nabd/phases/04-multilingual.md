@@ -198,6 +198,27 @@ one recheck of failures after the free code checks passed. Results pending.
   scenarios deselected. A focused paid confirmation of the three failed
   scenarios needs a new explicit approval.
 
+### Recheck of `aa74bdc` — the three failed scenarios, once each
+
+- Approved run of `english-ambiguous`, `darija_latin-returns` and
+  `darija_arabic-returns`: **0/3 automated passes**. Each failure is a new,
+  genuine model-behavior fault; the relaxed checks and the script repair held.
+- Script: the Latin Darija reply contained no Arabic letters and the code
+  Arabizi fallback was not used.
+- `english-ambiguous`: the reply repeated the complaint stage's generic
+  question ("tell me the product name or the order number") without naming the
+  four owned orders. The prompt said both "ask a listed question" and "a generic
+  clarification does not replace the order index".
+- `darija_latin-returns` and the late-return step of `darija_arabic-returns`
+  (after its allowed speaker clarification and a correct SE-1051 answer): one
+  index order matched the named product (SE-1051, SE-1053), but the Supervisor
+  asked the customer to confirm it instead of asking Orders for eligibility.
+- Fix (prompt only, `prompts/supervisor.md`): a listed which-order/product
+  question must name the matching index purchases; exactly one matching
+  purchase is identified and goes straight to the Orders specialist. A free
+  check pins these rules. Free suite: **275 passed**, 101 deselected.
+- Not yet measured with the real model; another paid recheck needs approval.
+
 ### Current limitations to carry forward
 
 - Correct calendar dates are preserved, but some non-English model replies still

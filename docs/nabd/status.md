@@ -12,8 +12,10 @@ Phase 4 checkpoints: `e352b0a`, `94957e5`, `e7c876a`, latest `dbccbf1`.
 The first paid run measured 21/36 automatic passes; its 19-scenario recheck
 passed 13/19. The focused confirmation of the final six passed 3/6: two
 over-strict checks (now fixed) and one genuine Latin Darija script failure,
-fixed by a focused rewrite plus a code Arabizi fallback. 275 free tests pass;
-a paid recheck of those three needs approval. `main` still holds Phase 3.
+fixed by a focused rewrite plus a code Arabizi fallback. The recheck of those
+three passed 0/3 on new prompt-behavior faults (generic clarification, asking
+to confirm a single matching order); the script held. Prompt fixes pass 275
+free tests; another paid recheck needs approval. `main` still holds Phase 3.
 Continue Phase 4 on that branch and merge it into `main` when Phase 4 is
 finished.
 

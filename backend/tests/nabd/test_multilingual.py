@@ -95,6 +95,8 @@ def test_supervisor_gets_selected_language_and_orders_gets_exact_original_wordin
         Turn(MID, form.delayed, "Sara", fx.SEED_DATE, []), {"language": selected})
     embedded = re.search(r"selected language/script:\s*(\{[^}]+\})", prompt).group(1)
     assert json.loads(embedded) == selected
+    # Clarify with named owned choices; a single matching purchase is checked, not re-confirmed.
+    assert "instead of asking generically" in prompt and "exactly one purchase in the index" in prompt
 
 
 def test_darija_script_follows_original_unless_an_explicit_preference_overrides_it():
