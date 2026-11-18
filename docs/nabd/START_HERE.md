@@ -44,7 +44,8 @@ needed to resume is in the repository; the previous chat is not required.
    chat underneath, and the [Salesforce reference](salesforce.md) the org.
 4. Phase 5's scope and gate in the
    [roadmap](roadmap.md#phase-5--live-staff-follow-up) and the entry criteria in
-   [status](status.md#next-step). Write `docs/nabd/phases/05-staff-follow-up.md`
+   [status](status.md#next-step), with what is already decided and the
+   starting points in the code. Write `docs/nabd/phases/05-staff-follow-up.md`
    first when Phase 5 is requested.
 5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
    responsibilities, data ownership, agent flow, and future public interfaces.
@@ -88,9 +89,10 @@ phase; switch to (or recreate from `main`) the working branch before editing.
   never fixtures or the legacy SQLite shop database.
 - `backend/code/server.py` and `docs/plans/phase-1-status.md` are legacy voice
   artifacts. Their Phase 1 is not NABD's next Phase 1.
-- The legacy 113 unit tests still pass. The 45 legacy and 20 NABD paid
-  scenario runs are deselected by default. The NABD scenarios ran once each
-  in Phases 2 and 3 with the user's approval; ask before any further paid run.
+- The legacy 113 unit tests still pass. The 101 paid scenarios (45 legacy,
+  12 Phase 2, 8 Phase 3, 36 Phase 4) are deselected by default. Every NABD
+  paid run so far was approved by the owner one run at a time; ask before any
+  further paid run, and say which scenarios and how many times.
 - NABD agents live in `backend/code/nabd/agents/`; the legacy
   `agents/support` and `agents/orders` graphs are voice-era code kept for
   their tests, not the NABD runtime.
@@ -101,6 +103,9 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 - Apex SOQL in the gateway must state `WITH SYSTEM_MODE`: implicit-mode queries
   on objects the integration user cannot read failed at runtime although the
   Apex tests (run as admin) passed.
+- Latin Darija replies pass a writing-system check: one focused rewrite, then
+  code conversion of leftover Arabic letters to Arabizi. It checks script, not
+  meaning; keep it when adding new customer-facing Supervisor text.
 - Browser checks use free scripted models on the real stack:
   `backend/scripts/browser_stack.py` (see its docstring). It writes a real
   test case to the org; close it afterwards.

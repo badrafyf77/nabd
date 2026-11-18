@@ -1,6 +1,6 @@
 # NABD status
 
-Updated: 18 November 2026 (Africa/Casablanca).
+Updated: 18 November 2026 (Africa/Casablanca), at the end of Phase 4.
 
 ## Current work
 
@@ -108,10 +108,11 @@ risk warnings and quality review do not exist yet.
 | Real-model multilingual scenarios (Phase 4, approved runs) | 21/36, recheck 13/19, focused 3/6, then 0/3, 2/3, 1/1; final version **36/36** in one full run (manual review: wording slips only) |
 | Real-model English scenarios (20, `-m llm`, once each) | Phase 3 set **7/8**, Phase 2 set as full turns **9/12** (after two over-strict checks were fixed); after two prompt fixes 3 of the 4 failures **pass** on recheck; `several_orders_needs_info` still fails its expectation |
 
-Details are in the [Phase 3 handoff](phases/03-complaints.md#verification-results),
+Details are in the [Phase 4 handoff](phases/04-multilingual.md#handoff),
+the [Phase 3 handoff](phases/03-complaints.md#verification-results),
 the [Phase 2 handoff](phases/02-support-chat.md#verification-results) and the
 [Phase 1 handoff](phases/01-salesforce.md#verification-results). Paid LLM
-calls were made only in the approved scenario runs of Phases 2 and 3.
+calls were made only in the approved scenario runs of Phases 2, 3 and 4.
 
 Open legacy voice issues remain documented in `docs/plans/phase-1-status.md`;
 voice work is deferred and they do not block NABD phases.
@@ -134,6 +135,11 @@ voice work is deferred and they do not block NABD phases.
   The free scripted browser stack is stopped; the frontend on 3000 now points
   to the real API on 8081. The C006 browser case 00001044 was closed as withdrawn
   after the multilingual checks (directly verified in Salesforce).
+- End of Phase 4 (this session): `test-db` on 55433 was up and used for the
+  final 275-test suite; the paid runs read the real org through the
+  integration user's client credentials. The `sf` CLI session and the
+  `api`/MCP containers were not rechecked. Paid runs use the in-memory case
+  gateway, so they added no org cases.
 - Test data in the org from Phase 3 checks: smoke case 00001043 (C008,
   closed), probe 00001042 (C008, closed as withdrawn) and browser case
   00001044 (C006, closed as withdrawn).
@@ -175,6 +181,59 @@ resume commands above pass, and the [Phase 4 limitations](phases/04-multilingual
 and [Phase 3 limitations](phases/03-complaints.md#known-limitations) are
 carried forward. Write `docs/nabd/phases/05-staff-follow-up.md` first, in the
 same form as the Phase 4 plan.
+
+### Already decided for Phase 5 (do not re-ask)
+
+- Staff work only in Salesforce: no NABD staff portal, no live chat takeover.
+- Customer-visible staff case changes and replies appear automatically while
+  the chat is open, with replay/reconciliation after reconnects. Private notes
+  and internal risk assessments never reach customer streams
+  ([decisions](decisions.md#complaints-and-staff-workflow)).
+- Target design: after-commit platform events for Cases and public
+  CaseComments; a Pub/Sub worker that stores replay cursors only after durable
+  processing, re-reads current authorized state, then appends customer events;
+  de-duplication of NABD's own write acknowledgements and echoed events;
+  reconciliation after reconnect and periodically; privacy changes/deletion;
+  healthy-connection p95 at most 5 s
+  ([architecture](architecture.md#activity-streaming-and-staff-synchronization)).
+- Translated staff replies are clearly labeled, with the original kept
+  ([roadmap](roadmap.md#phase-5--live-staff-follow-up)).
+
+### Starting points for Phase 5 (facts about the code, not decisions)
+
+- **Salesforce has no staff-change feed yet**: no platform event, no Pub/Sub
+  client dependency, no CaseComment handling. The only trigger is
+  `KnowledgeEntryTrigger`; Apex classes are `NabdCaseCommands` and
+  `KnowledgeEntryRevisions`. All metadata is generated from
+  `backend/code/nabd/salesforce/schema.py`.
+- **Case fields to build on**: `Status` (New, Working, Waiting on Customer,
+  Waiting on Staff, Closed), `Staff_Action_Required__c` /
+  `Staff_Action_Completed__c`, `English_Summary__c`, `Customer_Language__c`,
+  and `NABD_Conversation_Id__c` (set by the gateway on create/reopen, not
+  staff-editable): the link from a case back to its chat.
+- **Echo de-duplication**: every NABD case write already has an operation ID
+  and a stored gateway receipt (`NabdCaseCommands`, `nabd.case_commands`).
+- **Integration user**: one licence shared by the read and write MCP servers;
+  read-only objects plus the gateway permission set. Subscribing to an event
+  channel will need its own permission; keep direct object writes refused.
+- **Customer event path**: events live in `nabd.events` with a per-conversation
+  sequence (`Store.emit`, `events_after`, `snapshot` in
+  `backend/code/nabd/runtime/store.py`). SSE is
+  `GET /api/conversations/{id}/events` with `after` or `Last-Event-ID`; the
+  snapshot is `GET /api/conversations/{id}`. A staff update should be one more
+  event type on this path, not a new stream.
+- **Background loop pattern**: `backend/code/nabd/runtime/worker.py` already
+  runs the periodic command reconciliation loop; a subscriber/reconciler can
+  follow it. The latest migration is `0003_case_commands`, so a cursor table
+  would be `0004`.
+- **Frontend**: `frontend/src/chat/reducer.ts` keeps confirmed cases by number
+  (the case strip); templates are in `frontend/src/chat/i18n.ts` with five
+  language sets, so every new staff-update code needs all five. RTL and
+  per-run language already work.
+- **Tests to reuse**: `backend/tests/nabd_fakes.py` (`FakeGateway` applies the
+  gateway rules), scripted flows in `tests/nabd/test_complaints.py`, the paid
+  harness `tests/nabd/live_turns.py`, and `backend/scripts/browser_stack.py`
+  for the real stack with scripted models.
 
 When Phase 5 is finished: update its handoff, this status, START_HERE, the
 roadmap and the AGENTS pointer, commit as `badrafyf77`, then merge into `main`
