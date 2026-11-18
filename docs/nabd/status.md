@@ -4,83 +4,78 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 ## Current work
 
-**Phase 0 is complete and verified. Phases 1–7 are pending.**
+**Phases 0 and 1 are complete and verified. Phases 2–7 are pending.**
 Branch: `codex/nabd-chat-salesforce`.
 
-Implementation checkpoint: **`512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b`**
-(`Establish NABD text foundation (Phase 0)`). Later documentation commits are
-handoff updates, not new implementation phases. Inspect the actual checkpoint:
+| Phase | Checkpoint | Handoff |
+| --- | --- | --- |
+| 0 — Foundation | `512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b` | [Phase 0 plan](phases/00-foundation.md) |
+| 1 — Salesforce business system | commit *Establish NABD Salesforce business system (Phase 1)*, the commit after `926abbe` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
 
-```bash
-git show --stat 512e03b
-```
+Inspect a checkpoint with `git show --stat <commit>`. Later documentation
+commits are handoff updates, not new implementation phases.
 
-Starting point: commit `379eac4` (`Write down where Phase 1 stopped`) on `phase-1`.
-Working tree was clean. Baseline verification before changes:
-`backend/.venv/bin/python -m pytest -q` from `backend`:
-**113 passed, 45 deselected in 2.54 seconds**.
+## Delivered so far
 
-## Baseline interpretation
+Phase 0 — independent `nabd.app:app` with `/healthz` and `/readyz`; validated,
+redacted settings; pooled PostgreSQL; explicit serialized Alembic/checkpointer
+migrations; lifespan-owned persistent checkpointer; pinned Python 3.14
+speech-free dependencies; CPU-only image and Compose stack.
 
-The 113 free tests cover reusable graph/tool budgets, Supervisor/Orders behavior,
-customer-scoped ShopEasy reads, scenario assertions, tracing, configuration, and
-the legacy phone/name identity adapter. The 45 deselected runs are fifteen
-English LLM scenarios repeated three times, not a new measured model score.
+Phase 1 — a dedicated Salesforce Developer Edition org (`nabd-dev`, org ID
+`00DgL00000iV5JpUAK`, API 68.0) holding the ShopEasy business model, staff
+knowledge, queues and access model, deployed from the repository:
 
-Open legacy issues are documented in `docs/plans/phase-1-status.md`: full voice
-call completion, paused spoken-phone parsing, voice call ending after transfer,
-full paid-scenario rerun after the last prompt change, and old Docker/Modal
-verification. Voice work is deferred. Agent facts/ownership/scenarios remain
-reuse candidates; voice timing, phone identity, direct SQLite integration, and
-English-only spoken prompts require adaptation for NABD.
+- one schema contract (`backend/code/nabd/salesforce/schema.py`) that
+  generates the SFDX metadata in `salesforce/`, maps the seed and whitelists
+  the backend's queries;
+- repeatable `deploy`, `configure`, `seed`, `reset`, `verify` and `smoke`
+  commands (`python -m nabd salesforce …`);
+- seeded fixtures (seed date 18 November 2026): legacy 10 customers/25 orders
+  unchanged plus six Moroccan/French customers, multilingual complaint cases
+  with original evidence, versioned FAQ/policy revisions and risk rules;
+- an API-only integration user behind the `NABD_Backend` External Client App
+  (client credentials flow), read-only and customer-safe;
+- the typed, customer-scoped Salesforce read adapter with token refresh and
+  secret-free errors.
 
-## Delivered foundation
-
-- Independent `nabd.app:app` with `/healthz` and `/readyz`.
-- Dedicated validated/redacted settings and `.env.nabd.example`.
-- Pooled PostgreSQL, explicit serialized Alembic/checkpointer migrations, strict
-  checkpoint deserialization, and lifespan-owned persistent checkpointer.
-- Pinned Python 3.14 runtime/dev dependency sets, isolated `.venv-text`, CPU-only
-  image, named database volume, migration service, and isolated test DB/service.
-- Accepted decisions, target architecture/contracts, eight-phase roadmap, and
-  Phase 0 plan/handoff documentation.
+The reference for objects, fields, access and commands is
+[NABD Salesforce](salesforce.md). Chat endpoints, MCP servers, case
+mutations and the NABD frontend do not exist yet.
 
 ## Verification
 
 | Check | Actual result |
 | --- | --- |
-| Original baseline before changes | 113 passed; 45 paid scenario runs deselected |
-| Full suite, clean text venv on macOS/Python 3.14.4 | **130 passed, 45 deselected**, 11.23s |
-| Full suite, speech-free Linux test image | **130 passed, 45 deselected**, 10.88s; no warnings |
-| New Phase 0 checks | 17 passing cases, including real PostgreSQL |
-| Explicit migration and concurrent runners | Repeated upgrades pass; concurrent runners serialize |
-| Missing DB/schema/checkpoint tables | Liveness 200; readiness 503; no secret/error details in response |
-| Separate backend process restart | Original LangChain message restores; graph resumes count 1 -> 2 |
-| Running API container restart | Checkpoint restores and resumes against the named-volume database |
-| Running PostgreSQL outage/restart | Liveness stays 200, readiness becomes 503 then recovers to 200; graph state survives |
-| Runtime image isolation | Non-root UID 10001; no torch, torchaudio, STT, TTS, or faster-whisper packages |
-| Dependency compatibility | `pip check`: no broken requirements |
-| Docs and patch formatting | Local document links resolve; `git diff --check` passes |
+| Phase 0 baseline (before Phase 1) | 130 passed, 45 deselected (macOS and Linux) |
+| Offline suite, macOS, real PostgreSQL | **186 passed**, 45 paid scenario runs deselected |
+| Offline suite, Linux test image | **178 passed, 8 skipped**, 45 deselected; skips need `salesforce/`, outside the image context |
+| Salesforce deploy with local Apex tests | Succeeded; Apex 4/4, 100% coverage |
+| `verify` against the org | 37/37 checks passed |
+| Seed, repeated seed | 188 creates; then 0 writes |
+| Staff-edit preservation and explicit reset | Edited record preserved; reset refused without matching confirmation; reset restored it |
+| `smoke` as the integration user | 12/12 checks passed |
+| `pip check`, `git diff --check`, secret scan | Clean |
 
-The concurrency test exposed an interaction between a blocking advisory-lock
-statement and LangGraph's concurrent index creation. Migration acquisition now
-uses short `pg_try_advisory_lock` attempts with a 60-second acquisition deadline;
-the test enforces bounded completion. Keep this regression coverage.
+Details and the full check list are in the
+[Phase 1 handoff](phases/01-salesforce.md#verification-results). No paid LLM
+calls were made in Phase 0 or Phase 1. The 45 deselected runs are the legacy
+English LLM scenarios (15 × 3), not a new measured model score.
 
-No paid LLM calls or Salesforce requests were used. These results validate the
-foundation, not the future multilingual agent behavior or Salesforce integration.
+Open legacy voice issues remain documented in `docs/plans/phase-1-status.md`;
+voice work is deferred and they do not block NABD phases.
 
 ## Last observed runtime — 18 November 2026
 
-- API: `http://localhost:8081`; `/healthz` and `/readyz` both return 200.
-- PostgreSQL: localhost:55432; named volume `nabd_nabd_postgres`.
-- One-shot migration service exited successfully. Disposable test DB is stopped.
-- Backend code in the container matches the verified Phase 0 implementation.
-- Local Python environment: `backend/.venv-text` (ignored by Git).
+- Salesforce: `nabd-dev` connected to `sf` CLI 2.158.7; integration user
+  `nabd-integration.00dgl00000iv5jpuak@example.com` active.
+- `backend/.env.nabd` exists locally (Git-ignored) with database and
+  Salesforce integration settings. Its secret values are not recorded anywhere.
+- Disposable PostgreSQL test service (localhost:55433) was running for the
+  suite. API/DB containers from Phase 0 were not rechecked in this session.
 
-Recheck these services in every new session. A recorded healthy endpoint does
-not imply Docker is running later. The fixture credentials in the development
-guide are local-only examples; do not save real integration secrets in notes.
+Recheck these in every new session; a recorded healthy state does not imply
+the CLI session, Docker or containers are still available.
 
 ## Exact resume commands
 
@@ -89,31 +84,22 @@ From the repository root:
 ```bash
 git switch codex/nabd-chat-salesforce
 cd backend
-docker compose -f docker-compose.nabd.yml up -d --build --wait api
-curl --fail http://localhost:8081/readyz
 docker compose -f docker-compose.nabd.yml --profile test up -d --wait test-db
 NABD_TEST_DATABASE_URL=postgresql://nabd:nabd_test@127.0.0.1:55433/nabd_test \
   .venv-text/bin/python -m pytest -q
+sf org display --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce smoke
 ```
 
-For a fresh checkout, first install the pinned text-dev dependencies as described
-in the development guide, or run the all-container test command there.
+If `sf org display` reports an expired session, run
+`sf org login web --alias nabd-dev`. The Phase 0 API stack still starts with
+`docker compose -f docker-compose.nabd.yml up -d --build --wait api`.
 
-## Resume and next phase
+## Next phase
 
-Begin with [START_HERE](START_HERE.md), then the detailed
-[Phase 1 plan](phases/01-salesforce.md). It links the remaining accepted decisions,
-architecture, development commands, and roadmap in the intended reading order.
-
-Phase 1 entry criteria: Phase 0 verification passes and a dedicated Salesforce
-development org can be registered/configured. Org creation and credentials are
-Phase 1 setup work, not an unfinished Phase 0 implementation.
-
-No Salesforce connection, tooling, org configuration, or credentials were
-created/verified during Phase 0. Inspect current local capabilities before
-asking for any necessary signup/authorization action.
-
-The next authorized phase should implement the Salesforce org/model/knowledge
-setup, repeatable metadata/seed deployment, and authenticated read smoke checks.
-No chat endpoints, MCP server, Salesforce schema, or frontend redesign have been
-implemented early. Start Phase 1 only when the user requests it.
+Phase 2 — support chat and real-time agent progress — is next and has not
+started. Entry criteria: the commands above pass. Its read MCP should wrap
+`nabd.salesforce.reads.SalesforceReads`; extend `NABD_Integration_Read` only
+together with the features that need more fields. Start Phase 2 only when the
+user requests it.

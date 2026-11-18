@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Item_Key__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description>Order number plus line number, such as SE-1042-1.</description>
+    <externalId>true</externalId>
+    <label>Item Key</label>
+    <length>30</length>
+    <required>true</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

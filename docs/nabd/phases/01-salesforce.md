@@ -1,8 +1,9 @@
 # Phase 1 — Salesforce business system
 
-**Status: pending.** Depends on completed [Phase 0](00-foundation.md), checkpoint
-`512e03b`. This plan records the approved next phase; writing it does not start
-Salesforce setup or deployment.
+**Status: complete (18 November 2026).** Depends on completed
+[Phase 0](00-foundation.md), checkpoint `512e03b`. The handoff at the end of
+this page records what was delivered and verified; the schema/operations
+reference is [NABD Salesforce](../salesforce.md).
 
 ## Outcome
 
@@ -109,3 +110,103 @@ AGENTS pointer. Record org alias/ID without credentials, deployed metadata,
 seed date/counts, test evidence, configuration names, known limitations, the Git
 checkpoint, and exact deploy/seed/read-smoke resume commands. Start no later
 phase automatically.
+
+## Handoff — completed 18 November 2026
+
+Git checkpoint: the commit *Establish NABD Salesforce business system (Phase 1)*
+on `codex/nabd-chat-salesforce` (hash recorded in [status](../status.md)).
+
+### Delivered
+
+- **Dedicated org** `nabd-dev` (Developer Edition, org ID `00DgL00000iV5JpUAK`,
+  API 68.0), connected to the `sf` CLI (v2.158.7). No credentials are stored in
+  the repository.
+- **Schema contract** `backend/code/nabd/salesforce/schema.py` and generator
+  `metadata.py` producing the SFDX project in `salesforce/force-app`
+  (164 generated files: 9 custom objects incl. a custom metadata type, custom
+  fields on Account/Contact/Case/Task, validation rules, layouts, tabs, the NABD
+  Support app, five Case queues, two groups, two permission sets, Case
+  status/origin value sets, a knowledge sharing rule and category routes).
+  `python -m nabd salesforce check` and a test fail on any drift.
+- **Hand-written source**: Apex `KnowledgeEntryRevisions` + trigger + tests
+  (one published revision per entry), and the `NABD_Backend` External Client
+  App with the client credentials flow. Its run-as policy lives in
+  `salesforce/integration-app` and receives the username from the environment.
+- **Access**: `NABD_Staff` for staff; API-only integration user with the
+  Salesforce Integration licence, Salesforce API Integration permission set
+  licence and read-only `NABD_Integration_Read`; drafts and retired knowledge
+  hidden by sharing; internal case fields, evidence, risk and receipt objects
+  not readable by the integration user.
+- **Fixtures and seed**: seed date 18 November 2026; 16 customers, 35 orders,
+  39 items, 35 deliveries, 24 knowledge revisions (22 published, 1 retired,
+  1 draft), 7 multilingual cases, 10 evidence records, 3 tasks, 3 risk rules.
+  Fingerprinted upserts preserve staff edits; `reset` is separate and needs
+  `--confirm`.
+- **Backend adapter**: `SalesforceSettings`, client-credentials token handling
+  with one refresh on expiry, typed errors without secrets or fallback data,
+  validated/escaped SOQL, and the customer-scoped typed read adapter.
+
+### Verification results
+
+| Check | Result |
+| --- | --- |
+| Validation-only deploy, then real deploy with `RunLocalTests` | Succeeded; Apex 4/4 passing, 100% coverage |
+| `verify` against the org | **37/37**: schema/type/picklist/external-ID match for 13 objects, statuses, origin, queues, routes, fixture counts, order/item/delivery links, one published revision per entry, publication states, case queues and evidence, task links, staff/integration access, client app approval |
+| First seed / repeated seed | 188 creates / **0 writes** (all unchanged, no duplicates) |
+| Staff edit then seed | Edited case reported as preserved and left unchanged |
+| Reset with wrong `--confirm` / correct `--confirm` | Refused (exit 2) / restored the one edited case; following seed wrote 0 |
+| `smoke` as the integration user | **12/12**: auth, customer profile, customer-scoped orders, items/delivery, other customer's order invisible, case summaries, current published knowledge only, platform hides drafts/retired, internal field refused, writes refused, expired session refreshed, wrong secret fails without leaking |
+| Offline suite, macOS, real PostgreSQL | **186 passed**, 45 paid scenario runs deselected |
+| Offline suite, Linux test image | **178 passed, 8 skipped** (tests needing `salesforce/`, outside the image's build context), 45 deselected |
+| Secret scan of changed files, `pip check`, `git diff --check` | No secrets or personal emails; no broken requirements; clean |
+
+Offline checks use fakes and do not satisfy the org gate on their own; the
+org gate is the deploy, verify, seed and smoke results above. No LLM calls
+were made in Phase 1.
+
+### Findings worth keeping
+
+- Current `sf` CLI versions redact the token in `org display`; the developer
+  commands read it through `sf org auth show-access-token` and never print it.
+- Address parts are permissioned through compound fields
+  (`Account.BillingAddress`); activity fields through `Task.`/`Event.`
+  (`Activity.` entries were dropped on redeploy).
+- The client app uses admin-approved users. Deploying its OAuth policy clears
+  the approved permission sets, so `configure` grants
+  `NABD_Integration_Read` access (a `SetupEntityAccess` row) after deploying it.
+  Without that, tokens fail with `invalid_app_access`.
+- The integration user's refused writes report
+  `CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY` ("entity type cannot be updated").
+
+### Known limitations
+
+- Task page layouts are unchanged; the two NABD task fields are visible through
+  the permission set but not placed on the Task layout.
+- Seeded cases have the seed run as `CreatedDate` (backdating needs an extra
+  audit permission); historical times live on evidence `Captured_At__c`.
+- Fixture dates are fixed to the seed date. Re-seeding with a later
+  `--seed-date` moves unedited records forward; staff-edited ones are preserved.
+- Darija and Arabic fixture wording still needs the manual native review
+  planned for Phase 4.
+- Staff inspection was verified through metadata, layouts, permissions and
+  data checks, not a recorded click-through of the Salesforce UI.
+
+### Resume commands
+
+From `backend/` (the CLI must be logged in: `sf org login web --alias nabd-dev`):
+
+```bash
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce check
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce deploy --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce configure --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce seed --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce smoke
+```
+
+`smoke` needs `NABD_SALESFORCE_DOMAIN_URL`, `NABD_SALESFORCE_CLIENT_ID` and
+`NABD_SALESFORCE_CLIENT_SECRET` in `backend/.env.nabd`. A new org also needs
+`configure --create-integration-user` once.
+
+Next entry criteria for Phase 2: these commands pass, and the read adapter is
+the starting point for the authenticated read MCP. Phase 2 has not started.

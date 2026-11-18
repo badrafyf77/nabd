@@ -1,0 +1,4 @@
+# Retrieved originals used by the generator; never deployed directly.
+base-layouts/
+**/.sfdx
+**/.sf

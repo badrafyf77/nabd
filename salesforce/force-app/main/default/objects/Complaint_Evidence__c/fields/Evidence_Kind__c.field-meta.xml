@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Evidence_Kind__c</fullName>
+    <description>Distinguishes customer-reported claims from tool-verified facts.</description>
+    <label>Evidence Kind</label>
+    <required>true</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>customer_report</fullName>
+                <default>false</default>
+                <label>Customer report</label>
+            </value>
+            <value>
+                <fullName>verified_fact</fullName>
+                <default>false</default>
+                <label>Verified fact</label>
+            </value>
+            <value>
+                <fullName>customer_confirmation</fullName>
+                <default>false</default>
+                <label>Customer confirmation</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

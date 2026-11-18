@@ -1,0 +1,16 @@
+{
+  "name": "nabd-salesforce",
+  "namespace": "",
+  "packageDirectories": [
+    { "path": "force-app", "default": true },
+    { "path": "integration-app" }
+  ],
+  "sourceApiVersion": "68.0",
+  "replacements": [
+    {
+      "filename": "integration-app/main/default/extlClntAppOauthPolicies/NABD_Backend_oauthPlcy.ecaOauthPlcy-meta.xml",
+      "stringToReplace": "__NABD_SALESFORCE_INTEGRATION_USERNAME__",
+      "replaceWithEnv": "NABD_SALESFORCE_INTEGRATION_USERNAME"
+    }
+  ]
+}

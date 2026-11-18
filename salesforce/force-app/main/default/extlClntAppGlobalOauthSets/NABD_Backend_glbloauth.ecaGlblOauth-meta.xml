@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtlClntAppGlobalOauthSettings xmlns="http://soap.sforce.com/2006/04/metadata">
+    <callbackUrl>https://localhost/oauth/callback</callbackUrl>
+    <externalClientApplication>NABD_Backend</externalClientApplication>
+    <isClientCredentialsFlowEnabled>true</isClientCredentialsFlowEnabled>
+    <isConsumerSecretOptional>false</isConsumerSecretOptional>
+    <isPkceRequired>true</isPkceRequired>
+    <isSecretRequiredForRefreshToken>true</isSecretRequiredForRefreshToken>
+    <label>NABD_Backend_glbloauth</label>
+</ExtlClntAppGlobalOauthSettings>

@@ -28,7 +28,15 @@ flowchart TD
     SF --> STAFF[Salesforce staff workspace and dashboards]
 ```
 
-## Current boundary: Phase 0
+## Current boundary: Phases 0–1
+
+Phase 1 adds `backend/code/nabd/salesforce/`: the schema contract that
+generates `salesforce/` metadata, fixture seed/verify commands, client
+credentials authentication and the typed customer-scoped read adapter. No
+FastAPI route uses Salesforce yet. Concrete objects, fields and access are in
+[NABD Salesforce](salesforce.md). The Phase 0 boundary below is unchanged.
+
+### Phase 0 foundation
 
 `backend/code/nabd/app.py` is a standalone FastAPI application with health and
 readiness endpoints. Its lifespan owns a psycopg asynchronous pool and an

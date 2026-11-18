@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Source_Message_Id__c</fullName>
+    <description>Stable NABD message ID (or fact reference) this evidence came from.</description>
+    <externalId>true</externalId>
+    <label>Source Message ID</label>
+    <length>64</length>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

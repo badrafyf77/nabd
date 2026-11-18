@@ -53,3 +53,40 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_url(self) -> URL:
         return make_url(self.database_url.get_secret_value()).set(drivername="postgresql+psycopg")
+
+
+class SalesforceSettings(BaseSettings):
+    """Server-side credentials of the restricted NABD integration user.
+
+    Loaded separately from ``Settings`` so storage-only commands keep working
+    without Salesforce, and Salesforce commands never need the database URL.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="NABD_SALESFORCE_",
+        env_file=BACKEND_ROOT / ".env.nabd",
+        extra="ignore",
+        hide_input_in_errors=True,
+        frozen=True,
+    )
+
+    domain_url: str
+    client_id: SecretStr = Field(min_length=1)
+    client_secret: SecretStr = Field(min_length=1)
+    api_version: str = Field(default="68.0", pattern=r"^\d{2,3}\.0$")
+    timeout_seconds: float = Field(default=15.0, ge=1, le=120)
+
+    @field_validator("domain_url")
+    @classmethod
+    def validate_domain_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
+        if (
+            parsed.scheme != "https"
+            or not host.endswith(".my.salesforce.com")
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("must be the org's https://<domain>.my.salesforce.com My Domain URL")
+        return f"https://{host}"

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Revision_Must_Be_Positive</fullName>
+    <active>true</active>
+    <description>Keeps revision keys stable and ordered.</description>
+    <errorConditionFormula>Revision__c &lt; 1</errorConditionFormula>
+    <errorDisplayField>Revision__c</errorDisplayField>
+    <errorMessage>Revision numbers start at 1.</errorMessage>
+</ValidationRule>

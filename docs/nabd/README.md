@@ -4,8 +4,9 @@ NABD is ShopEasy's multilingual text support and complaint-intelligence product.
 Salesforce owns business records and knowledge; PostgreSQL owns execution state.
 The implementation progresses through phases 0–7. **For a new chat, start with
 [START_HERE](START_HERE.md)** for the checkpoint, reading order, pitfalls, and
-copyable continuation prompt. Current progress is in [status](status.md); the
-next work is in [Phase 1](phases/01-salesforce.md).
+copyable continuation prompt. Current progress is in [status](status.md). Phase 1
+delivered the [Salesforce business system](salesforce.md); Phase 2 is next in the
+[roadmap](roadmap.md).
 
 ## Phase 0: run the text foundation
 
@@ -33,7 +34,7 @@ The only product endpoints implemented in Phase 0 are:
 Readiness checks the application migration revision and LangGraph migration
 revision. The API never silently creates tables during startup. A missing
 `NABD_DATABASE_URL` is a configuration error. Model/Salesforce credentials are
-not required in Phase 0. Chat and Salesforce features arrive in phases 1–3.
+not required in Phase 0. Salesforce commands arrived in Phase 1 (below); chat arrives in Phase 2.
 
 ```bash
 # Inspect services or rerun explicit migrations:
@@ -76,6 +77,45 @@ The legacy `backend/.env` is not loaded by NABD startup.
 Settings reject malformed URLs and invalid pool bounds, and redact credentials
 in validation errors and representations. Readiness responses contain no driver
 errors or connection strings.
+
+## Phase 1: Salesforce business system
+
+Salesforce work needs the Salesforce CLI (`npm install --global @salesforce/cli`)
+logged in to the dedicated org: `sf org login web --alias nabd-dev`. The full
+reference (objects, access, fixtures, read adapter) is
+[NABD Salesforce](salesforce.md). From `backend/`:
+
+```bash
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce generate   # after editing schema.py
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce deploy --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce configure --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce seed --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce smoke
+```
+
+A brand-new org needs `configure --create-integration-user` once; it creates
+the API-only integration user. Then copy the `NABD_Backend` client app's
+Consumer Key and Secret (Setup → External Client App Manager → NABD Backend →
+Settings → OAuth Settings) into `backend/.env.nabd`. Re-run `configure` after
+any change to `salesforce/integration-app`: deploying that policy clears the
+app's approved permission set until `configure` grants it again.
+
+`seed` never overwrites a record edited after the last seed and never deletes.
+`reset --target-org nabd-dev --confirm nabd-dev` explicitly restores fixture
+values. Deploy/configure/seed/verify use the developer's CLI session; only
+`smoke` and backend code use the integration credentials below.
+
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `NABD_SALESFORCE_DOMAIN_URL` | Org My Domain, `https://<domain>.my.salesforce.com` | None |
+| `NABD_SALESFORCE_CLIENT_ID` | `NABD_Backend` consumer key (secret) | None |
+| `NABD_SALESFORCE_CLIENT_SECRET` | `NABD_Backend` consumer secret (secret) | None |
+| `NABD_SALESFORCE_API_VERSION` | REST API version | 68.0 |
+| `NABD_SALESFORCE_TIMEOUT_SECONDS` | HTTP timeout | 15 seconds |
+
+Salesforce settings are separate from database settings, so storage commands
+work without them. Both sets are redacted in errors and representations.
 
 ## Verification
 

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>NABD_Follow_Up_Type__c</fullName>
+    <label>NABD Follow-up Type</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>case_follow_up</fullName>
+                <default>false</default>
+                <label>Case follow-up</label>
+            </value>
+            <value>
+                <fullName>risk_warning</fullName>
+                <default>false</default>
+                <label>Risk warning</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Resolution_Outcome__c</fullName>
+    <label>Resolution Outcome</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>resolved</fullName>
+                <default>false</default>
+                <label>Resolved</label>
+            </value>
+            <value>
+                <fullName>unresolved</fullName>
+                <default>false</default>
+                <label>Not resolved</label>
+            </value>
+            <value>
+                <fullName>withdrawn</fullName>
+                <default>false</default>
+                <label>Withdrawn by customer</label>
+            </value>
+            <value>
+                <fullName>duplicate</fullName>
+                <default>false</default>
+                <label>Duplicate of another case</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
