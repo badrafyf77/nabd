@@ -113,3 +113,13 @@ they do not require repeating the product interview.
 - **Phase 3 priority after creation (18 November 2026).** NABD only raises a
   case's priority, and only while staff have not changed it; category and
   owner are set once, on creation. Lowering or re-routing is staff work.
+- **Phase 4 knowledge translation (18 November 2026).** Keep one canonical
+  published English knowledge revision in Salesforce. The Supervisor translates
+  the retrieved content for customers; cards retain the source revision, with
+  English record findings labeled. A language switch does not select a different
+  policy, change GBP, or create a second policy database.
+- **Phase 4 language state (18 November 2026).** Reuse the mandatory Complaint
+  specialist's structured result to select turn language/script, including on
+  non-complaints. Persist it with the complaint plan and publish enum-only
+  language events. Per-message evidence labels are independent of case language;
+  code copies the original text and determines its writing systems with Unicode.

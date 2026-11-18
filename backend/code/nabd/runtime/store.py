@@ -513,6 +513,10 @@ class Store:
                 "FROM nabd.runs WHERE conversation_id = %s ORDER BY turn DESC LIMIT %s",
                 (conversation_id, SNAPSHOT_RUNS))).fetchall()
             run_ids = [row["id"] for row in runs]
+            language = await (await conn.execute(
+                "SELECT payload FROM nabd.events WHERE conversation_id = %s AND type = 'conversation.language' "
+                "AND sequence <= %s ORDER BY sequence DESC LIMIT 1",
+                (conversation_id, conversation["last_sequence"]))).fetchone()
             events = await (await conn.execute(
                 "SELECT * FROM nabd.events WHERE conversation_id = %s AND run_id = ANY(%s) "
                 "AND type NOT IN ('message.delta', 'message.created', 'message.completed') "
@@ -535,6 +539,7 @@ class Store:
             item = partial.setdefault(payload["message_id"], {"run_id": str(row["run_id"]), "text": ""})
             item["text"] += payload["text"]
         return {
+            "language": language["payload"] if language else None,
             "last_sequence": conversation["last_sequence"],
             "messages": [{"id": str(m["id"]), "role": m["role"], "run_id": _id(m["run_id"]), "text": m["text"],
                           "created_at": m["created_at"].isoformat()} for m in messages],

@@ -4,7 +4,9 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 ## Current work
 
-**Phases 0–3 are complete. Phases 4–7 are pending.** Working branch:
+**Phases 0–3 are complete. Phase 4 is in progress; Phases 5–7 are pending.**
+Phase 4's [plan and running handoff](phases/04-multilingual.md) record the
+implementation, free checks and approved paid evaluation. Working branch:
 `codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 3
 (merge commit `7e61e48`; later commits only update notes).
 Continue Phase 4 on that branch and merge it into `main` when Phase 4 is
@@ -77,8 +79,11 @@ Phase 3 — complaints become reliable Salesforce cases during the chat:
 - live **case cards** and a confirmed-case strip in the chat; the Supervisor
   cites only confirmed case work.
 
-Other languages, staff-to-chat updates, risk warnings and quality review do
-not exist yet.
+Phase 4 implements language/script selection in the complaint assessment,
+durable language events/snapshots, original evidence scripts, multilingual
+agent prompts, localized chat/activity templates and RTL. Free checks pass;
+real-model quality evaluation is in progress. Staff-to-chat updates, risk
+warnings and quality review do not exist yet.
 
 ## Verification
 
@@ -155,13 +160,13 @@ run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-**Phase 4 — multilingual behavior** is next and has not started. Scope and
+**Phase 4 — multilingual behavior** is in progress. Scope and
 gate are in the [roadmap](roadmap.md#phase-4--multilingual-behavior); the
 language rules are in [decisions](decisions.md#product-and-data). Entry
 criteria: the resume commands above pass.
 
-First step when Phase 4 is requested: write `docs/nabd/phases/04-multilingual.md`
-(plan, boundaries, checks) in the same form as the Phase 3 plan, then implement.
+The [Phase 4 plan](phases/04-multilingual.md) was written first; implementation
+and free checks are complete, with the approved real-model evaluation running.
 
 ### Starting points for Phase 4 (facts about the code, not decisions)
 

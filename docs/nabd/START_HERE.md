@@ -18,9 +18,9 @@ needed to resume is in the repository; the previous chat is not required.
   the 8 new case flows 7/8 and the 12 Phase 2 flows 9/12; after two prompt
   fixes 3 of those 4 failures passed a recheck, and `several_orders_needs_info`
   still fails its expectation (it lists returnable items instead of asking).
-- Next: **NABD Phase 4 — multilingual behavior**, not started. Its starting
-  points are in
-  [status](status.md#starting-points-for-phase-4-facts-about-the-code-not-decisions).
+- Current: **NABD Phase 4 — multilingual behavior**, implemented and under
+  real-model evaluation on the working branch. See the
+  [Phase 4 plan and running handoff](phases/04-multilingual.md).
 - Last measured suite: **249 passed** (65 paid scenarios deselected) on macOS
   with real PostgreSQL. Real-org `salesforce verify` 41/41, Apex 17/17,
   `salesforce smoke` 12/12, `read-mcp smoke` 12/12, `write-mcp smoke` 15/15.

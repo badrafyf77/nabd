@@ -2,10 +2,11 @@
 // Events are applied at most once (by sequence); a jump in sequence marks a gap,
 // and the page then reloads the snapshot instead of guessing what was missed.
 
+import { DEFAULT_LANGUAGE } from "./i18n";
 import type { Activity, ConversationState, RunView, ServerEvent, Snapshot } from "./types";
 
 export function emptyState(): ConversationState {
-  return { lastSequence: 0, messages: [], runs: {}, runOrder: [], activities: {}, partial: {}, cases: {}, gap: false };
+  return { language: DEFAULT_LANGUAGE, lastSequence: 0, messages: [], runs: {}, runOrder: [], activities: {}, partial: {}, cases: {}, gap: false };
 }
 
 function upsertRun(state: ConversationState, id: string, patch: Partial<RunView>): void {
@@ -13,7 +14,7 @@ function upsertRun(state: ConversationState, id: string, patch: Partial<RunView>
   if (!current) {
     state.runOrder = [...state.runOrder, id];
   }
-  const base: RunView = current ?? { id, messageId: "", status: "queued", attempt: 0 };
+  const base: RunView = current ?? { id, messageId: "", status: "queued", attempt: 0, language: state.language };
   state.runs = { ...state.runs, [id]: { ...base, ...patch, id } };
 }
 
@@ -21,6 +22,13 @@ function applyOne(state: ConversationState, event: ServerEvent): void {
   const run = event.run_id;
   const p = event.payload || {};
   switch (event.type) {
+    case "conversation.language": {
+      if (!["en", "fr", "ar", "ary"].includes(p.reply_language) || !["latin", "arabic"].includes(p.reply_script)) break;
+      const language = { input_language: p.input_language, reply_language: p.reply_language, reply_script: p.reply_script };
+      state.language = language;
+      if (run) upsertRun(state, run, { language });
+      break;
+    }
     case "message.created":
       if (!state.messages.some((m) => m.id === p.message_id)) {
         state.messages = [...state.messages, { id: p.message_id, role: "customer", runId: run, text: p.text }];
@@ -138,5 +146,6 @@ export function fromSnapshot(snapshot: Snapshot): ConversationState {
     state.cases = { ...state.cases, [item.case_number]: item };
   }
   state.lastSequence = snapshot.last_sequence;
+  if (snapshot.language) state.language = snapshot.language;
   return state;
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import type { Activity, RunView } from "./types";
-import { OUTCOME, activityDetail, activityTitle, caseLine, runHeadline, seconds } from "./messages";
+import { outcomeText, activityDetail, activityTitle, caseLine, runHeadline, seconds } from "./messages";
+
+import { direction, localeOf, t, type Locale } from "./i18n";
 
 function elapsed(a: { startedAt?: string; endedAt?: string; durationMs?: number }, now: number): number | null {
   if (a.durationMs != null) return a.durationMs;
@@ -10,61 +12,62 @@ function elapsed(a: { startedAt?: string; endedAt?: string; durationMs?: number 
   return Math.max(0, end - Date.parse(a.startedAt));
 }
 
-function StateIcon({ state }: { state: string }) {
-  const label = { queued: "Queued", running: "Running", waiting: "Waiting", retrying: "Retrying",
-                  completed: "Done", failed: "Failed" }[state] || state;
+function StateIcon({ state, locale }: { state: string; locale: Locale }) {
+  const label = t(locale, state === "queued" ? "queued" : state === "running" ? "running" : state === "waiting"
+    ? "waiting" : state === "retrying" ? "retrying" : state === "completed" ? "completed" : "failed");
   return <span className={`state-icon state-${state}`} role="img" aria-label={label} title={label} />;
 }
 
-function Findings({ result }: { result: Record<string, any> }) {
+function Findings({ result, locale }: { result: Record<string, any>; locale: Locale }) {
   const facts: string[] = result.facts || [];
   const questions: string[] = result.questions || [];
   return (
     <div className="findings">
-      {result.outcome && <div className={`outcome outcome-${result.outcome}`}>{OUTCOME[result.outcome] || result.outcome}</div>}
+      {result.outcome && <div className={`outcome outcome-${result.outcome}`}>{outcomeText(result.outcome, locale)}</div>}
       {facts.length > 0 && (
-        <ul className="facts" aria-label="Confirmed findings">
+        <><span className="label">{t(locale, "englishFindings")}</span>
+        <ul className="facts" aria-label={t(locale, "findings")} lang="en" dir="ltr">
           {facts.map((fact, i) => <li key={i}>{fact}</li>)}
-        </ul>
+        </ul></>
       )}
       {questions.length > 0 && (
         <div className="questions">
-          <span className="label">Missing information</span>
-          <ul>{questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
+          <span className="label">{t(locale, "missing")}</span>
+          <ul lang="en" dir="ltr">{questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
         </div>
       )}
     </div>
   );
 }
 
-function ActivityNode({ activity, byParent, now }: { activity: Activity; byParent: Map<string, Activity[]>;
-                                                     now: number }) {
+function ActivityNode({ activity, byParent, now, locale }: { activity: Activity; byParent: Map<string, Activity[]>;
+                                                     now: number; locale: Locale }) {
   const kids = byParent.get(activity.id) || [];
   const time = elapsed(activity, now);
-  const detail = activityDetail(activity);
+  const detail = activityDetail(activity, locale);
   const articles: { title: string; revision: string }[] = activity.result?.articles || [];
   return (
     <li className={`activity activity-${activity.state}`}>
       <div className="activity-line">
-        <StateIcon state={activity.state} />
-        <span className="activity-title">{activityTitle(activity)}</span>
-        {time != null && <span className="activity-time">{seconds(time)}</span>}
+        <StateIcon state={activity.state} locale={locale} />
+        <span className="activity-title">{activityTitle(activity, locale)}</span>
+        {time != null && <span className="activity-time" dir="ltr">{seconds(time)}</span>}
       </div>
       {detail && <div className="activity-detail">{detail}</div>}
       {articles.length > 0 && (
-        <ul className="sources" aria-label="Sources">
-          {articles.map((a) => <li key={a.revision}>{a.title} <span className="revision">({a.revision})</span></li>)}
+        <ul className="sources" aria-label={t(locale, "sources")} lang="en" dir="ltr">
+          {articles.map((a) => <li key={a.revision}>{a.title} <bdi className="revision">({a.revision})</bdi></li>)}
         </ul>
       )}
       {activity.code === "agent.orders" && activity.state === "completed" && activity.result && (
-        <Findings result={activity.result} />
+        <Findings result={activity.result} locale={locale} />
       )}
       {activity.code.startsWith("case.") && activity.state === "completed" && activity.result?.case_number && (
-        <div className="case-confirmed">{caseLine(activity.result)}</div>
+        <div className="case-confirmed">{caseLine(activity.result, locale)}</div>
       )}
       {kids.length > 0 && (
         <ul className="activity-children">
-          {kids.map((child) => <ActivityNode key={child.id} activity={child} byParent={byParent} now={now} />)}
+          {kids.map((child) => <ActivityNode key={child.id} activity={child} byParent={byParent} now={now} locale={locale} />)}
         </ul>
       )}
     </li>
@@ -74,6 +77,7 @@ function ActivityNode({ activity, byParent, now }: { activity: Activity; byParen
 export default function ActivityPanel({ run, activities, now, expanded, onToggle }: {
   run: RunView; activities: Activity[]; now: number; expanded: boolean; onToggle: () => void;
 }) {
+  const locale = localeOf(run.language);
   const ids = new Set(activities.map((a) => a.id));
   const byParent = new Map<string, Activity[]>();
   const roots: Activity[] = [];
@@ -88,27 +92,27 @@ export default function ActivityPanel({ run, activities, now, expanded, onToggle
   const checks = activities.filter((a) => a.code.startsWith("tool.") && a.state === "completed").length;
   const total = elapsed({ startedAt: run.startedAt, endedAt: run.endedAt }, now);
   const summary = active
-    ? runHeadline(run)
+    ? runHeadline(run, locale)
     : run.status === "failed"
-      ? runHeadline(run)
-      : `Checked ${checks} ${checks === 1 ? "record" : "records"}${total != null ? ` in ${seconds(total)}` : ""}`
-        + (run.attempt > 1 ? ` · recovered after ${run.attempt - 1} ${run.attempt === 2 ? "retry" : "retries"}` : "");
+      ? runHeadline(run, locale)
+      : t(locale, "records", { count: checks }) + (total != null ? " · " + t(locale, "duration", { time: seconds(total) }) : "")
+        + (run.attempt > 1 ? " · " + t(locale, "recovered", { count: run.attempt - 1 }) : "");
   return (
-    <section className={`activity-panel run-${run.status}`} aria-live={active ? "polite" : "off"}>
+    <section className={`activity-panel run-${run.status}`} dir={direction(locale)} lang={locale.startsWith("ary") ? "ary" : locale} aria-live={active ? "polite" : "off"}>
       <button type="button" className="activity-toggle" onClick={onToggle} aria-expanded={expanded}>
         <StateIcon state={run.status === "retrying" ? "retrying" : run.status === "completed" ? "completed"
-          : run.status === "failed" ? "failed" : run.status === "queued" ? "queued" : "running"} />
+          : run.status === "failed" ? "failed" : run.status === "queued" ? "queued" : "running"} locale={locale} />
         <span className="activity-summary">{summary}</span>
-        {active && total != null && <span className="activity-time">{seconds(total)}</span>}
+        {active && total != null && <span className="activity-time" dir="ltr">{seconds(total)}</span>}
         <span className="chevron" aria-hidden>{expanded ? "▾" : "▸"}</span>
       </button>
       {expanded && roots.length > 0 && (
         <ul className="activity-tree">
-          {roots.map((a) => <ActivityNode key={a.id} activity={a} byParent={byParent} now={now} />)}
+          {roots.map((a) => <ActivityNode key={a.id} activity={a} byParent={byParent} now={now} locale={locale} />)}
         </ul>
       )}
       {expanded && roots.length === 0 && run.status === "queued" && (
-        <p className="activity-empty">Waiting for the previous reply to finish.</p>
+        <p className="activity-empty">{t(locale, "previous")}</p>
       )}
     </section>
   );

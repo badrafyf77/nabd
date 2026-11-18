@@ -1,7 +1,7 @@
 """Browser-check stack: the real API, read and write MCP servers, Salesforce and the dev
 PostgreSQL database, with scripted (free) models instead of OpenAI.
 
-Used for the Phase 3 browser check; reuse it for later browser checks. From backend/:
+Used for the Phase 4 multilingual browser check; no real model calls. From backend/:
 
     .venv-text/bin/python scripts/browser_stack.py
     cd ../frontend && NABD_API_ORIGIN=http://127.0.0.1:8083 npm run dev
@@ -41,7 +41,21 @@ from nabd.settings import (  # noqa: E402
     BusinessSettings, ChatSettings, ReadMcpSettings, SalesforceSettings, Settings, WriteMcpSettings,
 )
 from nabd.write_mcp.server import create_app as write_app  # noqa: E402
-from nabd_fakes import assessment, issue  # noqa: E402
+from nabd_fakes import assessment, issue
+
+BROWSER_FORMS = {
+    "نفس مطحنة القهوة مازال ما وصلاتش، زيد هادشي فنفس الملف عافاك.": ("ary", "arabic"),
+    "Le même moulin à café n’est toujours pas arrivé. Mettez à jour le même dossier.": ("fr", "latin"),
+    "Nefs moulin dyal lqahwa mazal ma wselch. Zid hadchi f nefs dossier 3afak.": ("ary", "latin"),
+}
+
+def localized_answer(reply, language, script, message_id):
+    data = json.loads("".join(reply["text"]))
+    data["language"] = {"input_language": language, "reply_language": language, "reply_script": script}
+    data["message_languages"] = [{"message_id": message_id, "language": language}]
+    for item in data["issues"]:
+        item["language"] = language
+    return say(json.dumps(data, ensure_ascii=False))  # noqa: E402
 
 READ = ReadMcpSettings(context_secret=SecretStr(secrets.token_urlsafe(32)), url="http://127.0.0.1:8093/mcp",
                        port=8093, allowed_hosts="127.0.0.1:8093")
@@ -54,28 +68,39 @@ def complaints(messages):
     request = messages[1].content
     current = re.search(r"Current customer message: \[customer ([0-9a-f-]+)\] (.*)", request)
     message_id, text = current.group(1), current.group(2)
-    if not re.search(r"grinder|SE-1091|late|still|never|arrive", text, re.I):
+    if text not in BROWSER_FORMS and not re.search(r"grinder|SE-1091|late|still|never|arrive", text, re.I):
         return assessment()
     if not any(isinstance(m, ToolMessage) for m in messages):
         return call("get_order", order_number="SE-1091")
     order = next(json.loads(m.content) for m in reversed(messages) if isinstance(m, ToolMessage))
     fact = {"statement": f"SE-1091 delivery status is {order['delivery']['status']}; expected "
                          f"{order['delivery']['expected']}.", "evidence": order["evidence"][:2]}
+    language, script = BROWSER_FORMS.get(text, ("en", "latin"))
+    def result(item):
+        return localized_answer(assessment(item), language, script, message_id)
     existing = re.search(r'"case_number": "(\d+)", "subject": "' + re.escape(TITLE), request)
     if existing:
-        return assessment(issue(title=TITLE, existing_case=existing.group(1), match="same", action="update",
+        return result(issue(title=TITLE, existing_case=existing.group(1), match="same", action="update",
                                 order_numbers=["SE-1091"], customer_message_ids=[message_id],
                                 verified_facts=[fact], urgency="medium",
                                 english_summary="Customer says the coffee grinder SE-1091 still has not "
                                                 "arrived. The delivery record shows it out for delivery."))
-    return assessment(issue(title=TITLE, order_numbers=["SE-1091"], customer_message_ids=[message_id],
+    return result(issue(title=TITLE, order_numbers=["SE-1091"], customer_message_ids=[message_id],
                             verified_facts=[fact], urgency="low", sentiment="negative",
                             english_summary="Customer says the coffee grinder SE-1091 has not arrived. The "
                                             "delivery record shows it out for delivery, expected today."))
 
 
 def supervisor(messages):
-    section = messages[0].content.split("## Case work for this message", 1)[1].split("- Mention", 1)[0]
+    section = messages[0].content.split("## Case work for this message", 1)[1].split("- When a case", 1)[0]
+    number = re.search(r"case (\d+)", section)
+    number = number.group(1) if number else ""
+    if '"reply_language": "ary"' in messages[0].content and '"reply_script": "arabic"' in messages[0].content:
+        return say(f"زدنا هاد المعلومة فالملف {number} عند الفريق ديال التوصيل.")
+    if '"reply_language": "ary"' in messages[0].content and '"reply_script": "latin"' in messages[0].content:
+        return say(f"Zedna had lma3loma f dossier {number} 3nd l’équipe dyal livraison.")
+    if '"reply_language": "fr"' in messages[0].content:
+        return say(f"J’ai ajouté cette information au dossier {number} de l’équipe Livraison.")
     lines = [line[2:] for line in section.splitlines() if line.startswith("- ")]
     return say("Thanks for telling me. " + " ".join(lines))
 
@@ -112,4 +137,5 @@ async def main():
     await asyncio.gather(*(server.serve() for server in servers))
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

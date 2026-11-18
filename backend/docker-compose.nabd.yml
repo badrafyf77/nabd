@@ -1,7 +1,7 @@
 name: nabd
 
 x-runtime: &runtime
-  image: nabd-backend:phase3
+  image: nabd-backend:phase4
   build:
     context: .
     dockerfile: Dockerfile.text

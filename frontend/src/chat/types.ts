@@ -40,6 +40,7 @@ export type ServerEvent = {
 };
 
 export type Snapshot = {
+  language?: import("./i18n").TurnLanguage | null;
   conversation: ConversationSummary;
   last_sequence: number;
   messages: { id: string; role: "customer" | "assistant"; run_id: string | null; text: string; created_at: string }[];
@@ -78,6 +79,7 @@ export type Activity = {
 };
 
 export type RunView = {
+  language?: import("./i18n").TurnLanguage;
   id: string;
   messageId: string;
   status: RunStatus;
@@ -98,6 +100,7 @@ export type ChatMessage = {
 export type PartialReply = { messageId: string; attempt: number; text: string };
 
 export type ConversationState = {
+  language: import("./i18n").TurnLanguage;
   lastSequence: number;
   messages: ChatMessage[];
   runs: Record<string, RunView>;

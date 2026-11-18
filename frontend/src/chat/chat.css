@@ -46,7 +46,7 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .customer-grid button:hover:not(:disabled) { border-color: var(--green); }
@@ -65,7 +65,7 @@
   flex-direction: column;
   gap: 14px;
   padding: 18px 14px;
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   background: #fbfaf7;
   overflow-y: auto;
 }
@@ -86,7 +86,7 @@
   border: 0;
   border-radius: 6px;
   background: none;
-  text-align: left;
+  text-align: start;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -157,7 +157,7 @@
   display: inline-block;
   width: 7px;
   height: 1em;
-  margin-left: 2px;
+  margin-inline-start: 2px;
   vertical-align: text-bottom;
   background: var(--green);
   animation: blink 1s steps(2) infinite;
@@ -184,7 +184,7 @@
   padding: 8px 12px;
   border: 0;
   background: none;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .activity-summary { flex: 1; font-weight: 600; }
@@ -192,7 +192,7 @@
 .activity-time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
 .activity-tree, .activity-children { margin: 0; padding: 0; list-style: none; }
 .activity-tree { padding: 0 12px 10px; }
-.activity-children { margin-left: 9px; padding-left: 14px; border-left: 1px dashed var(--line); }
+.activity-children { margin-inline-start: 9px; padding-inline-start: 14px; border-inline-start: 1px dashed var(--line); }
 .activity { padding: 4px 0; }
 .activity-line { display: flex; align-items: center; gap: 8px; }
 .activity-title { flex: 1; }
@@ -205,7 +205,7 @@
 .outcome { font-weight: 600; color: var(--green-dark); }
 .outcome-needs_information { color: #8a6a1f; }
 .outcome-cannot_complete { color: var(--danger); }
-.facts, .questions ul { margin: 4px 0 0; padding-left: 18px; }
+.facts, .questions ul { margin: 4px 0 0; padding-inline-start: 18px; }
 .questions { margin-top: 6px; }
 .questions .label { font-weight: 600; }
 
@@ -261,9 +261,9 @@
 
 @media (max-width: 760px) {
   .chat-shell { grid-template-columns: 1fr; height: auto; }
-  .sidebar { border-right: 0; border-bottom: 1px solid var(--line); max-height: 220px; }
+  .sidebar { border-inline-end: 0; border-bottom: 1px solid var(--line); max-height: 220px; }
   .chat-main { height: auto; min-height: 70vh; }
-  .timeline, .chat-header, .composer { padding-left: 16px; padding-right: 16px; }
+  .timeline, .chat-header, .composer { padding-inline-start: 16px; padding-inline-end: 16px; }
 }
 
 /* Case work (Phase 3): shown only for Salesforce-confirmed cases. */
@@ -273,4 +273,9 @@
               border-bottom: 1px solid var(--line, #e5e7eb); }
 .case-strip li { display: flex; gap: 6px; align-items: baseline; padding: 4px 10px; border-radius: 999px;
                  background: var(--green-soft); font-size: 13px; }
-@media (max-width: 720px) { .case-strip { padding-left: 16px; padding-right: 16px; } }
+@media (max-width: 720px) { .case-strip { padding-inline-start: 16px; padding-inline-end: 16px; } }
+
+/* Each bubble keeps its own writing direction across language switches. */
+.bubble, .conversation-list bdi { unicode-bidi: plaintext; text-align: start; }
+.activity-panel, .case-strip { text-align: start; overflow-wrap: anywhere; }
+.activity-time, .revision { unicode-bidi: isolate; }

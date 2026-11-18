@@ -43,6 +43,7 @@ export const api = {
 };
 
 export const EVENT_TYPES = [
+  "conversation.language",
   "message.created", "message.delta", "message.completed", "run.queued", "run.started", "run.retrying",
   "run.completed", "run.failed", "activity",
 ];

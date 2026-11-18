@@ -32,8 +32,9 @@ from langchain_core.language_models import BaseChatModel
 from nabd.agents.complaints import (
     Assessment, Candidate, ChatLine, ComplaintSpecialist, Issue, verify_assessment,
 )
+from nabd.agents.language import original_script
 from nabd.agents.mcp_tools import McpTools, tool_activity
-from nabd.runtime.events import Activity, RunContext
+from nabd.runtime.events import Activity, NewEvent, RunContext
 from nabd.runtime.store import CommandRow, NewCommand
 from nabd.salesforce import schema as s
 from nabd.salesforce.commands import CommandResult, salesforce_time
@@ -119,7 +120,8 @@ def _fact_ref(issue: Issue, statement: str, evidence: list[str]) -> str:
     return f"fact-{digest}"
 
 
-def _evidence(issue: Issue, operation: str, messages: dict[str, ChatLine], at: datetime) -> list[dict[str, Any]]:
+def _evidence(issue: Issue, operation: str, messages: dict[str, ChatLine], at: datetime,
+              message_languages: dict[str, str]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for message_id in issue.message_ids:
         line = messages.get(message_id)
@@ -127,17 +129,20 @@ def _evidence(issue: Issue, operation: str, messages: dict[str, ChatLine], at: d
             continue
         kind = ("customer_confirmation" if operation == "close_case" and message_id == issue.confirmation_message_id
                 else "customer_report")
-        items.append({"ref": message_id, "kind": kind, "text": line.text, "language": issue.language,
+        items.append({"ref": message_id, "kind": kind, "text": line.text,
+                      "language": message_languages.get(message_id), "script": original_script(line.text),
                       "captured_at": salesforce_time(line.at or at)})
     if operation == "close_case" and issue.confirmation_message_id not in issue.message_ids:
         line = messages[issue.confirmation_message_id]
         items.append({"ref": line.message_id, "kind": "customer_confirmation", "text": line.text,
-                      "language": issue.language, "captured_at": salesforce_time(line.at or at)})
+                      "language": message_languages.get(line.message_id), "script": original_script(line.text),
+                      "captured_at": salesforce_time(line.at or at)})
     for fact in issue.facts:
         items.append({"ref": _fact_ref(issue, fact.statement, fact.evidence), "kind": "verified_fact",
-                      "text": fact.statement, "language": "en", "verified_source": fact.evidence[0][:255],
+                      "text": fact.statement, "language": "en", "script": "latin",
+                      "verified_source": fact.evidence[0][:255],
                       "captured_at": salesforce_time(at)})
-    return items[:MAX_EVIDENCE]
+    return [{k: v for k, v in item.items() if v is not None} for item in items[:MAX_EVIDENCE]]
 
 
 @dataclass
@@ -149,11 +154,11 @@ class Plan:
 
 def command_for(run_id: str, position: str, issue: Issue, operation: str, candidate: Candidate | None,
                 messages: dict[str, ChatLine], at: datetime, *, lost_orders: set[str],
-                review_threshold: float) -> NewCommand:
+                review_threshold: float, message_languages: dict[str, str] | None = None) -> NewCommand:
     """One typed case command for a verified issue (see ``resolve_operation``)."""
     signals = set(issue.signals) | ({"lost_parcel"} if set(issue.order_numbers) & lost_orders else set())
     priority, reason = priority_for(signals, reopening=operation == "reopen_case")
-    evidence = _evidence(issue, operation, messages, at)
+    evidence = _evidence(issue, operation, messages, at, message_languages or {})
     card = {"operation": operation, "title": issue.title,
             "case_number": candidate.case_number if candidate else None}
     if operation == "create_case":
@@ -210,7 +215,8 @@ def build_plan(run_id: str, assessment: Assessment, candidates: dict[str, Candid
         if candidate:
             touched.add(candidate.case_number)
         plan.commands.append(command_for(run_id, str(len(plan.commands) + 1), issue, operation, candidate,
-                                         messages, at, lost_orders=lost_orders, review_threshold=review_threshold))
+                                         messages, at, lost_orders=lost_orders, review_threshold=review_threshold,
+                                         message_languages=assessment.message_languages))
     return plan
 
 
@@ -273,6 +279,8 @@ class ComplaintStage:
                 stored = await self._plan(run, turn, reads, me)
                 rows = (await self.store.case_plan(run.run_id))[1]
             assessment = Assessment.from_json(stored["assessment"])
+            if assessment.language:
+                await run.emit(NewEvent(type="conversation.language", payload=assessment.language))
             results = []
             for row in rows:
                 if row.position.endswith("r"):
@@ -281,6 +289,7 @@ class ComplaintStage:
         await me.complete(**assessment.public())
         return {
             "outcome": assessment.outcome,
+            "language": assessment.language,
             "questions": stored.get("questions", []),
             "notes": stored.get("notes", []),
             "facts": [fact.statement for issue in assessment.issues for fact in issue.facts],
@@ -389,7 +398,8 @@ class ComplaintStage:
                     for key, value in stored.get("messages", {}).items()}
         at = next((line.at for line in messages.values() if line.at), datetime.now(timezone.utc))
         command = command_for(run.run_id, row.position + "r", issue, row.operation, candidate, messages, at,
-                              lost_orders=set(stored.get("lost_orders", [])), review_threshold=self.review_threshold)
+                              lost_orders=set(stored.get("lost_orders", [])), review_threshold=self.review_threshold,
+                              message_languages=assessment.message_languages)
         await self.store.add_command(run.run_id, run.conversation_id, run.customer_id, command)
         rows = (await self.store.case_plan(run.run_id))[1]
         return next((r for r in rows if r.operation_id == command.operation_id), None)
@@ -444,4 +454,3 @@ class ComplaintStage:
         await self._record(row.conversation_id, row.customer_id, row.run_id, row, result)
         await self._finish_card(self.card(run, row), public_result(row, result))
         return result
-

@@ -11,6 +11,19 @@ Pydantic models/TypeScript types alongside the first consumers; avoid unused
 schema scaffolding. Field names below describe required capabilities and stable
 identities; the phase implementation owns their concrete representation.
 
+Phase 4 adds a model-selected `language` on the complaint assessment, even for
+non-complaints: `input_language` (`en`/`fr`/`ar`/`ary`/`mixed`),
+`reply_language` (`en`/`fr`/`ar`/`ary`) and `reply_script` (`latin`/`arabic`).
+`message_languages` labels only real customer message IDs in the turn history.
+Exact message text and Unicode script are copied by code into evidence. Old
+stored assessments remain readable; a missing language label stays unknown.
+
+The durable plan stores this selection before dispatch. The public
+`conversation.language` event carries only those three enum values, with its
+run ID. The snapshot includes the latest `language` independently of the bounded
+activity history; each retained run keeps its language for its own cards.
+Language metadata never changes authorization, policy or lifecycle decisions.
+
 ## Agent findings
 
 - Outcome: done, needs information, or cannot complete.

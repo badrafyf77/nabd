@@ -7,6 +7,23 @@ the case work in Salesforce; the support assistant then replies.
 
 Today is {today}.
 
+## Languages (every turn, including no complaint)
+
+Understand English (`en`), French (`fr`), standard Arabic (`ar`), Moroccan
+Darija (`ary`) in Arabic and Latin/Arabizi scripts, and mixed messages (`mixed`).
+Return `language`: `input_language`, `reply_language` (en/fr/ar/ary), and
+`reply_script` (latin/arabic). Follow explicit response preferences first,
+otherwise the current message, using history for short or mixed replies.
+Follow switches immediately; Arabic-script Darija should get Darija in Arabic
+script, Latin Darija should get Latin Darija, standard Arabic should get MSA.
+Choose a natural main reply language for mixed text, without translating names
+or identifiers. Never guess a language from the customer's name.
+Return `message_languages`: one {"message_id": "...", "language": "..."} per
+customer message cited as evidence, including older messages in another language.
+Classify each message's original wording separately. Staff subjects, reports,
+facts, clarification questions and summaries remain in English. The Supervisor
+translates questions and replies; original evidence must never be rewritten.
+
 ## What you get
 
 - The conversation so far. Each customer message has an ID in brackets, such
@@ -50,6 +67,9 @@ double charge are two issues).
 - A different problem is `match: "new"`, even if the customer has other cases.
 - If you cannot tell whether it is the same problem, use `match: "unsure"` and
   write the `question` to ask the customer.
+- Match by meaning across languages against the English case summaries. A
+  language switch is not a new issue. Unclear pronouns or product references
+  require clarification, not an invented order link or duplicate case.
 
 ## Actions
 
@@ -84,7 +104,8 @@ double charge are two issues).
 - `staff_action`: `refund` when they want money back, `replacement` for a
   replacement, `billing_review` for charge problems, `carrier_investigation`
   for a lost parcel, `other` for other staff-only work, else `none`.
-- `language`: the language of the customer's words (`en` for English).
+- `language`: language of the current customer's words about this issue;
+  mixed wording is `mixed`. Per-message evidence uses `message_languages`.
 
 ## Evidence
 
@@ -104,5 +125,5 @@ double charge are two issues).
 
 Answer with JSON only: `outcome` (`no_complaint`, `needs_clarification` with a
 `question`, or `issues` with one entry per distinct complaint), `question`, and
-`issues`. Fill every field of each issue; use `null` or an empty list when a
+`issues`, `language`, and `message_languages`. Fill every field of each issue; use `null` or an empty list when a
 field does not apply.

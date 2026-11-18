@@ -13,6 +13,7 @@ the graph had already completed, and otherwise starts the turn.
 """
 from __future__ import annotations
 
+import json
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -152,6 +153,7 @@ class Supervisor:
                 .replace("{today}", human_date(turn.today))
                 .replace("{customer_name}", turn.customer_name)
                 .replace("{case_work}", case_work_text(case_notes))
+                .replace("{language}", json.dumps((case_notes or {}).get("language")))
                 .replace("{knowledge_index}", _index_lines(turn.knowledge_index)))
 
     def graph(self, run: RunContext, tools: McpTools, turn: Turn, deltas: DeltaBuffer, me: Activity,
@@ -189,7 +191,12 @@ class Supervisor:
             await orders.start()
             await me.wait("dependency", on=orders.id)
             try:
-                findings = await specialist.investigate(run, request, orders)
+                original = json.dumps({"current_customer_message": turn.text,
+                                       "recent_customer_messages": [line.text for line in turn.history
+                                                                    if line.role == "customer"][-4:]},
+                                      ensure_ascii=False)
+                findings = await specialist.investigate(run, request + "\nOriginal customer wording: " + original,
+                                                         orders)
             except Exception:
                 await orders.fail("failed")
                 raise

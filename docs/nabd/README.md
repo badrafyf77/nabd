@@ -9,6 +9,12 @@ delivered the [Salesforce business system](salesforce.md); Phase 2 the
 [support chat](phases/02-support-chat.md); Phase 3 the
 [complaint cases](phases/03-complaints.md) described below.
 
+Phase 4's implementation and verification are in
+[multilingual behavior](phases/04-multilingual.md). It adds automatic language
+selection inside the existing complaint model call, localized activity/chat
+templates and RTL. There are no new dependencies, credentials, Salesforce
+metadata or database migrations.
+
 ## Phase 0: run the text foundation
 
 From the repository root:
@@ -283,3 +289,30 @@ deliberately refuses to remove a non-empty checkpoint schema.
 Revision `0002_chat_runtime` adds demo sessions, conversations, messages, runs
 and events (Phase 2). Operation and issue tables arrive with their consumers
 in Phase 3.
+
+## Phase 4: multilingual checks
+
+Free backend checks use the normal suite. Frontend replay/template/RTL checks:
+
+```bash
+cd frontend
+npm run test:chat
+npx tsc --noEmit
+npm run build
+```
+
+The 36 paid Phase 4 scenarios are opt-in and require the owner's explicit
+approval for each bounded evaluation run:
+
+```bash
+cd backend
+.venv-text/bin/python -m pytest -m llm tests/nabd/test_multilingual_scenarios.py -q -s
+```
+
+They use real models, real Salesforce reads and real in-process MCP transports;
+case writes go to the rule-enforcing fake gateway so they leave no org cases.
+`tests/nabd/multilingual_examples.py` contains equivalent examples to review;
+held-out challenges remain outside the runtime prompts. The free browser stack
+also accepts the exact French and Darija follow-ups in its `BROWSER_FORMS` map.
+Its responses are scripted and demonstrate presentation/persistence, not model
+language quality; it updates the Phase 3 C006 browser test case (close it after).
