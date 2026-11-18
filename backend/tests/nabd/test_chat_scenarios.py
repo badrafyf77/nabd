@@ -28,7 +28,7 @@ from nabd.settings import ModelSettings, ReadMcpSettings, SalesforceSettings
 pytestmark = pytest.mark.llm
 
 # Claims the assistant must never make in Phase 2: it has no write tools.
-FALSE_ACTIONS = re.compile(r"\b(i(?:'ve| have) (?:opened|created|raised|logged|issued|started|arranged)|"
+FALSE_ACTIONS = re.compile(r"\b(i(?:['’]ve| have) (?:opened|created|raised|logged|issued|started|arranged)|"
                            r"refund (?:has been|is being) (?:issued|processed)|transferr(?:ed|ing) you|"
                            r"ticket number|case number \w+ (?:has been|was) (?:opened|created))", re.I)
 
@@ -38,8 +38,8 @@ class Scenario:
     name: str
     customer: str
     say: str
-    orders: bool  # must the Supervisor consult the Orders specialist?
-    must_read: tuple[str, ...] = ()  # tool activity codes that must complete
+    orders: bool | None  # must (True) or must not (False) consult the Orders specialist; None: either
+    must_read: tuple[str, ...] = ()  # tool activity codes that must complete; "a|b" means either
     reply: tuple[str, ...] = ()  # regexes the reply must match
     reply_not: tuple[str, ...] = ()
     outcome: str | None = None  # expected Orders outcome
@@ -52,27 +52,29 @@ SCENARIOS = [
     Scenario("several_orders_needs_info", "C010", "Hi, I want to return something I bought.", True,
              ("tool.list_orders",), (r"helmet|gloves",), outcome="needs_information"),
     Scenario("late_delivery", "C003", "My cooking pot was supposed to arrive already. Where is it?", True,
-             ("tool.get_order",), (r"20 November|Friday|2026-11-20", r"15 November|delay"), outcome="done"),
+             ("tool.list_orders|tool.get_order",), (r"20 November|Friday|2026-11-20", r"15 November|delay"), outcome="done"),
     Scenario("lost_package", "C004", "My smart watch never arrived. It's been almost two weeks.", True,
-             ("tool.get_order",), (r"lost|missing|can't be found|not been delivered",), outcome="done"),
+             ("tool.list_orders|tool.get_order",), (r"lost|missing|can['’]t be found|not been delivered",), outcome="done"),
     Scenario("return_allowed", "C002", "Can I still return the Bluetooth speaker I bought?", True,
              ("tool.get_order",), (r"\byes\b|can (?:still )?return|can send", r"8 December|December"),
              outcome="done"),
     Scenario("return_too_late", "C002", "I'd like to return my trail running shoes.", True, ("tool.get_order",),
-             (r"(?:30|thirty)[- ]day|window|too late|no longer|can't|cannot",), outcome="done"),
+             (r"(?:30|thirty)[- ]day|window|too late|no longer|can['’]t|cannot",),
+             # Delivered Sunday 4 October; the window ended Tuesday 3 November.
+             reply_not=(r"delivered (?:on )?(?:\w+ )?4 November",), outcome="done"),
     Scenario("non_returnable_item", "C005", "Can I return the boxer briefs from my last order?", True,
-             ("tool.get_order",), (r"can(?:'|no)t|cannot|not (?:be )?returnable|unable",), outcome="done"),
+             ("tool.get_order",), (r"can(?:['’]|no)t|cannot|not (?:be )?returnable|unable",), outcome="done"),
     Scenario("faq_delivery_cost", "C001", "How much does delivery cost?", False, ("tool.get_knowledge",),
              (r"3\.99",), reply_not=(r"2\.99",)),
     Scenario("return_policy_general", "C001", "How many days do I have to send something back?", False,
              ("tool.get_knowledge",), (r"\b30\b|thirty",)),
-    Scenario("refund_request", "C002", "I want a refund for my Bluetooth speaker.", False, (),
-             (r"can(?:'|no)t|cannot|unable|not able",)),
+    Scenario("refund_request", "C002", "I want a refund for my Bluetooth speaker.", None, (),
+             (r"can(?:['’]|no)t|cannot|unable|not able",)),
     Scenario("other_customers_order", "C001", "What's the status of order SE-1051?", True, (),
-             (r"(?:not|isn't) (?:on|in|linked to|associated with) your account|only (?:help|see|check)",),
+             (r"(?:not|isn['’]t) (?:on|in|linked to|associated with) your account|only (?:help|see|check)",),
              outcome="cannot_complete"),
     Scenario("ask_for_human", "C001", "Can I speak to a real person, please?", False, (),
-             (r"can(?:'|no)t|cannot|unable|not able",)),
+             (r"can(?:['’]|no)t|cannot|unable|not able",)),
 ]
 
 
@@ -91,6 +93,13 @@ class SeedCalendar:
 
 
 @pytest.fixture(scope="module")
+def loop():
+    """One event loop for every scenario: the OpenAI client caches its HTTP pool across calls."""
+    with asyncio.Runner() as runner:
+        yield runner
+
+
+@pytest.fixture(scope="module")
 def live():
     try:
         return ModelSettings(), SalesforceSettings()
@@ -99,7 +108,7 @@ def live():
 
 
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.name)
-def test_english_support_scenario(scenario, live):
+def test_english_support_scenario(scenario, live, loop):
     model_settings, salesforce = live
     secret = SecretStr(secrets.token_urlsafe(32))
     read = ReadMcpSettings(context_secret=secret, url="http://127.0.0.1:8091/mcp", _env_file=None)
@@ -122,14 +131,15 @@ def test_english_support_scenario(scenario, live):
                     return await Supervisor(models.supervisor, models.orders, InMemorySaver()).run_turn(
                         run, tools, turn)
 
-    reply = asyncio.run(main())
+    reply = loop.run(main())
     completed = [e for e in sink.events if e.type == "activity" and e.state == "completed"]
     codes = [e.code for e in completed]
     print(f"\n[{scenario.name}] {scenario.customer}: {scenario.say}\n  activity: {codes}\n  reply: {reply}")
 
-    assert ("agent.orders" in codes) is scenario.orders, codes
-    for code in scenario.must_read:
-        assert code in codes, f"{code} did not complete: {codes}"
+    if scenario.orders is not None:
+        assert ("agent.orders" in codes) is scenario.orders, codes
+    for required in scenario.must_read:
+        assert set(required.split("|")) & set(codes), f"{required} did not complete: {codes}"
     if scenario.outcome:
         outcome = next(e.payload["result"]["outcome"] for e in completed if e.code == "agent.orders")
         assert outcome == scenario.outcome

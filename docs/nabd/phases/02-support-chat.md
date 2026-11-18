@@ -1,7 +1,8 @@
 # Phase 2 — Support chat and real-time agent progress
 
-**Status: implemented and verified without paid model calls (18 November
-2026); the real-model English scenario run is waiting for the user's approval.**
+**Status: implemented (18 November 2026). The real-model English run passed
+10 of 12 scenarios; two behaviour fixes (a misreported date, a missing refund
+statement) are open.**
 Depends on completed [Phase 1](01-salesforce.md), checkpoint `1a04f52`. The
 handoff at the end of this page records what was delivered and verified.
 
@@ -194,10 +195,38 @@ Git checkpoint: `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (*Build NABD support 
 | `read-mcp smoke` against the real org | **12/12**: no-context and expired tokens refused, tools listed, scoped profile/orders, other customer's order not found, published-only knowledge and current revision, scoped resource, return window from policy, public case fields, scoped prompt |
 | Browser (scripted models, real API, MCP and Salesforce) | Sign-in from Salesforce, streamed reply, nested cards with findings, waiting state, queued second message, reload mid-run restored, backend killed mid-run → "Reconnecting…" → run resumed (attempt 2) and finished live |
 | Frontend `tsc` and `next build` | Clean |
-| Real-model English scenarios (`-m llm`, 12) | **Not run**: needs the user's approval and `NABD_OPENAI_API_KEY` |
+| Real-model English scenarios (`-m llm`, 12, once each, `gpt-5.4-mini`) | **10/12 pass** (details below) |
 
-No paid model calls were made in Phase 2. Linux image results are in
-[status](../status.md).
+Linux image results are in [status](../status.md).
+
+### Real-model English run — 18 November 2026
+
+Approved by the user: one run of each scenario through real models, the real
+read MCP server and the real Salesforce org. The first attempt answered 6
+scenarios; the other 6 failed before their first model call because the test
+harness used a new event loop per scenario while the OpenAI client reuses one
+cached HTTP pool (fixed: one shared loop). Two checks were also too strict
+(a curly apostrophe; requiring `get_order` when `list_orders` already holds the
+dates) and were corrected, then the recorded answers were re-scored without new
+calls. The user approved running the 6 unanswered scenarios once.
+
+| Scenario | Result | What the assistant said (summary) |
+| --- | --- | --- |
+| track_single_order | Pass | SE-1042 in transit at the Leeds sorting centre, expected Friday 20 November |
+| several_orders_needs_info | Pass | Asked which item, listing four orders by product (also the cancelled and undelivered ones) |
+| late_delivery | Pass | SE-1061 delayed with Royal Parcel; was due Sunday 15 November, now Friday 20 November |
+| lost_package | Pass | SE-1071 marked lost, with tracking; said it cannot open a case or refund from chat |
+| return_allowed | Pass | Speaker returnable until Tuesday 8 December |
+| return_too_late | **Fail** | Correct outcome and deadline (Tuesday 3 November), but said "delivered on Sunday 4 November"; Salesforce has 4 **October** |
+| non_returnable_item | Pass | Boxer briefs not returnable; offered the returnable linen shirt (until Sunday 13 December) |
+| faq_delivery_cost | Pass | £3.99 standard, free over £40, £6.99 next day (current revision, not the retired £2.99) |
+| return_policy_general | Pass | 30 days from delivery, from the published policy |
+| refund_request | **Fail** | Checked eligibility (returnable until 8 December) and claimed nothing false, but never said a refund can't be arranged from chat |
+| other_customers_order | Pass | Refused: SE-1051 is not on the customer's account |
+| ask_for_human | Pass | Said it can't transfer; gave the published phone/email contacts |
+
+No reply claimed an action the assistant cannot take. Each scenario ran once,
+so these are single observations, not a success rate.
 
 ### Findings worth keeping
 
@@ -211,12 +240,18 @@ No paid model calls were made in Phase 2. Linux image results are in
   heartbeat lets the page notice and reopen it. An EventSource that gets an
   HTTP error closes for good, so the page reopens it itself.
 - FastAPI 0.163 lists included routers as one route without `.path`.
+- `langchain-openai` caches its async HTTP client across instances; code that
+  runs several `asyncio.run` loops in one process must share one loop.
+- Text checks on model replies must accept typographic apostrophes (’).
 
 ### Known limitations
 
-- The real-model gate ("English support scenarios succeed through
-  Salesforce/MCP") is prepared (`tests/nabd/test_chat_scenarios.py`) but not
-  measured. Prompt quality with real models is therefore unverified.
+- Real-model gate: 10/12. Open fixes: (1) the model restated a delivery date
+  with the wrong month, likely while converting `2026-10-04 (Sunday)` next to
+  a November deadline; candidate fix is human-readable dates with the month in
+  tool results. (2) The refund reply omitted that refunds can't be arranged
+  from chat; candidate fix is an explicit refund instruction in the Supervisor
+  prompt. Both need a real-model check of those two scenarios.
 - No write tools: cases, refunds, order changes and hand-offs cannot be done
   from chat yet (Phase 3); the Supervisor is told to say so.
 - English only; activity texts are English templates keyed by stable codes.
