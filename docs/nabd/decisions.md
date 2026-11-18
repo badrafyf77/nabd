@@ -93,3 +93,23 @@ they do not require repeating the product interview.
 - Voice, a generic multi-business platform, production authentication, offline
   notifications, approval/refund execution, and a sandboxed manager analytics
   agent are later work. A new agent needs an evaluated responsibility.
+
+## Recorded implementation adjustments
+
+- **Phase 3 complaint stage order (18 November 2026).** The Complaint
+  specialist investigates with its own read tools and runs before the
+  Supervisor in each turn, so the Supervisor's reply can cite confirmed case
+  receipts. This orders the architecture's turn steps 2–5 as 3, 4, 2, 5; the
+  analysis is still mandatory and still uses tool evidence.
+- **Phase 3 Salesforce identity (18 November 2026).** The org has one
+  Salesforce Integration licence. The read and write MCP servers therefore
+  share the integration user. It keeps read-only object permissions and gains
+  only execute access to the typed `NabdCaseCommands` gateway (permission set
+  `NABD_Integration_Gateway`); direct record writes stay refused. A separate
+  write user needs another integration licence.
+- **Phase 3 review threshold (18 November 2026).** A category confidence
+  below 0.6 routes a new case to General Support with the review flag
+  (`NABD_CHAT_REVIEW_CONFIDENCE`), an initial default to evaluate.
+- **Phase 3 priority after creation (18 November 2026).** NABD only raises a
+  case's priority, and only while staff have not changed it; category and
+  owner are set once, on creation. Lowering or re-routing is staff work.

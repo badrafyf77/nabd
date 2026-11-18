@@ -62,7 +62,7 @@ def _summary(name: str, data: dict[str, Any]) -> dict[str, Any]:
         return {"count": data.get("count", 0)}
     if name == "get_order":
         return {"order_number": data.get("order_number"), "found": bool(data.get("found"))}
-    if name == "list_cases":
+    if name in ("list_cases", "list_case_history"):
         return {"count": data.get("count", 0)}
     if name == "get_knowledge":
         return {"articles": [{"title": e["title"], "revision": e["revision_key"]}
@@ -92,6 +92,10 @@ class McpTools:
     async def read_json(self, uri: str) -> dict[str, Any]:
         result = await self.client.read_resource(uri)
         return json.loads(result.contents[0].text)
+
+    async def call_raw(self, name: str, args: dict[str, Any]) -> ToolOutcome:
+        """One tool call without activity events; for code (not models) driving the write server."""
+        return await self._call_once(name, args)
 
     async def _call_once(self, name: str, args: dict[str, Any]) -> ToolOutcome:
         try:

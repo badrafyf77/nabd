@@ -41,6 +41,7 @@ class FakeChatModel(BaseChatModel):
     replies: list[Any] = Field(default_factory=list)
     requests: list[dict[str, Any]] = Field(default_factory=list)
     model_name: str = "fake-model"
+    default: Any = None  # used once the scripted replies run out (None: running out is an error)
 
     @property
     def _llm_type(self) -> str:
@@ -54,9 +55,9 @@ class FakeChatModel(BaseChatModel):
 
     def _next(self, messages: list[BaseMessage], kwargs: dict[str, Any]) -> dict[str, Any]:
         self.requests.append({"messages": list(messages), **kwargs})
-        if not self.replies:
+        if not self.replies and self.default is None:
             raise AssertionError("FakeChatModel ran out of scripted replies")
-        reply = self.replies.pop(0)
+        reply = self.replies.pop(0) if self.replies else self.default
         return reply(messages) if callable(reply) else reply
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:

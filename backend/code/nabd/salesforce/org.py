@@ -49,11 +49,11 @@ async def configure(client: SalesforceClient, *, org_id: str, staff_username: st
         raise RuntimeError("The sf CLI user was not found in the org.")
     sets = {row["Name"]: row["Id"] for row in await client.query(
         "SELECT Id, Name FROM PermissionSet WHERE Name IN "
-        f"{literal_list([s.STAFF_PERMISSION_SET, s.INTEGRATION_PERMISSION_SET])}")}
+        f"{literal_list([s.STAFF_PERMISSION_SET, s.INTEGRATION_PERMISSION_SET, s.GATEWAY_PERMISSION_SET])}")}
     groups = {row["DeveloperName"]: row["Id"] for row in await client.query(
         "SELECT Id, DeveloperName FROM Group WHERE Type = 'Regular' AND DeveloperName IN "
         f"{literal_list(list(s.GROUPS))}")}
-    if len(sets) != 2 or len(groups) != len(s.GROUPS):
+    if len(sets) != 3 or len(groups) != len(s.GROUPS):
         raise RuntimeError("Deploy the metadata before configuring access.")
 
     async def ensure_permission_set(user_id: str, name: str) -> None:
@@ -101,6 +101,7 @@ async def configure(client: SalesforceClient, *, org_id: str, staff_username: st
                       {"AssigneeId": user_id, "PermissionSetLicenseId": license_row["Id"]})
         result.changes.append("assigned Salesforce API Integration license")
     await ensure_permission_set(user_id, s.INTEGRATION_PERMISSION_SET)
+    await ensure_permission_set(user_id, s.GATEWAY_PERMISSION_SET)
     await ensure_group(user_id, s.INTEGRATION_GROUP)
 
     return result
@@ -272,7 +273,21 @@ async def verify_access(client: SalesforceClient, *, org_id: str, staff_username
         sets = await client.query("SELECT PermissionSet.Name FROM PermissionSetAssignment WHERE "
                                   f"AssigneeId = {literal(user['Id'])} AND PermissionSet.IsOwnedByProfile = false")
         names = sorted(row["PermissionSet"]["Name"] for row in sets)
-        checks.append(_compare("integration user permission sets", [s.INTEGRATION_PERMISSION_SET], names))
+        checks.append(_compare("integration user permission sets",
+                               sorted([s.INTEGRATION_PERMISSION_SET, s.GATEWAY_PERMISSION_SET]), names))
+        gateway = await client.query(
+            "SELECT SetupEntityId FROM SetupEntityAccess WHERE SetupEntityType = 'ApexClass' AND Parent.Name = "
+            f"{literal(s.GATEWAY_PERMISSION_SET)}")
+        classes = await client.query(
+            f"SELECT Id, Name FROM ApexClass WHERE Name = {literal(s.GATEWAY_CLASS)} AND Status = 'Active'")
+        checks.append(Check("gateway permission set runs only the case command gateway",
+                            [row["SetupEntityId"] for row in gateway] == [row["Id"] for row in classes] != []))
+        object_rights = await client.query(
+            "SELECT SobjectType FROM ObjectPermissions WHERE (PermissionsCreate = true OR PermissionsEdit = true "
+            "OR PermissionsDelete = true) AND Parent.Name IN "
+            f"{literal_list([s.INTEGRATION_PERMISSION_SET, s.GATEWAY_PERMISSION_SET])}")
+        checks.append(Check("integration user has no object create/edit/delete rights", not object_rights,
+                            ", ".join(row["SobjectType"] for row in object_rights)))
         groups = await client.query("SELECT Group.DeveloperName FROM GroupMember WHERE "
                                     f"UserOrGroupId = {literal(user['Id'])}")
         checks.append(_compare("integration user groups", [s.INTEGRATION_GROUP],

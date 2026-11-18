@@ -1,7 +1,7 @@
 "use client";
 
 import type { Activity, RunView } from "./types";
-import { OUTCOME, activityDetail, activityTitle, runHeadline, seconds } from "./messages";
+import { OUTCOME, activityDetail, activityTitle, caseLine, runHeadline, seconds } from "./messages";
 
 function elapsed(a: { startedAt?: string; endedAt?: string; durationMs?: number }, now: number): number | null {
   if (a.durationMs != null) return a.durationMs;
@@ -58,6 +58,9 @@ function ActivityNode({ activity, byParent, now }: { activity: Activity; byParen
       )}
       {activity.code === "agent.orders" && activity.state === "completed" && activity.result && (
         <Findings result={activity.result} />
+      )}
+      {activity.code.startsWith("case.") && activity.state === "completed" && activity.result?.case_number && (
+        <div className="case-confirmed">{caseLine(activity.result)}</div>
       )}
       {kids.length > 0 && (
         <ul className="activity-children">

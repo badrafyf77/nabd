@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ActivityPanel from "./ActivityPanel";
 import { ApiError, EVENT_TYPES, api } from "./api";
+import { CASE_STATUS } from "./messages";
 import { applyEvents, emptyState, fromSnapshot } from "./reducer";
 import type { ConversationState, ConversationSummary, DemoCustomer, ServerEvent, Session } from "./types";
 import "./chat.css";
@@ -295,6 +296,17 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
             {connection === "live" ? "Live" : connection === "connecting" ? "Connecting…" : "Reconnecting…"}
           </span>
         </header>
+        {Object.keys(state.cases).length > 0 && (
+          <ul className="case-strip" aria-label="Support cases in this conversation">
+            {Object.values(state.cases).map((c) => (
+              <li key={c.case_number}>
+                <strong>Case {c.case_number}</strong>
+                <span>{c.department ? `${c.department} team` : "a team member"}</span>
+                {c.status && <span className="muted">{CASE_STATUS[c.status] || c.status}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
         {notice && (
           <p className="error banner" role="alert">
             Something went wrong ({notice}). <button type="button" className="link" onClick={() => setNotice(null)}>Dismiss</button>

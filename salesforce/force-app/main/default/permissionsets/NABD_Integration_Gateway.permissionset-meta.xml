@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>NabdCaseCommands</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <description>Lets the NABD integration user call the NabdCaseCommands case command gateway. Grants no object create or edit rights; direct record writes stay refused.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>NABD Integration Gateway</label>
+</PermissionSet>

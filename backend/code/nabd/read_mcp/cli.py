@@ -120,7 +120,9 @@ async def _smoke(url: str | None) -> int:
 
         async with _client(endpoint, http, _token(secret, "C001")) as client:
             names = {t.name for t in (await client.list_tools()).tools}
-            check("six read-only tools listed", len(names) == 6, ", ".join(sorted(names)))
+            check("seven read-only tools listed", len(names) == 7, ", ".join(sorted(names)))
+            history, error = await tool(client, "list_case_history")
+            check("case history needs the case-history scope", history is None and "not_allowed" in error, error)
             profile, error = await tool(client, "get_customer_profile")
             check("profile of the signed customer", bool(profile) and profile["customer_id"] == "C001", error)
             orders, error = await tool(client, "list_orders")
@@ -156,6 +158,14 @@ async def _smoke(url: str | None) -> int:
             prompt = await client.get_prompt("staff_review", {"focus": "smoke"})
             text = prompt.messages[0].content.text
             check("staff_review prompt is customer-scoped", "customer C011" in text and "C001" not in text)
+        async with _client(endpoint, http, _token(secret, "C011", scopes=(context.READ_SCOPE,
+                                                                       context.CASE_HISTORY_SCOPE))) as client:
+            history, error = await tool(client, "list_case_history")
+            items = (history or {}).get("cases", [])
+            check("case history is scoped and carries summaries without internal fields",
+                  bool(items) and all(item.get("summary") for item in items)
+                  and not set(items[0]) & {"priority", "sentiment", "urgency", "confidence"},
+                  error or f"{len(items)} cases")
 
     for name, passed, detail in checks:
         print(f"{'PASS' if passed else 'FAIL'}  {name}" + (f"  ({detail})" if detail and not passed else ""))

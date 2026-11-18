@@ -5,7 +5,7 @@
 import type { Activity, ConversationState, RunView, ServerEvent, Snapshot } from "./types";
 
 export function emptyState(): ConversationState {
-  return { lastSequence: 0, messages: [], runs: {}, runOrder: [], activities: {}, partial: {}, gap: false };
+  return { lastSequence: 0, messages: [], runs: {}, runOrder: [], activities: {}, partial: {}, cases: {}, gap: false };
 }
 
 function upsertRun(state: ConversationState, id: string, patch: Partial<RunView>): void {
@@ -83,6 +83,7 @@ function applyOne(state: ConversationState, event: ServerEvent): void {
         error: p.error,
         waitingFor: event.state === "waiting" ? p.waiting_for : undefined,
         waitingOn: event.state === "waiting" ? p.waiting_on : undefined,
+        waitingReason: event.state === "waiting" ? p.waiting_reason : undefined,
         retry: event.state === "retrying" ? p.retry : previous?.retry,
         startedAt: previous?.startedAt ?? event.created_at,
         endedAt: finished ? event.created_at : undefined,
@@ -90,6 +91,13 @@ function applyOne(state: ConversationState, event: ServerEvent): void {
         order: previous?.order ?? event.sequence,
       };
       state.activities = { ...state.activities, [event.activity_id]: activity };
+      // A case appears in the conversation's case list only once Salesforce confirmed it.
+      const result = p.result || {};
+      if (event.code.startsWith("case.") && event.state === "completed" && result.case_number) {
+        state.cases = { ...state.cases, [result.case_number]: {
+          case_number: result.case_number, department: result.team ?? null, status: result.case_status ?? null,
+          last_operation: result.operation ?? event.code } };
+      }
       break;
     }
   }
@@ -125,6 +133,9 @@ export function fromSnapshot(snapshot: Snapshot): ConversationState {
   for (const [messageId, item] of Object.entries(snapshot.partial)) {
     state.partial = { ...state.partial, [item.run_id]: { messageId, attempt: state.runs[item.run_id]?.attempt ?? 1,
                                                          text: item.text } };
+  }
+  for (const item of snapshot.cases || []) {
+    state.cases = { ...state.cases, [item.case_number]: item };
   }
   state.lastSequence = snapshot.last_sequence;
   return state;

@@ -8,13 +8,20 @@ lease expired (its worker died) is claimed again, up to ``max_attempts``.
 Events get a per-conversation sequence number in the same transaction that
 increments ``conversations.last_sequence``, and every append is announced
 with ``NOTIFY nabd_events`` so SSE streams in any process wake up.
+
+Case work (Phase 3) adds each run's verified complaint plan, its durable case
+commands (stored before they are sent), the cases each conversation touched,
+and a per-customer advisory lock that serializes case mutations.
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hashlib
 import secrets
 import uuid
-from dataclasses import dataclass
+from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -65,10 +72,56 @@ class ClaimedRun:
     lease_owner: str
 
 
+@dataclass(frozen=True)
+class NewCommand:
+    """A case command to store before it is sent."""
+
+    operation_id: str
+    position: str
+    issue_ref: str
+    operation: str
+    request: dict[str, Any]
+    card: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CommandRow:
+    operation_id: str
+    run_id: str
+    conversation_id: str
+    customer_id: str
+    position: str
+    issue_ref: str
+    operation: str
+    request: dict[str, Any]
+    card: dict[str, Any]
+    status: str
+    attempts: int
+    result: dict[str, Any] | None
+    error_code: str | None
+
+    @property
+    def final(self) -> bool:
+        return self.status in ("confirmed", "conflict", "failed")
+
+
+def _command(row: dict[str, Any]) -> CommandRow:
+    return CommandRow(
+        operation_id=row["operation_id"], run_id=str(row["run_id"]), conversation_id=str(row["conversation_id"]),
+        customer_id=row["customer_id"], position=row["position"], issue_ref=row["issue_ref"],
+        operation=row["operation"], request=row["request"], card=row["card"], status=row["status"],
+        attempts=row["attempts"], result=row["result"], error_code=row["error_code"])
+
+
+CASE_LOCK_POLL_SECONDS = 0.2
+
+
 class Store:
-    def __init__(self, pool: AsyncConnectionPool, *, local_notify=None):
+    def __init__(self, pool: AsyncConnectionPool, *, local_notify=None, lock_conninfo: str | None = None):
         self.pool = pool
         self._local_notify = local_notify  # in-process shortcut; NOTIFY reaches other processes
+        # Case locks hold a connection for the whole complaint stage; a dedicated one keeps the pool free.
+        self._lock_conninfo = lock_conninfo
 
     # --- Demo sessions ----------------------------------------------------------------
 
@@ -315,6 +368,135 @@ class Store:
                 "AND attempt = %s", (error, run.id, run.lease_owner, run.attempt))
         return cursor.rowcount == 1
 
+    # --- Case work (Phase 3) -------------------------------------------------------------------
+
+    @contextlib.asynccontextmanager
+    async def case_lock(self, customer_id: str,
+                        on_wait: Callable[[], Awaitable[None]] | None = None) -> AsyncIterator[bool]:
+        """Serialize case mutations of one customer across runs and processes.
+
+        A PostgreSQL session advisory lock: released on exit, or by PostgreSQL
+        itself if the process dies. Yields whether the caller had to wait.
+        """
+        key = f"nabd-cases:{customer_id}"
+        async with contextlib.AsyncExitStack() as stack:
+            if self._lock_conninfo:
+                conn = await AsyncConnection.connect(self._lock_conninfo, autocommit=True)
+                stack.push_async_callback(conn.close)
+            else:
+                conn = await stack.enter_async_context(self.pool.connection())
+            waited = False
+            while True:
+                cursor = await conn.execute("SELECT pg_try_advisory_lock(hashtextextended(%s, 0))", (key,))
+                row = await cursor.fetchone()
+                if (row[0] if isinstance(row, (tuple, list)) else next(iter(row.values()))):
+                    break
+                if not waited and on_wait is not None:
+                    await on_wait()
+                waited = True
+                await asyncio.sleep(CASE_LOCK_POLL_SECONDS)
+            try:
+                yield waited
+            finally:
+                with contextlib.suppress(Exception):
+                    await conn.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0))", (key,))
+
+    async def recent_messages(self, conversation_id: str, message_id: str, limit: int) -> list[dict[str, Any]]:
+        """The conversation up to and including this customer message, oldest first."""
+        async with self.pool.connection() as conn:
+            rows = await (await conn.execute(
+                "SELECT m.id, m.role, m.text, m.created_at FROM nabd.messages m "
+                "JOIN nabd.runs r ON r.id = m.run_id WHERE m.conversation_id = %s "
+                "AND r.turn <= (SELECT turn FROM nabd.runs WHERE message_id = %s) "
+                "ORDER BY r.turn DESC, (m.role = 'assistant') DESC LIMIT %s",
+                (conversation_id, message_id, limit))).fetchall()
+        return [{"id": str(row["id"]), "role": row["role"], "text": row["text"], "at": row["created_at"]}
+                for row in reversed(rows)]
+
+    async def case_plan(self, run_id: str) -> tuple[dict[str, Any] | None, list[CommandRow]]:
+        """A run's stored complaint assessment and commands, if an earlier attempt saved them."""
+        async with self.pool.connection() as conn:
+            plan = await (await conn.execute(
+                "SELECT assessment FROM nabd.run_complaints WHERE run_id = %s", (run_id,))).fetchone()
+            rows = await (await conn.execute(
+                "SELECT * FROM nabd.case_commands WHERE run_id = %s ORDER BY created_at, position",
+                (run_id,))).fetchall()
+        return (plan["assessment"] if plan else None), [_command(row) for row in rows]
+
+    async def save_case_plan(self, run_id: str, conversation_id: str, customer_id: str,
+                             assessment: dict[str, Any], commands: list[NewCommand]) -> bool:
+        """Store the plan and all its commands in one transaction. False if one was already saved."""
+        async with self.pool.connection() as conn, conn.transaction():
+            saved = await (await conn.execute(
+                "INSERT INTO nabd.run_complaints (run_id, conversation_id, customer_id, assessment) "
+                "VALUES (%s, %s, %s, %s) ON CONFLICT (run_id) DO NOTHING RETURNING run_id",
+                (run_id, conversation_id, customer_id, Jsonb(assessment)))).fetchone()
+            if saved is None:
+                return False
+            for command in commands:
+                await self._insert_command(conn, run_id, conversation_id, customer_id, command)
+        return True
+
+    async def add_command(self, run_id: str, conversation_id: str, customer_id: str, command: NewCommand) -> None:
+        async with self.pool.connection() as conn:
+            await self._insert_command(conn, run_id, conversation_id, customer_id, command)
+
+    @staticmethod
+    async def _insert_command(conn: AsyncConnection, run_id: str, conversation_id: str, customer_id: str,
+                              command: NewCommand) -> None:
+        await conn.execute(
+            "INSERT INTO nabd.case_commands (operation_id, run_id, conversation_id, customer_id, position, "
+            "issue_ref, operation, request, card, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending') "
+            "ON CONFLICT (operation_id) DO NOTHING",
+            (command.operation_id, run_id, conversation_id, customer_id, command.position, command.issue_ref,
+             command.operation, Jsonb(command.request), Jsonb(command.card)))
+
+    async def mark_command(self, operation_id: str, status: str, *, result: dict[str, Any] | None = None,
+                           error: str | None = None, sent: bool = False) -> None:
+        async with self.pool.connection() as conn:
+            await conn.execute(
+                "UPDATE nabd.case_commands SET status = %s, result = coalesce(%s, result), error_code = %s, "
+                "attempts = attempts + %s, updated_at = now(), reconcile_lease_until = NULL "
+                "WHERE operation_id = %s",
+                (status, Jsonb(result) if result is not None else None, error, 1 if sent else 0, operation_id))
+
+    async def record_case(self, conversation_id: str, customer_id: str, run_id: str, *, case_id: str,
+                          case_number: str, department: str | None, status: str | None, operation: str) -> None:
+        async with self.pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO nabd.issue_links (conversation_id, case_id, customer_id, case_number, department, "
+                "status, last_operation, run_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+                "ON CONFLICT (conversation_id, case_id) DO UPDATE SET case_number = excluded.case_number, "
+                "department = coalesce(excluded.department, nabd.issue_links.department), "
+                "status = excluded.status, last_operation = excluded.last_operation, run_id = excluded.run_id, "
+                "updated_at = now()",
+                (conversation_id, case_id, customer_id, case_number, department, status, operation, run_id))
+
+    async def claim_reconcile(self, *, older_than_seconds: float, lease_seconds: float, max_attempts: int,
+                              limit: int = 10) -> tuple[list[CommandRow], list[CommandRow]]:
+        """(to reconcile, given up): commands of finished runs whose outcome is still open.
+
+        Sent commands with an unknown outcome are leased to this caller. Commands
+        never sent are abandoned (they had no effect), and commands that used up
+        their attempts are failed; both come back as given up, so their cards close.
+        """
+        async with self.pool.connection() as conn, conn.transaction():
+            closed = await (await conn.execute(
+                "UPDATE nabd.case_commands c SET status = 'failed', updated_at = now(), "
+                "error_code = CASE WHEN c.status = 'pending' THEN 'abandoned' ELSE 'reconcile_exhausted' END "
+                "FROM nabd.runs r WHERE r.id = c.run_id AND r.status IN ('completed', 'failed') "
+                "AND (c.status = 'pending' OR (c.status IN ('dispatched', 'unknown') AND c.attempts >= %s)) "
+                "RETURNING c.*", (max_attempts,))).fetchall()
+            rows = await (await conn.execute(
+                "UPDATE nabd.case_commands SET reconcile_lease_until = now() + %s WHERE operation_id IN ("
+                "  SELECT c.operation_id FROM nabd.case_commands c JOIN nabd.runs r ON r.id = c.run_id "
+                "  WHERE c.status IN ('dispatched', 'unknown') AND r.status IN ('completed', 'failed') "
+                "  AND c.updated_at < now() - %s "
+                "  AND (c.reconcile_lease_until IS NULL OR c.reconcile_lease_until < now()) "
+                "  ORDER BY c.updated_at LIMIT %s FOR UPDATE OF c SKIP LOCKED) RETURNING *",
+                (timedelta(seconds=lease_seconds), timedelta(seconds=older_than_seconds), limit))).fetchall()
+        return [_command(row) for row in rows], [_command(row) for row in closed]
+
     # --- Snapshot ----------------------------------------------------------------------------
 
     async def snapshot(self, conversation_id: str) -> dict[str, Any]:
@@ -341,6 +523,9 @@ class Store:
                 "SELECT run_id, payload FROM nabd.events WHERE conversation_id = %s AND run_id = ANY(%s) "
                 "AND type = 'message.delta' AND sequence <= %s ORDER BY sequence",
                 (conversation_id, active, conversation["last_sequence"]))).fetchall()
+            cases = await (await conn.execute(
+                "SELECT case_number, department, status, last_operation, updated_at FROM nabd.issue_links "
+                "WHERE conversation_id = %s ORDER BY created_at", (conversation_id,))).fetchall()
         attempts = {str(row["id"]): row["attempt"] for row in runs}
         partial: dict[str, dict[str, Any]] = {}
         for row in deltas:
@@ -358,4 +543,7 @@ class Store:
                       "created_at": r["created_at"].isoformat()} for r in reversed(runs)],
             "events": [_event_dict(row) for row in events],
             "partial": partial,
+            "cases": [{"case_number": c["case_number"], "department": c["department"], "status": c["status"],
+                       "last_operation": c["last_operation"], "updated_at": c["updated_at"].isoformat()}
+                      for c in cases],
         }

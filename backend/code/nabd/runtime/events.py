@@ -92,8 +92,9 @@ class Activity:
         return self
 
     async def wait(self, waiting_for: Literal["dependency", "customer_input", "external_operation"],
-                   on: str | None = None) -> None:
-        await self._emit("waiting", waiting_for=waiting_for, waiting_on=on)
+                   on: str | None = None, reason: str | None = None) -> None:
+        extra = {"waiting_reason": reason} if reason else {}
+        await self._emit("waiting", waiting_for=waiting_for, waiting_on=on, **extra)
 
     async def resume(self) -> None:
         await self._emit("running")

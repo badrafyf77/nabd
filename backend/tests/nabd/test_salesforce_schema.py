@@ -1,5 +1,6 @@
 """The schema contract and the metadata generated from it. No Salesforce calls."""
 import re
+from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -8,10 +9,15 @@ from nabd.salesforce import metadata
 from nabd.salesforce import schema as s
 
 NS = {"m": metadata.NS}
+# Internal assessments the integration user must never read. The English summary
+# became readable in Phase 3 for case matching; only the Complaint stage's
+# separately scoped read MCP tool returns it.
 INTERNAL_CASE_FIELDS = {
-    "Sentiment__c", "Urgency__c", "Classification_Confidence__c", "Needs_Review__c", "English_Summary__c",
-    "Description", "Customer_Language__c", s.SEED_FINGERPRINT,
+    "Sentiment__c", "Urgency__c", "Classification_Confidence__c", "Needs_Review__c", "Description",
+    "Customer_Language__c", "NABD_Assessed_Priority__c", "NABD_Priority_Reason__c", "NABD_Summary_Hash__c",
+    s.SEED_FINGERPRINT,
 }
+BOOKKEEPING_FIELDS = {s.SEED_FINGERPRINT, "NABD_Summary_Hash__c"}  # not shown on layouts
 
 
 def _parse(text: str) -> ET.Element:
@@ -94,7 +100,7 @@ def test_layouts_only_reference_contract_fields_and_show_every_staff_field():
         for name in shown - {"Name"}:
             obj.field(name)
         if obj.layout_sections:
-            hidden = {field.name for field in obj.custom_fields} - shown - {s.SEED_FINGERPRINT}
+            hidden = {field.name for field in obj.custom_fields} - shown - BOOKKEEPING_FIELDS
             assert not hidden, f"{obj.name} hides {hidden}"
         for related in obj.related_lists:
             child = s.sobject(related.child)
@@ -136,6 +142,17 @@ def test_integration_permission_set_is_read_only(rendered):
     assert all(item.find("m:editable", NS).text == "false" for item in root.findall("m:fieldPermissions", NS))
     assert not {f"Case.{name}" for name in INTERNAL_CASE_FIELDS} & fields
     assert "Account.BillingAddress" in fields and "Account.BillingCity" not in fields
+    assert "Case.English_Summary__c" in fields  # case matching (Phase 3)
+
+
+@needs_salesforce_project
+def test_gateway_permission_set_only_runs_the_gateway_class(rendered):
+    root = _parse(rendered[f"permissionsets/{s.GATEWAY_PERMISSION_SET}.permissionset-meta.xml"])
+    classes = [(item.find("m:apexClass", NS).text, item.find("m:enabled", NS).text)
+               for item in root.findall("m:classAccesses", NS)]
+    assert classes == [(s.GATEWAY_CLASS, "true")]
+    assert not root.findall("m:objectPermissions", NS) and not root.findall("m:fieldPermissions", NS)
+    assert (Path(metadata.SOURCE_ROOT) / "classes" / f"{s.GATEWAY_CLASS}.cls").exists()
 
 
 def test_permission_sets_never_list_required_or_master_detail_fields(rendered):

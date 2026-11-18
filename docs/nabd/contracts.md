@@ -2,8 +2,11 @@
 
 These are design contracts. Phase 2 implemented agent findings
 (`nabd/agents/orders.py`), customer activity events (`nabd/runtime/events.py`,
-`frontend/src/chat/types.ts`) and the HTTP interfaces below (`nabd/api.py`);
-complaint assessment and Salesforce commands arrive in Phase 3. Create concrete
+`frontend/src/chat/types.ts`) and the HTTP interfaces below (`nabd/api.py`).
+Phase 3 implemented the complaint assessment (`nabd/agents/complaints.py`:
+`ComplaintAssessment` from the model, `Assessment`/`Issue` after verification)
+and the Salesforce command/result (`nabd/salesforce/commands.py`, the write MCP
+tools and the Apex `NabdCaseCommands` gateway). Create concrete
 Pydantic models/TypeScript types alongside the first consumers; avoid unused
 schema scaffolding. Field names below describe required capabilities and stable
 identities; the phase implementation owns their concrete representation.
@@ -59,7 +62,7 @@ identities; the phase implementation owns their concrete representation.
 | `POST /api/demo/session` | Bind a seeded customer through an HttpOnly session |
 | `DELETE /api/demo/session` | End that session |
 | `POST /api/conversations` | Create a customer-owned conversation |
-| `GET /api/conversations/{id}` | Return authorized messages, activities, case summaries |
+| `GET /api/conversations/{id}` | Return authorized messages, activities, case summaries (`cases`: number, team, status, last operation; Phase 3) |
 | `POST /api/conversations/{id}/messages` | Accept an idempotent message and return run identity |
 | `GET /api/conversations/{id}/events` | Authorized SSE with Last-Event-ID replay |
 

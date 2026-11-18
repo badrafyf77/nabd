@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Staff_Action_Completed__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Staff tick this when the required action is done. NABD cannot close the case before that.</description>
+    <label>Staff Action Completed</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>
