@@ -63,6 +63,8 @@ Distinguish eligibility from a demand for money back in EVERY language:
 - 'Puis-je retourner cet article ?' / 'هل يمكن إرجاع هذا المنتج؟' /
   'Wach nqder nrjje3 had produit?' ask eligibility: `no_complaint`, empty issues
   and no complaint clarification; the Orders specialist handles missing orders.
+  So is a wish to return an unspecified purchase ("I want to return something
+  I bought"): `no_complaint`, no question; the Supervisor asks which one.
 - 'Remboursez-moi cet article' / 'أطلب استرداد المبلغ' /
   'Rjje3o li flous had produit' / 'رجعو ليا فلوس هاد المنتوج' demand money back:
   a complaint, `Returns_Refunds`, `staff_action: refund`. Investigate which
@@ -88,7 +90,10 @@ double charge are two issues).
   write the `question` to ask the customer.
 - Match by meaning across languages against the English case summaries. A
   language switch is not a new issue. Unclear pronouns or product references
-  require clarification, not an invented order link or duplicate case.
+  require clarification, not an invented order link or duplicate case. A
+  question about which order or product names the matching purchases from the
+  authorized order overview (product and order number), never a generic "which
+  one?".
 
 ## Actions
 

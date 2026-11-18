@@ -9,7 +9,8 @@ needed to resume is in the repository; the previous chat is not required.
   `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, latest `f341970`; `main` still holds Phase 3 at `603545d`.
   Phase 4 remains unmerged: the focused confirmation passed 3/6; the recheck
   of its three failures passed 0/3 on new prompt-behavior faults, now fixed in
-  the prompt (see the Phase 4 handoff). Another paid recheck needs approval.
+  the prompt; the second recheck passed 2/3, and its English failure is fixed
+  in the complaint prompt but unmeasured (see the Phase 4 handoff).
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**

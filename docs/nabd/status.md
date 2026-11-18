@@ -15,7 +15,9 @@ over-strict checks (now fixed) and one genuine Latin Darija script failure,
 fixed by a focused rewrite plus a code Arabizi fallback. The recheck of those
 three passed 0/3 on new prompt-behavior faults (generic clarification, asking
 to confirm a single matching order); the script held. Prompt fixes pass 275
-free tests; another paid recheck needs approval. `main` still holds Phase 3.
+free tests; the second recheck passed 2/3 (both Darija returns fixed;
+English unspecified return still generic, now fixed in the complaint prompt,
+unmeasured). `main` still holds Phase 3.
 Continue Phase 4 on that branch and merge it into `main` when Phase 4 is
 finished.
 

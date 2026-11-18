@@ -217,7 +217,23 @@ one recheck of failures after the free code checks passed. Results pending.
   question must name the matching index purchases; exactly one matching
   purchase is identified and goes straight to the Orders specialist. A free
   check pins these rules. Free suite: **275 passed**, 101 deselected.
-- Not yet measured with the real model; another paid recheck needs approval.
+- Measured in the next recheck, below.
+
+### Second recheck of `611311a` — the same three scenarios, once each
+
+- **2/3 automated passes.** `darija_latin-returns` and `darija_arabic-returns`
+  now pass: both Darija scripts went straight from the single matching order
+  to the Orders check and gave the correct allowed (SE-1051) and expired
+  (SE-1053) outcomes. The Latin Darija replies stayed in Latin letters.
+- `english-ambiguous` still failed: "Which item would you like to return, and
+  which order is it from?", without the owned orders. The source is the
+  complaint stage: it labeled an unspecified return `needs_clarification` with
+  that generic question (its prompt already says eligibility questions are not
+  complaints), and the Supervisor copied the listed English question verbatim.
+- Fix (prompt only, `prompts/complaints.md`): a wish to return an unspecified
+  purchase is `no_complaint` with no question, and any which-order/product
+  question must name the matching purchases from the authorized overview.
+  Free suite: **275 passed**, 101 deselected. Not measured with the real model.
 
 ### Current limitations to carry forward
 
