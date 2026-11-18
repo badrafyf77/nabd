@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -54,9 +55,20 @@ class SalesforceRequestError(SalesforceError):
 class AccessToken:
     value: SecretStr
     instance_url: str
+    org_id: str | None = None  # the Pub/Sub API's tenant ID
 
     def __repr__(self) -> str:
-        return f"AccessToken(instance_url={self.instance_url!r}, value='**********')"
+        return f"AccessToken(instance_url={self.instance_url!r}, org_id={self.org_id!r}, value='**********')"
+
+
+ORG_ID = re.compile(r"^00D[A-Za-z0-9]{12}([A-Za-z0-9]{3})?$")
+
+
+def _org_from_identity(identity: Any) -> str | None:
+    """The org ID inside an OAuth identity URL such as https://login.salesforce.com/id/00D.../005..."""
+    parts = str(identity or "").rstrip("/").split("/")
+    candidate = parts[-2] if len(parts) >= 2 else ""
+    return candidate if ORG_ID.fullmatch(candidate) else None
 
 
 class TokenSource(Protocol):
@@ -111,7 +123,8 @@ class ClientCredentialsAuth:
                     status=response.status_code, codes=(code,),
                 )
             self._cached = AccessToken(
-                SecretStr(str(payload["access_token"])), _validated_instance(str(payload["instance_url"]))
+                SecretStr(str(payload["access_token"])), _validated_instance(str(payload["instance_url"])),
+                _org_from_identity(payload.get("id")),
             )
             return self._cached
 
@@ -154,7 +167,7 @@ class CliOrgAuth:
             ) from None
         self.org_id = details.get("id")
         self.username = details.get("username")
-        return AccessToken(SecretStr(token), _validated_instance(instance))
+        return AccessToken(SecretStr(token), _validated_instance(instance), self.org_id)
 
 
 def _json(response: httpx.Response) -> Any:
