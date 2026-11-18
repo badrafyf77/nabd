@@ -94,6 +94,11 @@ Depends on Phase 3.
 
 Depends on Phase 4.
 
+Plan and handoff: [05-staff-follow-up](phases/05-staff-follow-up.md) —
+**paused** (18 November 2026), partly implemented on branch
+`codex/nabd-phase5-staff-follow-up`; Salesforce feed and Pub/Sub client done,
+staff sync service, chat and verification still to do.
+
 - Finish staff layouts, evidence access, public responses, and case statuses.
 - Publish after-commit Salesforce events and consume them via Pub/Sub with
   durable cursors, authorized current-state retrieval, and public projection.
@@ -105,7 +110,8 @@ Depends on Phase 4.
 
 ## Phase 6 — Analytics and proactive warnings
 
-Depends on Phase 5.
+Depends on Phase 5. The owner chose to start it while Phase 5 is paused
+(18 November 2026); staff-to-chat sync arrives when Phase 5 resumes.
 
 - Build Salesforce dashboards: volume/category/language/sentiment/priority,
   recurring problems, age, and resolution outcomes; display data freshness.

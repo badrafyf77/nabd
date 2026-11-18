@@ -1,10 +1,12 @@
 # NABD status
 
-Updated: 18 November 2026 (Africa/Casablanca), at the end of Phase 4.
+Updated: 18 November 2026 (Africa/Casablanca), at the end of Phase 4; Phase 5
+paused the same day.
 
 ## Current work
 
-**Phases 0–4 are complete; Phases 5–7 are pending.** Working branch:
+**Phases 0–4 are complete; Phase 5 is paused, partly implemented; Phases 6–7
+are pending, and the owner chose Phase 6 next.** Working branch:
 `codex/nabd-chat-salesforce`, merged into `main` at the end of Phase 4.
 Phase 4's final version passed **36/36** multilingual scenarios in one full
 real-model run, after earlier runs and rechecks (21/36 down to 1/1). Manual
@@ -18,6 +20,7 @@ review found wording slips but no blocking failure. See the
 | 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; docs and real-model results in later commits) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 | 3 — Complaint intelligence and reliable cases | `987959317beae7339f3bb51958032df0cb427b45` (implementation; handoff in the next commit) | [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026) |
 | 4 — Multilingual behavior | `b4d5f710f2ea5289bbda8762c8f078081d9cac61` (last implementation commit; earlier `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`) | [Phase 4 handoff](phases/04-multilingual.md#handoff) |
+| 5 — Live staff follow-up (**paused**) | branch `codex/nabd-phase5-staff-follow-up`: `2bb6d02` (Salesforce feed, deployed), `b0cbdfc` (Pub/Sub client), `65b0206` (unfinished sync pieces); not merged | [Phase 5 pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026) |
 
 Completed phases are merged into `main` on GitHub
 (`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
@@ -175,12 +178,34 @@ run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-**Phase 5 — live staff follow-up.** Scope and gate are in the
-[roadmap](roadmap.md#phase-5--live-staff-follow-up). Entry criteria: the
-resume commands above pass, and the [Phase 4 limitations](phases/04-multilingual.md#current-limitations-to-carry-forward)
+**Phase 6 — analytics and proactive warnings**, chosen by the owner while
+Phase 5 is paused. Scope and gate are in the
+[roadmap](roadmap.md#phase-6--analytics-and-proactive-warnings). Entry
+criteria: the resume commands above pass, and the
+[Phase 4 limitations](phases/04-multilingual.md#current-limitations-to-carry-forward)
 and [Phase 3 limitations](phases/03-complaints.md#known-limitations) are
-carried forward. Write `docs/nabd/phases/05-staff-follow-up.md` first, in the
-same form as the Phase 4 plan.
+carried forward. Write `docs/nabd/phases/06-analytics-warnings.md` first, in
+the same form as the Phase 4 plan. Phase 6 must not assume staff-to-chat sync
+exists ([decisions](decisions.md#recorded-implementation-adjustments)).
+
+**Before any Salesforce deploy in Phase 6:** the org already contains Phase 5's
+`NABD_Case_Change__e`, `NabdCaseChanges` (+ test), the two change triggers,
+the gateway's echo suppression and the event read access. `main`'s
+`force-app` lacks them, so deploying it as it is fails under `RunLocalTests`
+and would drop the event access. Bring commit `2bb6d02` (Salesforce feed only,
+complete and tested) from the Phase 5 branch into the working branch first,
+or remove those components from the org. See the
+[Phase 5 pause handoff](phases/05-staff-follow-up.md#facts-that-matter-while-phase-5-is-paused).
+If Phase 6 adds a database migration, Phase 5's unapplied `0004_staff_sync`
+must be renumbered when Phase 5 resumes.
+
+### Paused Phase 5
+
+Resume on branch `codex/nabd-phase5-staff-follow-up`; its plan and pause
+handoff are in [05-staff-follow-up](phases/05-staff-follow-up.md). Done: the
+Salesforce change feed (deployed, Apex 25/25) and the Pub/Sub client (live
+events about 1 s after commit). Left: store methods and the sync service,
+translation, chat/UI, tests, smoke latency, browser check, docs.
 
 ### Already decided for Phase 5 (do not re-ask)
 
@@ -199,7 +224,7 @@ same form as the Phase 4 plan.
 - Translated staff replies are clearly labeled, with the original kept
   ([roadmap](roadmap.md#phase-5--live-staff-follow-up)).
 
-### Starting points for Phase 5 (facts about the code, not decisions)
+### Starting points for Phase 5 (recorded before it began; the pause handoff supersedes the Salesforce and Pub/Sub items)
 
 - **Salesforce has no staff-change feed yet**: no platform event, no Pub/Sub
   client dependency, no CaseComment handling. The only trigger is
@@ -235,7 +260,7 @@ same form as the Phase 4 plan.
   harness `tests/nabd/live_turns.py`, and `backend/scripts/browser_stack.py`
   for the real stack with scripted models.
 
-When Phase 5 is finished: update its handoff, this status, START_HERE, the
+When a phase is finished: update its handoff, this status, START_HERE, the
 roadmap and the AGENTS pointer, commit as `badrafyf77`, then merge into `main`
 and push both branches.
 

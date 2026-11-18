@@ -140,6 +140,16 @@ they do not require repeating the product interview.
   invalid Latin Darija. Rejected drafts stay out of SSE/checkpoints. This adds
   no agent or semantic evaluator and cannot repeat case side effects.
 
+- **Phase order (18 November 2026).** The owner paused Phase 5 part-way
+  and moved on to Phase 6. Phase 5's work stays on its own branch until it
+  resumes; Phase 6 must not assume staff-to-chat sync exists, and its own
+  rule that internal risk never reaches customer streams applies to the
+  existing chat streams.
+- **Phase 5 Pub/Sub dependency (18 November 2026).** The Salesforce Pub/Sub
+  client uses `grpcio` only (pinned 1.85.1) with in-repo decoding of the few
+  protobuf messages and the event's Avro record, instead of protobuf,
+  fastavro and generated stubs.
+
 - **Latin Darija script repair (18 November 2026).** The focused confirmation
   showed a full-conversation rewrite still producing Arabic letters. The
   default changed from "a second invalid draft fails the attempt" to: one focused

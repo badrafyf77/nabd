@@ -21,7 +21,13 @@ needed to resume is in the repository; the previous chat is not required.
   real-model runs: 21/36, rechecks of the failures down to 1/1, then the final
   version **36/36** in one full run; manual review found wording slips only.
   See the [Phase 4 handoff](phases/04-multilingual.md#completion-summary).
-- Next: **NABD Phase 5 — live staff follow-up** (not started).
+- Paused: **NABD Phase 5 — live staff follow-up**, partly implemented on
+  branch `codex/nabd-phase5-staff-follow-up` (commits `2bb6d02`, `b0cbdfc`,
+  `65b0206`; not merged). Its Salesforce pieces are already deployed to
+  `nabd-dev`. See the
+  [Phase 5 pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026).
+- Next: **NABD Phase 6 — analytics and proactive warnings** (not started;
+  the owner chose it before finishing Phase 5).
 - Last measured suite: **275 passed** (101 paid scenarios deselected) on macOS
   with real PostgreSQL. Real-org `salesforce verify` 41/41, Apex 17/17,
   `salesforce smoke` 12/12, `read-mcp smoke` 14/14, `write-mcp smoke` 15/15
@@ -42,11 +48,13 @@ needed to resume is in the repository; the previous chat is not required.
    the complaint stage, case gateway and write MCP server, the
    [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) the
    chat underneath, and the [Salesforce reference](salesforce.md) the org.
-4. Phase 5's scope and gate in the
-   [roadmap](roadmap.md#phase-5--live-staff-follow-up) and the entry criteria in
-   [status](status.md#next-step), with what is already decided and the
-   starting points in the code. Write `docs/nabd/phases/05-staff-follow-up.md`
-   first when Phase 5 is requested.
+4. Phase 6's scope and gate in the
+   [roadmap](roadmap.md#phase-6--analytics-and-proactive-warnings) and the
+   entry notes in [status](status.md#next-step). Write
+   `docs/nabd/phases/06-analytics-warnings.md` first when Phase 6 is
+   requested. Read the
+   [Phase 5 pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026)
+   before any Salesforce deploy.
 5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
    responsibilities, data ownership, agent flow, and future public interfaces.
 6. [Roadmap](roadmap.md) and [development commands](README.md): later sequence,
@@ -81,7 +89,13 @@ phase; switch to (or recreate from `main`) the working branch before editing.
   chat answers 503 `chat_not_configured` until both MCP context secrets
   (`NABD_READ_MCP_CONTEXT_SECRET`, `NABD_WRITE_MCP_CONTEXT_SECRET`) and
   `NABD_OPENAI_API_KEY` are set. Complaint analysis and case writes exist
-  (Phase 3); staff-to-chat updates (Phase 5) and risk warnings (Phase 6) do not.
+  (Phase 3); staff-to-chat updates (Phase 5, paused) and risk warnings
+  (Phase 6) do not.
+- The org already has Phase 5's change event, triggers and gateway echo
+  suppression, which `main`'s `force-app` lacks. Deploying `main` as it is
+  fails (`NabdCaseChangesTest` runs under `RunLocalTests`). Bring commit
+  `2bb6d02` from the Phase 5 branch into the working branch first, or remove
+  those components from the org.
 - `salesforce/force-app` metadata is generated from
   `backend/code/nabd/salesforce/schema.py`. Change the schema, then run
   `python -m nabd salesforce generate`; never hand-edit generated XML.
@@ -118,11 +132,12 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md,
-> then docs/nabd/status.md. Phases 0–4 are complete. Start Phase 5 (live staff
-> follow-up): first write docs/nabd/phases/05-staff-follow-up.md in the same form
-> as the Phase 4 plan, then implement Phase 5 only. Preserve all accepted
-> decisions, ask me before any paid model run, update the phase handoff and
-> verification results, and when Phase 5 is finished merge it into main and
-> push as badrafyf77.
+> then docs/nabd/status.md. Phases 0–4 are complete and Phase 5 is paused
+> (read its pause handoff). Start Phase 6 (analytics and proactive warnings):
+> first write docs/nabd/phases/06-analytics-warnings.md in the same form as the
+> Phase 4 plan, then implement Phase 6 only. Preserve all accepted decisions,
+> ask me before any paid model run, update the phase handoff and verification
+> results, and when Phase 6 is finished merge it into main and push as
+> badrafyf77.
 
 For a later phase, replace the phase number and follow the then-current status.

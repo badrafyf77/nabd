@@ -15,7 +15,11 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
   describe the target; status identifies what actually exists.
 - Phases 0 (`512e03b`), 1 (Salesforce business system, `1a04f52`), 2
   (support chat, `02178fa`), 3 (complaint cases, `9879593`) and 4
-  (multilingual, `b4d5f71`) are complete. Phase 5 is next.
+  (multilingual, `b4d5f71`) are complete. Phase 5 (live staff follow-up) is
+  **paused**, partly done on branch `codex/nabd-phase5-staff-follow-up`; by
+  the owner's choice Phase 6 is next. Read the
+  [Phase 5 pause handoff](docs/nabd/phases/05-staff-follow-up.md#pause-handoff--18-november-2026)
+  before any Salesforce deploy: the org already has Phase 5 metadata.
   Later phase completions must
   update status and this pointer.
 - Implement only the phase the user requests. Update its plan/status/handoff,
