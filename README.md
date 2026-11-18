@@ -1,7 +1,8 @@
 # NABD — ShopEasy customer support
 
 Active development is **NABD**, a multilingual text support and complaint
-intelligence platform backed by Salesforce. Start with the
+intelligence platform backed by Salesforce. **Continuing in a new chat? Read
+[START_HERE](docs/nabd/START_HERE.md).** See also the
 [NABD development guide](docs/nabd/README.md),
 [phased roadmap](docs/nabd/roadmap.md), and [current status](docs/nabd/status.md).
 

@@ -7,11 +7,12 @@ Updated: 18 November 2026 (Africa/Casablanca).
 **Phase 0 is complete and verified. Phases 1–7 are pending.**
 Branch: `codex/nabd-chat-salesforce`.
 
-Completion checkpoint: the commit titled `Establish NABD text foundation (Phase 0)`.
-Resolve its hash from the repository root:
+Implementation checkpoint: **`512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b`**
+(`Establish NABD text foundation (Phase 0)`). Later documentation commits are
+handoff updates, not new implementation phases. Inspect the actual checkpoint:
 
 ```bash
-git log -1 --format='%h %s' -- docs/nabd/status.md
+git show --stat 512e03b
 ```
 
 Starting point: commit `379eac4` (`Write down where Phase 1 stopped`) on `phase-1`.
@@ -69,13 +70,17 @@ the test enforces bounded completion. Keep this regression coverage.
 No paid LLM calls or Salesforce requests were used. These results validate the
 foundation, not the future multilingual agent behavior or Salesforce integration.
 
-## Runtime left available
+## Last observed runtime — 18 November 2026
 
 - API: `http://localhost:8081`; `/healthz` and `/readyz` both return 200.
 - PostgreSQL: localhost:55432; named volume `nabd_nabd_postgres`.
 - One-shot migration service exited successfully. Disposable test DB is stopped.
 - Backend code in the container matches the verified Phase 0 implementation.
 - Local Python environment: `backend/.venv-text` (ignored by Git).
+
+Recheck these services in every new session. A recorded healthy endpoint does
+not imply Docker is running later. The fixture credentials in the development
+guide are local-only examples; do not save real integration secrets in notes.
 
 ## Exact resume commands
 
@@ -96,12 +101,17 @@ in the development guide, or run the all-container test command there.
 
 ## Resume and next phase
 
-Read [development commands](README.md), [accepted decisions](decisions.md),
-[architecture](architecture.md), and the [roadmap](roadmap.md).
+Begin with [START_HERE](START_HERE.md), then the detailed
+[Phase 1 plan](phases/01-salesforce.md). It links the remaining accepted decisions,
+architecture, development commands, and roadmap in the intended reading order.
 
 Phase 1 entry criteria: Phase 0 verification passes and a dedicated Salesforce
 development org can be registered/configured. Org creation and credentials are
 Phase 1 setup work, not an unfinished Phase 0 implementation.
+
+No Salesforce connection, tooling, org configuration, or credentials were
+created/verified during Phase 0. Inspect current local capabilities before
+asking for any necessary signup/authorization action.
 
 The next authorized phase should implement the Salesforce org/model/knowledge
 setup, repeatable metadata/seed deployment, and authenticated read smoke checks.

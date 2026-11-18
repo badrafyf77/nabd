@@ -2,8 +2,10 @@
 
 NABD is ShopEasy's multilingual text support and complaint-intelligence product.
 Salesforce owns business records and knowledge; PostgreSQL owns execution state.
-The implementation progresses through phases 0–7. Start with [status](status.md),
-then the [roadmap](roadmap.md), [decisions](decisions.md), and [architecture](architecture.md).
+The implementation progresses through phases 0–7. **For a new chat, start with
+[START_HERE](START_HERE.md)** for the checkpoint, reading order, pitfalls, and
+copyable continuation prompt. Current progress is in [status](status.md); the
+next work is in [Phase 1](phases/01-salesforce.md).
 
 ## Phase 0: run the text foundation
 

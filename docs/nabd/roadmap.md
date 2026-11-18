@@ -1,7 +1,8 @@
 # NABD phased roadmap
 
 Implementation order: phases 0–7. Complete and verify one phase before starting
-the next. Read [status](status.md) to resume. [Accepted decisions](decisions.md)
+the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Phase 0
+is complete at `512e03b`; phases 1–7 are pending. [Accepted decisions](decisions.md)
 and [architecture](architecture.md) apply to every phase.
 
 ## Phase 0 — Foundation
@@ -18,6 +19,8 @@ Plan: [00-foundation](phases/00-foundation.md).
 ## Phase 1 — Salesforce business system
 
 Depends on Phase 0.
+
+Plan: [01-salesforce](phases/01-salesforce.md).
 
 - Create the dedicated dev org, External Client App, permissions, and OAuth
   configuration. Package metadata and repeatable seed commands in the repo.
@@ -121,7 +124,8 @@ Depends on Phase 6. Testing already accompanies every earlier phase.
 
 For each phase save its detailed plan and a handoff recording what works, how to
 demonstrate it, test results, limitations, environment requirements, Git checkpoint,
-exact restart commands, and next entry criteria. Create a local Git checkpoint;
+exact restart commands, and next entry criteria. Update status, START_HERE, and
+the root AGENTS checkpoint pointer together. Create a local Git checkpoint;
 do not push or deploy external resources merely to mark a phase complete.
 
 "Start Phase N" means read status/decisions/that phase plan, inspect current

@@ -4,6 +4,12 @@ Agreed with the user on 18 November 2026. These supersede the old voice roadmap
 for active development. Do not reopen settled decisions in later phases unless
 new evidence makes a change necessary; record such changes explicitly.
 
+The product/engineering commitments below are settled. Concrete Salesforce
+field names, storage mappings, execution budgets, numerical risk thresholds,
+and release targets in the plan are initial implementation defaults to validate
+against org capabilities and measured scenarios. Record justified adjustments;
+they do not require repeating the product interview.
+
 ## Product and data
 
 - NABD combines active customer support and complaint intake/analysis in one
