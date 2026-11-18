@@ -2,8 +2,7 @@
 
 Implementation order: phases 0–7. Complete and verify one phase before starting
 the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Phase 0
-is complete at `512e03b`; Phase 1 is complete (see [status](status.md) for its
-checkpoint); phases 2–7 are pending. [Accepted decisions](decisions.md)
+is complete at `512e03b`; Phase 1 is complete at `1a04f52`; phases 2–7 are pending. [Accepted decisions](decisions.md)
 and [architecture](architecture.md) apply to every phase.
 
 ## Phase 0 — Foundation

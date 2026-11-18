@@ -113,8 +113,8 @@ phase automatically.
 
 ## Handoff — completed 18 November 2026
 
-Git checkpoint: the commit *Establish NABD Salesforce business system (Phase 1)*
-on `codex/nabd-chat-salesforce` (hash recorded in [status](../status.md)).
+Git checkpoint: `1a04f5257292a6cfe16cc67c93207985638acdd6` (*Establish NABD Salesforce business system
+(Phase 1)*) on `codex/nabd-chat-salesforce`.
 
 ### Delivered
 

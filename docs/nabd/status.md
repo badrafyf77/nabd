@@ -10,7 +10,7 @@ Branch: `codex/nabd-chat-salesforce`.
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
 | 0 — Foundation | `512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b` | [Phase 0 plan](phases/00-foundation.md) |
-| 1 — Salesforce business system | commit *Establish NABD Salesforce business system (Phase 1)*, the commit after `926abbe` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
+| 1 — Salesforce business system | `1a04f5257292a6cfe16cc67c93207985638acdd6` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
 
 Inspect a checkpoint with `git show --stat <commit>`. Later documentation
 commits are handoff updates, not new implementation phases.

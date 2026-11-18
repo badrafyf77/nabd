@@ -7,8 +7,7 @@ needed to resume is in the repository; the previous chat is not required.
 
 - Branch: `codex/nabd-chat-salesforce`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
-  business system** (commit *Establish NABD Salesforce business system
-  (Phase 1)*; hash in [status](status.md)).
+  business system** (`1a04f52`, full hash in [status](status.md)).
 - Next: **NABD Phase 2 — support chat and real-time agent progress**, not started.
 - Last measured suite: **186 passed, 45 deselected** on macOS with real
   PostgreSQL; Linux image 178 passed, 8 skipped. Real-org Salesforce `verify`
@@ -40,7 +39,7 @@ From the repository root:
 git status --short --branch
 git log -3 --oneline
 git show --stat 512e03b
-git log --oneline -5   # the Phase 1 checkpoint is the commit named in status
+git show --stat 1a04f52
 sf org display --target-org nabd-dev
 ```
 
