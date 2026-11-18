@@ -14,8 +14,9 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
 - [Architecture](docs/nabd/architecture.md) and [contracts](docs/nabd/contracts.md)
   describe the target; status identifies what actually exists.
 - Phases 0 (`512e03b`) and 1 (Salesforce business system, `1a04f52`) are
-  complete. Phase 2 is the next pending phase. Later phase
-  completions must update status and this pointer.
+  complete. Phase 2 (support chat) is implemented; its paid English scenario
+  run waits for the user's approval. Phase 3 is next. Later phase completions
+  must update status and this pointer.
 - Implement only the phase the user requests. Update its plan/status/handoff,
   verify it, and create a local checkpoint before declaring it complete.
 - `docs/goals/`, `docs/plans/phase-1-*`, `backend/code/server.py`, and the original
@@ -33,8 +34,9 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
 - Follow the planned MCP read/write boundaries, customer scoping, durable jobs,
   idempotent operations, evidence-grounded decisions, and real execution events.
   Introduce these with their consumers in the relevant phase.
-- Existing Supervisor/Orders code needs adaptation before it becomes NABD chat.
-  Do not describe the legacy graphs or frontend as completed NABD features.
+- The NABD agents are in `backend/code/nabd/agents/`. The legacy
+  `backend/code/agents/` Supervisor/Orders graphs are voice-era code kept for
+  their tests; do not describe them as NABD features.
 - Run relevant tests for each change. Use `backend/.venv-text` and the pinned
   text dependencies; the complete Phase 0 verification included real PostgreSQL.
   Do not repeat unchanged full suites for documentation-only edits.

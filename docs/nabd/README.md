@@ -5,8 +5,8 @@ Salesforce owns business records and knowledge; PostgreSQL owns execution state.
 The implementation progresses through phases 0–7. **For a new chat, start with
 [START_HERE](START_HERE.md)** for the checkpoint, reading order, pitfalls, and
 copyable continuation prompt. Current progress is in [status](status.md). Phase 1
-delivered the [Salesforce business system](salesforce.md); Phase 2 is next in the
-[roadmap](roadmap.md).
+delivered the [Salesforce business system](salesforce.md); Phase 2 the
+[support chat](phases/02-support-chat.md) described below.
 
 ## Phase 0: run the text foundation
 
@@ -117,6 +117,58 @@ values. Deploy/configure/seed/verify use the developer's CLI session; only
 Salesforce settings are separate from database settings, so storage commands
 work without them. Both sets are redacted in errors and representations.
 
+## Phase 2: support chat
+
+Three processes: the read MCP server (8091), the API with its run worker
+(8081) and the Next.js app (3000), which proxies `/api/*` to the API. Add two
+settings to `backend/.env.nabd` first:
+
+```bash
+python3 -c "import secrets; print('NABD_READ_MCP_CONTEXT_SECRET=' + secrets.token_urlsafe(48))" >> backend/.env.nabd
+# and, with your own key (paid): NABD_OPENAI_API_KEY=...
+```
+
+With Docker (from `backend/`; rebuilds the image and migrates to 0002):
+
+```bash
+docker compose -f docker-compose.nabd.yml up -d --build --wait api
+```
+
+Or locally, in three terminals from `backend/` and `frontend/`:
+
+```bash
+PYTHONPATH=code .venv-text/bin/python -m nabd migrate
+PYTHONPATH=code .venv-text/bin/python -m nabd read-mcp serve
+.venv-text/bin/python -m uvicorn nabd.app:app --app-dir code --port 8081
+npm run dev
+```
+
+Open http://localhost:3000, pick a demo customer and chat. Without the two
+settings the API still serves `/healthz` and `/readyz`, and the chat routes
+answer 503 `chat_not_configured`.
+
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `NABD_READ_MCP_CONTEXT_SECRET` | Shared API/MCP secret that signs each run's customer context (32+ chars) | None |
+| `NABD_READ_MCP_URL` | MCP endpoint the API calls | `http://127.0.0.1:8091/mcp` |
+| `NABD_READ_MCP_HOST` / `_PORT` / `_ALLOWED_HOSTS` | Server bind address and accepted `Host` headers | 127.0.0.1 / 8091 / local names |
+| `NABD_OPENAI_API_KEY` | Key for both agents (paid); passed explicitly | None |
+| `NABD_SUPERVISOR_MODEL`, `NABD_ORDERS_MODEL` | Models (Responses API) | `gpt-5.4-mini` |
+| `NABD_CHAT_ALLOWED_ORIGINS` | Origins allowed to send state-changing requests | localhost:3000 |
+| `NABD_CHAT_TURN_DEADLINE_SECONDS`, `_AGENT_TOOL_CALLS`, `_TURN_TOOL_CALLS` | Turn limits | 120, 5, 20 |
+| `NABD_CHAT_RUN_LEASE_SECONDS`, `_MAX_RUN_ATTEMPTS`, `_WORKER_CONCURRENCY` | Run queue | 30, 3, 4 |
+| `NABD_CHAT_SESSION_HOURS`, `_COOKIE_SECURE`, `_DEMO_SIGN_IN` | Demo session cookie | 12, false, true |
+| `NABD_BUSINESS_TIMEZONE` | ShopEasy's calendar for "today" and return windows | Europe/London |
+| `NABD_API_ORIGIN` (frontend) | Where Next.js proxies `/api/*` | `http://127.0.0.1:8081` |
+
+Read MCP commands (from `backend/`, no model calls):
+
+| Command | What it does |
+| --- | --- |
+| `python -m nabd read-mcp serve` | Serve Streamable HTTP on `NABD_READ_MCP_HOST:PORT` |
+| `python -m nabd read-mcp smoke [--url URL]` | 12 read checks through the real server and Salesforce |
+| `python -m nabd read-mcp prompt --customer C011` | Render the `staff_review` prompt for one customer |
+
 ## Verification
 
 ```bash
@@ -141,7 +193,16 @@ storage; the application service uses its named volume.
 
 The restart test runs two separate backend processes, checkpoints a real graph
 containing a LangChain message, then restores the message and resumes the graph
-with a new process. No LLM or Salesforce calls occur in these checks.
+with a new process. The Phase 2 chat tests serve the API with uvicorn against
+real PostgreSQL, the in-memory read MCP server and scripted models, including a
+server restart in the middle of a run. No LLM or Salesforce calls occur in
+these checks.
+
+Paid NABD scenarios (real models, real MCP and Salesforce; ask first):
+
+```bash
+.venv-text/bin/python -m pytest -m llm tests/nabd/test_chat_scenarios.py -s
+```
 
 ## Dependencies and migrations
 
@@ -159,5 +220,6 @@ checkpoint tables and migration sequence within that namespace. The
 advisory lock. Forward upgrades are the normal path; the initial downgrade
 deliberately refuses to remove a non-empty checkpoint schema.
 
-Conversation, event-log, and operation tables are added with their first real
-consumers in later phases. Phase 0 does not invent unused business tables.
+Revision `0002_chat_runtime` adds demo sessions, conversations, messages, runs
+and events (Phase 2). Operation and issue tables arrive with their consumers
+in Phase 3.

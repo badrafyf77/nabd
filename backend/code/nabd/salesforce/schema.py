@@ -121,6 +121,8 @@ class SObject:
     enable_history: bool = False
     seed_key: str | None = None
     tab_motif: str | None = None
+    # Columns of the generated "All" list view; every object with a tab needs one.
+    list_columns: tuple[str, ...] = ()
     staff_access: Literal["edit", "read"] = "edit"
     integration_readable: bool = False
     validation_rules: tuple[ValidationRule, ...] = ()
@@ -295,6 +297,7 @@ ORDER = SObject(
     description="A ShopEasy order. Amounts are GBP; ShopEasy uses one currency and one policy set.",
     name_label="Order Number", seed_key="Order_Number__c", sharing_model="Read",
     enable_activities=True, enable_history=True, tab_motif="Custom13: Box",
+    list_columns=("NAME", "Account__c", "Order_Date__c", "Status__c", "Total_GBP__c"),
     integration_readable=True,
     fields=(
         _ext_id("Order_Number__c", "Order Number", 20, "Stable ShopEasy order number, such as SE-1042.",
@@ -526,6 +529,7 @@ KNOWLEDGE = SObject(
     description="Versioned ShopEasy FAQ and policy revisions maintained by staff in Salesforce.",
     name_label="Title", seed_key="Revision_Key__c", sharing_model="Private", enable_history=True,
     tab_motif="Custom55: Books", integration_readable=True,
+    list_columns=("NAME", "Entry_Key__c", "Revision__c", "Entry_Type__c", "Status__c", "Published_At__c"),
     fields=(
         Field("Entry_Key__c", "Entry Key", "Text", length=80, required=True, external_id=True,
               integration_readable=True,
@@ -546,6 +550,9 @@ KNOWLEDGE = SObject(
         Field("Question__c", "Question", "Text", length=255, integration_readable=True),
         Field("Body__c", "Body", "LongTextArea", length=32768, visible_lines=8, integration_readable=True),
         Field("Search_Keywords__c", "Search Keywords", "Text", length=255, integration_readable=True),
+        Field("Policy_Days__c", "Policy Days", "Number", precision=4, scale=0, integration_readable=True,
+              description="Number of days a policy allows, such as the return window. Backend checks "
+                          "read it from the published revision instead of a constant in code."),
         Field("Published_At__c", "Published At", "DateTime", integration_readable=True),
         Field("Retired_At__c", "Retired At", "DateTime"),
         _fingerprint(),
@@ -568,7 +575,8 @@ KNOWLEDGE = SObject(
     ),
     layout_sections=(
         LayoutSection("Entry", ("Name", "Entry_Key__c", "Revision__c", "Revision_Key__c", "Entry_Type__c"),
-                      ("Status__c", "Language__c", "Topic__c", "Published_At__c", "Retired_At__c")),
+                      ("Status__c", "Language__c", "Topic__c", "Policy_Days__c", "Published_At__c",
+                       "Retired_At__c")),
         LayoutSection("Content", ("Question__c", "Body__c", "Search_Keywords__c")),
     ),
 )
@@ -579,6 +587,7 @@ RISK_RULE = SObject(
     name="Risk_Rule__c", label="Risk Rule", plural_label="Risk Rules",
     description="Versioned, explainable early-warning rule definition.",
     name_label="Rule Name", seed_key="Rule_Key__c", sharing_model="Read", tab_motif="Custom90: Radar",
+    list_columns=("NAME", "Rule_Key__c", "Rule_Code__c", "Version__c", "Active__c"),
     fields=(
         _ext_id("Rule_Key__c", "Rule Key", 80, "Rule code and version, such as repeat_complaints@1.",
                 required=True),
@@ -600,6 +609,7 @@ RISK_EPISODE = SObject(
     description="One active warning for a customer and rule; owns at most one follow-up task.",
     name_label="Episode", name_type="AutoNumber", name_format="RE-{00000}", seed_key="Episode_Key__c",
     sharing_model="Private", enable_activities=True, enable_history=True, tab_motif="Custom90: Radar",
+    list_columns=("NAME", "Episode_Key__c", "Account__c", "Risk_Rule__c", "Status__c"),
     fields=(
         _ext_id("Episode_Key__c", "Episode Key", 140, "Customer, rule key and episode start.",
                 case_sensitive=True, required=True),
@@ -658,6 +668,7 @@ OPERATION_RECEIPT = SObject(
     description="Unique record of one NABD business operation and its confirmed result.",
     name_label="Receipt", name_type="AutoNumber", name_format="OP-{0000000}", seed_key="Operation_Id__c",
     sharing_model="Private", tab_motif="Custom62: Stamp",
+    list_columns=("NAME", "Operation_Id__c", "Operation_Type__c", "Status__c", "Completed_At__c"),
     staff_access="read",
     fields=(
         _ext_id("Operation_Id__c", "Operation ID", 64, "Durable NABD operation ID; unique per side effect.",

@@ -1,13 +1,19 @@
 name: nabd
 
 x-runtime: &runtime
-  image: nabd-backend:phase0
+  image: nabd-backend:phase2
   build:
     context: .
     dockerfile: Dockerfile.text
     target: runtime
+  # Salesforce, OpenAI and MCP context secrets come from the Git-ignored .env.nabd;
+  # the values under `environment` override its local (127.0.0.1) addresses.
+  env_file:
+    - path: .env.nabd
+      required: false
   environment:
     NABD_DATABASE_URL: postgresql://nabd:nabd_dev@db:5432/nabd
+    NABD_READ_MCP_URL: http://read-mcp:8091/mcp
 
 services:
   db:
@@ -33,6 +39,21 @@ services:
       db:
         condition: service_healthy
 
+  read-mcp:
+    <<: *runtime
+    command: ["python", "-m", "nabd", "read-mcp", "serve"]
+    environment:
+      NABD_READ_MCP_HOST: 0.0.0.0
+      NABD_READ_MCP_URL: http://read-mcp:8091/mcp
+      NABD_READ_MCP_ALLOWED_HOSTS: read-mcp:8091,127.0.0.1:8091,localhost:8091
+    ports:
+      - "127.0.0.1:8091:8091"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/healthz', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   api:
     <<: *runtime
     ports:
@@ -40,6 +61,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      read-mcp:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/readyz', timeout=4)"]
       interval: 5s

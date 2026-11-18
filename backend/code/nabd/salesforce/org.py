@@ -186,6 +186,10 @@ async def verify_schema(client: SalesforceClient) -> list[Check]:
     routes = await client.query(f"SELECT Category__c, Queue_Developer_Name__c FROM {s.CATEGORY_ROUTE_TYPE}")
     checks.append(_compare("category routes", {q.category: q.developer_name for q in s.QUEUES},
                            {row["Category__c"]: row["Queue_Developer_Name__c"] for row in routes}))
+    tabbed = sorted(obj.name for obj in s.OBJECTS if obj.tab_motif)
+    views = await client.query(
+        f"SELECT SobjectType FROM ListView WHERE DeveloperName = 'All' AND SobjectType IN {literal_list(tabbed)}")
+    checks.append(_compare("custom tabs have an All list view", tabbed, sorted(row["SobjectType"] for row in views)))
     return checks
 
 
@@ -220,6 +224,14 @@ async def verify_data(client: SalesforceClient, dataset: fx.Dataset) -> list[Che
         f"SELECT Status__c FROM {s.KNOWLEDGE.name}"))
     checks.append(_compare("knowledge publication states",
                            Counter(entry.status for entry in dataset.knowledge), states))
+    policy_days = await client.query(
+        f"SELECT Entry_Key__c, Policy_Days__c FROM {s.KNOWLEDGE.name} "
+        "WHERE Status__c = 'Published' AND Policy_Days__c != null")
+    checks.append(_compare(
+        "published policy days",
+        {entry.entry_key: entry.policy_days for entry in dataset.knowledge
+         if entry.status == "Published" and entry.policy_days is not None},
+        {row["Entry_Key__c"]: int(row["Policy_Days__c"]) for row in policy_days}))
     queues = {q.developer_name: q.category for q in s.QUEUES}
     cases = await client.query(
         "SELECT Id, NABD_Issue_Id__c, OwnerId, Account.ShopEasy_Customer_Id__c, "

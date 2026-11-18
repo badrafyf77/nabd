@@ -28,7 +28,27 @@ flowchart TD
     SF --> STAFF[Salesforce staff workspace and dashboards]
 ```
 
-## Current boundary: Phases 0–1
+## Current boundary: Phases 0–2
+
+Phase 2 adds the chat path of the diagram without the Complaint specialist,
+validated case workflow, write MCP, background jobs or staff subscriber:
+
+- `nabd/read_mcp/`: the read MCP server (separate process, Streamable HTTP),
+  the only component that reads Salesforce for agents. The API signs a
+  short-lived context per run (`nabd/context.py`); tools never take a customer ID.
+- `nabd/agents/`: async Supervisor (LangGraph, `AsyncPostgresSaver` thread per
+  conversation) and Orders specialist, both calling MCP through one session
+  per run; code enforces allowlists, budgets and evidence checks.
+- `nabd/runtime/`: the PostgreSQL store, durable run queue (conversation lock,
+  lease, attempts, checkpoint resume) and event log; the worker runs inside
+  the API process. Events are announced with `NOTIFY nabd_events`.
+- `nabd/api.py`: demo sign-in and the contract endpoints, SSE with replay.
+- `frontend/src/chat/`: the browser chat and activity cards.
+
+Turn sequence steps 3, 4 and 6 (complaint analysis, commands, post-response
+jobs) are not implemented; the Supervisor tells customers it cannot open cases yet.
+
+### Phase 1 boundary
 
 Phase 1 adds `backend/code/nabd/salesforce/`: the schema contract that
 generates `salesforce/` metadata, fixture seed/verify commands, client

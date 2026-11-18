@@ -129,3 +129,23 @@ def test_missing_queues_stop_the_seed_before_any_write():
     with pytest.raises(RuntimeError, match="NABD_Delivery"):
         _run(org, fx.build())
     assert org.writes == []
+
+
+def test_records_seeded_before_a_field_was_added_are_not_mistaken_for_staff_edits():
+    org, dataset = FakeSalesforce(), fx.build()
+    _run(org, dataset)
+    # Recreate the Phase 1 state: no Policy_Days__c and fingerprints computed without it.
+    for record in seed.records(dataset):
+        if record.sobject != s.KNOWLEDGE.name:
+            continue
+        row = org.find(s.KNOWLEDGE.name, record.key)
+        row["Policy_Days__c"] = None
+        old = {k: v for k, v in seed.canonical_values(record).items() if k != "Policy_Days__c"}
+        row[s.SEED_FINGERPRINT] = seed.fingerprint(old)
+    org.find(s.KNOWLEDGE.name, "policy.refunds@1")["Policy_Days__c"] = 14.0  # staff set a value
+    report = _run(org, dataset)
+    assert report.preserved == [f"{s.KNOWLEDGE.name}:policy.refunds@1"]
+    # Unedited revisions are rewritten once with the new fingerprint; only the return window gains a value.
+    assert report.counts[s.KNOWLEDGE.name]["update"] == len(dataset.knowledge) - 1
+    assert org.find(s.KNOWLEDGE.name, "policy.return_window@1")["Policy_Days__c"] == 30.0
+    assert _run(org, dataset).writes == 0

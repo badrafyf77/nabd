@@ -80,6 +80,7 @@ class Knowledge:
     keywords: str | None = None
     published_at: datetime | None = None
     retired_at: datetime | None = None
+    policy_days: int | None = None  # structured value that backend checks read (return window)
 
     @property
     def revision_key(self) -> str:
@@ -295,7 +296,7 @@ def _knowledge(seed_date: date) -> tuple[Knowledge, ...]:
         entries.append(Knowledge(
             entry_key=f"policy.{'return_window' if topic == 'window' else topic}", revision=1,
             entry_type="policy", status="Published", title=POLICY_TITLES[topic], body=text, topic=topic,
-            published_at=published,
+            published_at=published, policy_days=legacy.RETURN_WINDOW_DAYS if topic == "window" else None,
         ))
     # Revision history: an older delivery price was retired when revision 2 went live.
     entries.append(Knowledge(

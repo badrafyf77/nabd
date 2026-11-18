@@ -85,7 +85,7 @@ from nabd.app import create_app
 from agents.graph import add_tool_agent, TraceHandler
 from agents.models import build_chat_model
 from core.trace import Tracer
-assert {r.path for r in create_app().routes} >= {'/healthz', '/readyz'}
+assert set(create_app().openapi()['paths']) >= {'/healthz', '/readyz', '/api/conversations/{conversation_id}/events'}
 print('text imports are independent of speech')
 """
     env = {**os.environ, "PYTHONPATH": str(BACKEND / "code"), "LANGSMITH_TRACING": "false"}

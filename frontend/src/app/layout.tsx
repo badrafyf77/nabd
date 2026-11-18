@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Voice Chat',
-  description: 'One-page voice chat console.',
+  title: 'ShopEasy Support · NABD',
+  description: 'ShopEasy customer support chat with live agent activity.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

@@ -98,6 +98,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>KnowledgeEntry__c.Policy_Days__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>KnowledgeEntry__c.Published_At__c</field>
         <readable>true</readable>
     </fieldPermissions>

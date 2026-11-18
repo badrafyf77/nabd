@@ -191,6 +191,17 @@ def _case_list_views() -> dict[str, str]:
     return files
 
 
+def all_list_view_file(obj: s.SObject) -> str:
+    """An "All" list view, so a custom object tab does not open on an empty Recently Viewed list."""
+    return document(
+        "ListView",
+        n("fullName", "All"),
+        *[n("columns", column) for column in obj.list_columns],
+        n("filterScope", "Everything"),
+        n("label", "All"),
+    )
+
+
 def _category_route_type() -> dict[str, str]:
     base = f"objects/{s.CATEGORY_ROUTE_TYPE}"
     files = {
@@ -478,6 +489,9 @@ def render() -> dict[str, str]:
         if obj.tab_motif:
             files[f"tabs/{obj.name}.tab-meta.xml"] = document(
                 "CustomTab", n("customObject", True), n("motif", obj.tab_motif))
+            if not obj.list_columns:
+                raise ValueError(f"{obj.name} has a tab but no list_columns for its All list view")
+            files[f"{base}/listViews/All.listView-meta.xml"] = all_list_view_file(obj)
     files.update(_case_list_views())
     files.update(_category_route_type())
     files[f"permissionsets/{s.STAFF_PERMISSION_SET}.permissionset-meta.xml"] = staff_permission_set()

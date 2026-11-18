@@ -94,7 +94,7 @@ def _knowledge(entry: fx.Knowledge) -> SeedRecord:
         "Entry_Type__c": entry.entry_type, "Status__c": entry.status, "Language__c": "en",
         "Topic__c": entry.topic, "Question__c": entry.question, "Body__c": entry.body,
         "Search_Keywords__c": entry.keywords, "Published_At__c": entry.published_at,
-        "Retired_At__c": entry.retired_at,
+        "Retired_At__c": entry.retired_at, "Policy_Days__c": entry.policy_days,
     })
 
 
@@ -206,16 +206,34 @@ def current_values(record: SeedRecord, row: dict[str, Any], reverse: dict[str, d
     return dict(sorted(result.items()))
 
 
+# Fields added to the seed mapping after records were first seeded. Fingerprints
+# written before then do not include them, so a still-empty value is not a staff
+# edit. Append here whenever the mapping of an already-seeded object grows.
+ADDED_FIELDS: dict[str, frozenset[str]] = {
+    s.KNOWLEDGE.name: frozenset({"Policy_Days__c"}),  # Phase 2
+}
+
+
+def _matches_stored(record: SeedRecord, current: dict[str, Any], stored: str) -> bool:
+    if fingerprint(current) == stored:
+        return True
+    added = ADDED_FIELDS.get(record.sobject, frozenset()) & current.keys()
+    if not added or any(current[name] is not None for name in added):
+        return False
+    return fingerprint({name: value for name, value in current.items() if name not in added}) == stored
+
+
 def decide(record: SeedRecord, row: dict[str, Any] | None, reverse: dict[str, dict[str, str]],
            *, reset: bool) -> Action:
     if row is None:
         return "create"
     desired = fingerprint(canonical_values(record))
-    current = fingerprint(current_values(record, row, reverse))
+    current_map = current_values(record, row, reverse)
+    current = fingerprint(current_map)
     stored = row.get(s.SEED_FINGERPRINT)
     if reset:
         return "unchanged" if current == desired and stored == desired else "restore"
-    if stored is None or current != stored:
+    if stored is None or not _matches_stored(record, current_map, stored):
         return "preserve"
     return "unchanged" if desired == stored else "update"
 

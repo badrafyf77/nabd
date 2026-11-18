@@ -22,6 +22,7 @@ from nabd.salesforce.soql import (
 
 MAX_ORDERS = 50
 MAX_CASES = 50
+MAX_DEMO_CUSTOMERS = 50
 
 
 class Model(BaseModel):
@@ -43,6 +44,15 @@ class Customer(Model):
     city: str | None
     preferred_language: str | None
     record: RecordRef
+
+
+class CustomerListing(Model):
+    """A seeded customer offered by the demo sign-in picker."""
+
+    customer_id: str
+    first_name: str | None
+    last_name: str
+    preferred_language: str | None
 
 
 class OrderItem(Model):
@@ -103,6 +113,7 @@ class KnowledgeRevision(Model):
     topic: str | None
     language: str
     published_at: datetime | None
+    policy_days: int | None
     record: RecordRef
 
 
@@ -149,6 +160,10 @@ _CASE_FIELDS = select(
 _KNOWLEDGE_FIELDS = select(
     s.KNOWLEDGE.name, "Id", "SystemModstamp", "Name", "Entry_Key__c", "Revision__c", "Revision_Key__c",
     "Entry_Type__c", "Question__c", "Body__c", "Topic__c", "Language__c", "Published_At__c",
+    "Policy_Days__c",
+)
+_LISTING_FIELDS = select(
+    s.CONTACT.name, "ShopEasy_Customer_Id__c", "FirstName", "LastName", "Account.Preferred_Language__c",
 )
 _DELIVERIES = f"{s.DELIVERY.field('Order__c').relationship_name}__r"
 _ITEMS = f"{s.ORDER_ITEM.field('Order__c').relationship_name}__r"
@@ -191,6 +206,7 @@ def _knowledge(record: dict[str, Any]) -> KnowledgeRevision:
         revision_key=record["Revision_Key__c"], entry_type=record["Entry_Type__c"], title=record["Name"],
         question=record["Question__c"], body=record["Body__c"] or "", topic=record["Topic__c"],
         language=record["Language__c"], published_at=_datetime(record["Published_At__c"]),
+        policy_days=None if record.get("Policy_Days__c") is None else int(record["Policy_Days__c"]),
         record=_ref(s.KNOWLEDGE.name, record),
     )
 
@@ -215,11 +231,27 @@ class SalesforceReads:
             record=_ref(s.CONTACT.name, row),
         )
 
+    async def list_demo_customers(self) -> list[CustomerListing]:
+        """Seeded customers for the demo sign-in picker; not a customer-scoped read."""
+        rows = await self.client.query(
+            f"SELECT {_LISTING_FIELDS} FROM Contact WHERE ShopEasy_Customer_Id__c != null "
+            f"ORDER BY ShopEasy_Customer_Id__c LIMIT {MAX_DEMO_CUSTOMERS}"
+        )
+        return [
+            CustomerListing(
+                customer_id=row["ShopEasy_Customer_Id__c"], first_name=row["FirstName"],
+                last_name=row["LastName"],
+                preferred_language=(row.get("Account") or {}).get("Preferred_Language__c"),
+            )
+            for row in rows if CUSTOMER_ID.fullmatch(row["ShopEasy_Customer_Id__c"] or "")
+        ]
+
     async def list_orders(self, customer_id: str) -> list[Order]:
-        """The customer's recent orders with delivery status (items omitted)."""
+        """The customer's recent orders with delivery status and items."""
         customer_id = require(CUSTOMER_ID, customer_id, "customer ID")
         rows = await self.client.query(
-            f"SELECT {_ORDER_FIELDS}, (SELECT {_DELIVERY_FIELDS} FROM {_DELIVERIES} LIMIT 1) "
+            f"SELECT {_ORDER_FIELDS}, (SELECT {_DELIVERY_FIELDS} FROM {_DELIVERIES} LIMIT 1), "
+            f"(SELECT {_ITEM_FIELDS} FROM {_ITEMS} ORDER BY Line_Number__c LIMIT 100) "
             f"FROM {s.ORDER.name} WHERE Account__r.ShopEasy_Customer_Id__c = {literal(customer_id)} "
             f"ORDER BY Order_Date__c DESC, Order_Number__c DESC LIMIT {MAX_ORDERS}"
         )

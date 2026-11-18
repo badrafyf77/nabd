@@ -1,6 +1,9 @@
 # NABD interface contracts
 
-These are design contracts, not implemented Phase 0 chat APIs. Create concrete
+These are design contracts. Phase 2 implemented agent findings
+(`nabd/agents/orders.py`), customer activity events (`nabd/runtime/events.py`,
+`frontend/src/chat/types.ts`) and the HTTP interfaces below (`nabd/api.py`);
+complaint assessment and Salesforce commands arrive in Phase 3. Create concrete
 Pydantic models/TypeScript types alongside the first consumers; avoid unused
 schema scaffolding. Field names below describe required capabilities and stable
 identities; the phase implementation owns their concrete representation.
@@ -60,6 +63,9 @@ identities; the phase implementation owns their concrete representation.
 | `POST /api/conversations/{id}/messages` | Accept an idempotent message and return run identity |
 | `GET /api/conversations/{id}/events` | Authorized SSE with Last-Event-ID replay |
 
-Use a same-origin browser API path. Backend session context controls all record
+Phase 2 also serves `GET /api/demo/customers` (sign-in picker),
+`GET /api/demo/session` and `GET /api/conversations` (restore after refresh).
+SSE events carry `id` = per-conversation sequence; `event: ping` heartbeats
+have no id. Use a same-origin browser API path. Backend session context controls all record
 and conversation access. Browser disconnects detach the view from durable work;
 they do not silently abandon an already submitted Salesforce operation.

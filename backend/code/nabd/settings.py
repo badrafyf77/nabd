@@ -1,6 +1,7 @@
 """Validated text-runtime settings, isolated from the legacy voice configuration."""
 from __future__ import annotations
 
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -90,3 +91,104 @@ class SalesforceSettings(BaseSettings):
         ):
             raise ValueError("must be the org's https://<domain>.my.salesforce.com My Domain URL")
         return f"https://{host}"
+
+
+def _env(prefix: str) -> SettingsConfigDict:
+    return SettingsConfigDict(
+        env_prefix=prefix,
+        env_file=BACKEND_ROOT / ".env.nabd",
+        extra="ignore",
+        hide_input_in_errors=True,
+        frozen=True,
+    )
+
+
+def _csv(value: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
+class BusinessSettings(BaseSettings):
+    """ShopEasy's business calendar. Return windows and "today" use this timezone."""
+
+    model_config = _env("NABD_BUSINESS_")
+
+    timezone: str = "Europe/London"
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str) -> str:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError("must be an IANA timezone such as Europe/London") from None
+        return value
+
+    def today(self) -> date:
+        from zoneinfo import ZoneInfo
+
+        return datetime.now(ZoneInfo(self.timezone)).date()
+
+
+class ReadMcpSettings(BaseSettings):
+    """The read MCP server and the signed customer context the API sends it."""
+
+    model_config = _env("NABD_READ_MCP_")
+
+    url: str = "http://127.0.0.1:8091/mcp"
+    host: str = "127.0.0.1"
+    port: int = Field(default=8091, ge=1, le=65535)
+    # Host header values the server accepts (DNS-rebinding protection).
+    allowed_hosts: str = "127.0.0.1:8091,localhost:8091"
+    # Shared by the API (mints) and the MCP server (verifies). At least 32 characters.
+    context_secret: SecretStr = Field(min_length=32)
+    timeout_seconds: float = Field(default=20.0, ge=1, le=120)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.query or parsed.fragment:
+            raise ValueError("must be an http(s) URL of the MCP endpoint")
+        return value
+
+    @property
+    def allowed_host_list(self) -> tuple[str, ...]:
+        return _csv(self.allowed_hosts)
+
+
+class ModelSettings(BaseSettings):
+    """OpenAI models of the NABD agents. The key is passed explicitly, never via os.environ."""
+
+    model_config = _env("NABD_")
+
+    openai_api_key: SecretStr = Field(min_length=1)
+    supervisor_model: str = "gpt-5.4-mini"
+    supervisor_reasoning_effort: str | None = "none"
+    orders_model: str = "gpt-5.4-mini"
+    orders_reasoning_effort: str | None = "low"
+    model_timeout_seconds: float = Field(default=30.0, ge=1, le=300)
+
+
+class ChatSettings(BaseSettings):
+    """Demo sign-in, browser access and turn execution limits."""
+
+    model_config = _env("NABD_CHAT_")
+
+    demo_sign_in: bool = True
+    session_hours: float = Field(default=12.0, gt=0, le=24 * 7)
+    cookie_secure: bool = False
+    # Browser origins allowed to send state-changing requests (the Next.js app).
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    turn_deadline_seconds: float = Field(default=120.0, ge=5, le=600)
+    agent_tool_calls: int = Field(default=5, ge=1, le=20)
+    turn_tool_calls: int = Field(default=20, ge=1, le=100)
+    run_lease_seconds: float = Field(default=30.0, ge=5, le=300)
+    max_run_attempts: int = Field(default=3, ge=1, le=10)
+    worker_concurrency: int = Field(default=4, ge=1, le=32)
+    max_message_chars: int = Field(default=4000, ge=1, le=20000)
+
+    @property
+    def allowed_origin_list(self) -> tuple[str, ...]:
+        return _csv(self.allowed_origins)

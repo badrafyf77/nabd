@@ -64,6 +64,12 @@ same save. Validation rules require body text before publishing and revision
 numbers from 1. To change an answer, create revision N+1 as Draft, then set
 it to Published.
 
+`Policy_Days__c` holds a policy's number of days where code needs it. The
+published `policy.return_window` revision has 30; the read MCP server's return
+check uses that value and cites the revision, and reports returns as
+uncheckable if no published value exists. Staff change the window by
+publishing a new revision with a new value.
+
 ## Access
 
 | Who | Access |
@@ -115,15 +121,13 @@ Log in at login.salesforce.com, open the App Launcher (nine dots) and choose
 | Items and delivery | Open an order → its item and delivery lists |
 | Complaints | Cases tab → **NABD Delivery**, **NABD Billing & Payments**, … or **NABD Needs Review**; evidence is on each case |
 | Follow-up tasks | Open a case (for example FX-ISSUE-0001) → activity |
-| FAQs and policies | Global search (for example "delivery cost") |
+| Orders, FAQs/policies, risk and receipt records | Their tab → **All** list view (generated since Phase 2) |
+| FAQs and policies | Also global search (for example "delivery cost") |
 
-Known gap: custom objects deployed through metadata have no "All" list view,
-so the ShopEasy Orders, Knowledge Entries, Risk Rules, Risk Episodes and
-Operation Receipts tabs only offer the empty "Recently Viewed" list. Add
-`All` list views to the generator (planned as the first small task of
-Phase 2). Salesforce also auto-created a queue list view per queue
-("Delivery", …) beside the generated "NABD Delivery", … views; the duplicates
-are harmless.
+Every custom object tab has a generated `All` list view (columns from
+`list_columns` in the schema contract; `verify` checks them). Salesforce also
+auto-created a queue list view per queue ("Delivery", …) beside the generated
+"NABD Delivery", … views; the duplicates are harmless.
 
 ## Commands
 
@@ -139,7 +143,10 @@ Run from `backend/` with `PYTHONPATH=code .venv-text/bin/python -m nabd salesfor
 | `verify --target-org nabd-dev` | Compare live schema, picklists, queues, routes, fixture records, links and access with the contract |
 | `smoke` | Read checks as the integration user, using only `backend/.env.nabd` |
 
-The seed stores `NABD_Seed_Fingerprint__c`, a hash of the values it wrote. A
+Fields added to an already-seeded object's mapping are listed in
+`seed.ADDED_FIELDS`; an empty value there does not count as a staff edit
+against an older fingerprint. The seed stores `NABD_Seed_Fingerprint__c`, a
+hash of the values it wrote. A
 record whose current values no longer match that hash was edited after
 seeding and is reported as preserved. Deployment and seeding use the
 developer's `sf` CLI session; the backend never uses that session.
@@ -148,8 +155,10 @@ developer's `sf` CLI session; the backend never uses that session.
 
 [`reads.py`](../../backend/code/nabd/salesforce/reads.py) returns typed
 results with a `RecordRef` (record ID and `SystemModstamp`) for evidence:
-`get_customer`, `list_orders`, `get_order`, `list_cases`,
-`list_published_knowledge` and `get_published_knowledge`. Customer IDs, order
+`get_customer`, `list_orders` (with items since Phase 2), `get_order`,
+`list_cases`, `list_published_knowledge` and `get_published_knowledge`, plus
+`list_demo_customers` for the demo sign-in picker. Agents never call it
+directly: they go through the [read MCP server](phases/02-support-chat.md). Customer IDs, order
 numbers and knowledge keys are format-checked before any request and every
 literal is escaped. Every customer query filters by the trusted customer ID;
 another customer's order looks exactly like a missing one. Field lists are

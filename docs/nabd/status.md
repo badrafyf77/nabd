@@ -4,13 +4,15 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 ## Current work
 
-**Phases 0 and 1 are complete and verified. Phases 2–7 are pending.**
-Branch: `codex/nabd-chat-salesforce`.
+**Phases 0 and 1 are complete. Phase 2 is implemented and verified without
+paid model calls; its real-model English scenario run waits for the user's
+approval.** Phases 3–7 are pending. Branch: `codex/nabd-chat-salesforce`.
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
 | 0 — Foundation | `512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b` | [Phase 0 plan](phases/00-foundation.md) |
 | 1 — Salesforce business system | `1a04f5257292a6cfe16cc67c93207985638acdd6` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
+| 2 — Support chat and live activity | implementation checkpoint, see `git log --grep "Phase 2"` | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 
 Inspect a checkpoint with `git show --stat <commit>`. Later documentation
 commits are handoff updates, not new implementation phases.
@@ -40,39 +42,56 @@ knowledge, queues and access model, deployed from the repository:
   secret-free errors.
 
 The reference for objects, fields, access and commands is
-[NABD Salesforce](salesforce.md). Chat endpoints, MCP servers, case
-mutations and the NABD frontend do not exist yet.
+[NABD Salesforce](salesforce.md).
+
+Phase 2 — English text support chat for signed-in demo customers:
+
+- a customer-scoped **read MCP server** (`python -m nabd read-mcp`) over the
+  Phase 1 adapter, authenticated by per-run signed customer context;
+- async **Supervisor** and **Orders** agents using real MCP calls, typed and
+  evidence-checked findings, tool budgets and a turn deadline;
+- PostgreSQL **sessions, conversations, messages, a durable run queue and an
+  event log**, with checkpoint resume after a crash;
+- the **HTTP/SSE API** and the **Next.js chat** with live activity cards,
+  replay and reconnect. Salesforce gained `All` list views and the
+  `Policy_Days__c` return-window value.
+
+Case writes, complaint analysis and other languages do not exist yet.
 
 ## Verification
 
 | Check | Actual result |
 | --- | --- |
-| Phase 0 baseline (before Phase 1) | 130 passed, 45 deselected (macOS and Linux) |
-| Offline suite, macOS, real PostgreSQL | **186 passed**, 45 paid scenario runs deselected |
-| Offline suite, Linux test image | **178 passed, 8 skipped**, 45 deselected; skips need `salesforce/`, outside the image context |
-| Salesforce deploy with local Apex tests | Succeeded; Apex 4/4, 100% coverage |
-| `verify` against the org | 37/37 checks passed |
-| Seed, repeated seed | 188 creates; then 0 writes |
-| Staff-edit preservation and explicit reset | Edited record preserved; reset refused without matching confirmation; reset restored it |
-| `smoke` as the integration user | 12/12 checks passed |
+| Phase 1 baseline | 186 passed (macOS, real PostgreSQL); Linux image 178 passed, 8 skipped |
+| Offline suite, macOS, real PostgreSQL (Phase 2) | **213 passed**; 57 paid scenarios deselected (45 legacy, 12 NABD English) |
+| Offline suite, Linux test image (Phase 2) | **205 passed, 8 skipped** (need `salesforce/`, outside the image), 57 deselected |
+| Salesforce deploy with local Apex tests | Succeeded; Apex 4/4 |
+| `salesforce verify` against the org | **39/39** |
+| Seed after adding `Policy_Days__c`, repeated seed | 24 knowledge revisions refreshed, none preserved; then 0 writes |
+| `salesforce smoke` as the integration user | 12/12 |
+| `read-mcp smoke` through the real server and org | **12/12** |
+| Browser check (scripted models; real API, MCP, Salesforce, PostgreSQL) | Sign-in, streaming, nested cards, queueing, reload restore, API kill → reconnect → resumed run |
+| Frontend `tsc`, `next build` | Clean |
 | `pip check`, `git diff --check`, secret scan | Clean |
+| Real-model English scenarios (12, `-m llm`) | **Not run** (needs approval and `NABD_OPENAI_API_KEY`) |
 
-Details and the full check list are in the
-[Phase 1 handoff](phases/01-salesforce.md#verification-results). No paid LLM
-calls were made in Phase 0 or Phase 1. The 45 deselected runs are the legacy
-English LLM scenarios (15 × 3), not a new measured model score.
+Details are in the [Phase 2 handoff](phases/02-support-chat.md#verification-results)
+and the [Phase 1 handoff](phases/01-salesforce.md#verification-results). No
+paid LLM calls were made in Phases 0–2.
 
 Open legacy voice issues remain documented in `docs/plans/phase-1-status.md`;
 voice work is deferred and they do not block NABD phases.
 
 ## Last observed runtime — 18 November 2026
 
-- Salesforce: `nabd-dev` connected to `sf` CLI 2.158.7; integration user
-  `nabd-integration.00dgl00000iv5jpuak@example.com` active.
-- `backend/.env.nabd` exists locally (Git-ignored) with database and
-  Salesforce integration settings. Its secret values are not recorded anywhere.
-- Disposable PostgreSQL test service (localhost:55433) was running for the
-  suite. API/DB containers from Phase 0 were not rechecked in this session.
+- Salesforce: `nabd-dev` connected to `sf` CLI 2.158.7; integration user active.
+- `backend/.env.nabd` (Git-ignored) has database and Salesforce settings. It
+  does **not** yet have `NABD_READ_MCP_CONTEXT_SECRET` or
+  `NABD_OPENAI_API_KEY`, so the real chat stays disabled (503
+  `chat_not_configured`) until the user adds them.
+- Docker: dev `db` (55432), `test-db` (55433) and the **Phase 0** API image
+  on 8081 were running. That container and the dev database were left at
+  migration 0001; Phase 2 needs `up -d --build` (below), which migrates to 0002.
 
 Recheck these in every new session; a recorded healthy state does not imply
 the CLI session, Docker or containers are still available.
@@ -89,33 +108,22 @@ NABD_TEST_DATABASE_URL=postgresql://nabd:nabd_test@127.0.0.1:55433/nabd_test \
   .venv-text/bin/python -m pytest -q
 sf org display --target-org nabd-dev
 PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
-PYTHONPATH=code .venv-text/bin/python -m nabd salesforce smoke
+PYTHONPATH=code .venv-text/bin/python -m nabd read-mcp smoke
 ```
 
-If `sf org display` reports an expired session, run
-`sf org login web --alias nabd-dev`. The Phase 0 API stack still starts with
-`docker compose -f docker-compose.nabd.yml up -d --build --wait api`.
+To run the chat: add `NABD_READ_MCP_CONTEXT_SECRET` (32+ random characters)
+and `NABD_OPENAI_API_KEY` to `backend/.env.nabd`, then
+`docker compose -f docker-compose.nabd.yml up -d --build --wait api` and
+`npm run dev` in `frontend/` (http://localhost:3000). If `sf org display`
+reports an expired session, run `sf org login web --alias nabd-dev`.
 
-## Next phase
+## Next step
 
-Phase 2 — support chat and real-time agent progress — is next and has not
-started. Entry criteria: the commands above pass. Scope is in the
-[roadmap](roadmap.md#phase-2--support-chat-and-real-time-agent-progress):
-English support chat with demo sign-in, a read-only MCP server over Salesforce,
-the Supervisor and Orders agents moved from SQLite to that MCP, persisted
-conversations and activity events, HTTP/SSE endpoints and the Next.js chat with
-activity cards. Complaint case writes (Phase 3) and other languages (Phase 4)
-stay out of Phase 2.
-
-Agreed first steps when Phase 2 is requested:
-
-1. Write `docs/nabd/phases/02-support-chat.md` (plan, boundaries, checks) in
-   the same form as the Phase 1 plan.
-2. Add `All` list views for the custom objects (see the known gap in
-   [NABD Salesforce](salesforce.md#viewing-the-data-in-salesforce)),
-   regenerate, deploy, and rerun `verify`.
-3. Build the read MCP on `nabd.salesforce.reads.SalesforceReads`; extend
-   `NABD_Integration_Read` only together with features that need more fields.
+Phase 2's remaining gate item is the paid English scenario run
+(`tests/nabd/test_chat_scenarios.py`, 12 scenarios, once each), after the user
+approves it and adds the key. Record its results in the Phase 2 handoff, then
+mark Phase 2 complete. Phase 3 (complaint intelligence and reliable cases) has
+not started; its scope is in the [roadmap](roadmap.md#phase-3--complaint-intelligence-and-reliable-cases).
 
 Model costs: the user pays for OpenAI. Use the free fake-model tests for most
 checks, and ask the user before any paid `pytest -m llm` or other real-model run.
