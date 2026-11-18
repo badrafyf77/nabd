@@ -6,7 +6,7 @@ needed to resume is in the repository; the previous chat is not required.
 ## Current checkpoint
 
 - Branch: `codex/nabd-chat-salesforce`. Phase 4 implementation checkpoints are
-  `e352b0a`, `94957e5`, `e7c876a`, latest `dbccbf1`; `main` still holds Phase 3 at `603545d`.
+  `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, latest `f341970`; `main` still holds Phase 3 at `603545d`.
   Phase 4 remains unmerged: the focused confirmation passed 3/6; the recheck
   of its three failures passed 0/3 on new prompt-behavior faults, now fixed in
   the prompt (see the Phase 4 handoff). Another paid recheck needs approval.
@@ -114,7 +114,7 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md,
 > then docs/nabd/status.md. Phases 0–3 are complete. Continue the existing Phase 4
-> implementation at dbccbf1 and its plan/handoff; the initial paid evaluation and
+> implementation at f341970 and its plan/handoff; the initial paid evaluation and
 > approved recheck are recorded there. Do not repeat paid runs without new approval.
 > Preserve all accepted decisions, update the phase handoff and
 > verification results, and when Phase 4 is finished merge it into main and
