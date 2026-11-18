@@ -4,21 +4,22 @@ Updated: 18 November 2026 (Africa/Casablanca).
 
 ## Current work
 
-**Phases 0–2 are complete. Phases 3–7 are pending.** Working branch:
-`codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 2
-(`57d648c`). Continue Phase 3 on that branch and merge it into `main` when
-Phase 3 is finished.
+**Phases 0–3 are complete. Phases 4–7 are pending.** Working branch:
+`codex/nabd-chat-salesforce`, identical to `main` at the end of Phase 3.
+Continue Phase 4 on that branch and merge it into `main` when Phase 4 is
+finished.
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
 | 0 — Foundation | `512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b` | [Phase 0 plan](phases/00-foundation.md) |
 | 1 — Salesforce business system | `1a04f5257292a6cfe16cc67c93207985638acdd6` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
 | 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; docs and real-model results in later commits) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
+| 3 — Complaint intelligence and reliable cases | `987959317beae7339f3bb51958032df0cb427b45` (implementation; handoff in the next commit) | [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026) |
 
 Completed phases are merged into `main` on GitHub
-(`badrafyf77/customer-support-voice-agent`, private); Phases 0–2 were merged
-on 18 November 2026. Inspect a checkpoint with `git show --stat <commit>`. Later documentation
-commits are handoff updates, not new implementation phases.
+(`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
+on 18 November 2026. Inspect a checkpoint with `git show --stat <commit>`.
+Later documentation commits are handoff updates, not new implementation phases.
 
 ## Delivered so far
 
@@ -59,47 +60,71 @@ Phase 2 — English text support chat for signed-in demo customers:
   replay and reconnect. Salesforce gained `All` list views and the
   `Policy_Days__c` return-window value.
 
-Case writes, complaint analysis and other languages do not exist yet.
+Phase 3 — complaints become reliable Salesforce cases during the chat:
+
+- a mandatory **complaint stage** before every reply: the **Complaint
+  specialist** (third model) reads the customer's case history and orders and
+  returns a typed assessment; code verifies it and applies matching,
+  lifecycle, routing/review and priority rules (refunds become Returns &
+  Refunds staff cases);
+- the **Apex case command gateway** `NabdCaseCommands` (receipts, request
+  hashes, versions, locks, transitions, staff overrides, evidence
+  de-duplication) and the **write MCP server** (`python -m nabd write-mcp`);
+- **durable commands** in PostgreSQL (plan stored before sending, lookup
+  before resend, one conflict re-read, per-customer advisory lock, background
+  reconciliation) and issue links;
+- live **case cards** and a confirmed-case strip in the chat; the Supervisor
+  cites only confirmed case work.
+
+Other languages, staff-to-chat updates, risk warnings and quality review do
+not exist yet.
 
 ## Verification
 
 | Check | Actual result |
 | --- | --- |
 | Phase 1 baseline | 186 passed (macOS, real PostgreSQL); Linux image 178 passed, 8 skipped |
-| Offline suite, macOS, real PostgreSQL (Phase 2) | **213 passed**; 57 paid scenarios deselected (45 legacy, 12 NABD English) |
-| Offline suite, Linux test image (Phase 2) | **205 passed, 8 skipped** (need `salesforce/`, outside the image), 57 deselected |
-| Salesforce deploy with local Apex tests | Succeeded; Apex 4/4 |
-| `salesforce verify` against the org | **39/39** |
-| Seed after adding `Policy_Days__c`, repeated seed | 24 knowledge revisions refreshed, none preserved; then 0 writes |
-| `salesforce smoke` as the integration user | 12/12 |
+| Phase 2 baseline | 213 passed (macOS, real PostgreSQL); Linux image 205 passed, 8 skipped |
+| Offline suite, macOS, real PostgreSQL (Phase 3) | **249 passed**; 65 paid scenarios deselected (45 legacy, 12 Phase 2, 8 Phase 3) |
+| Offline suite, Linux test image (Phase 3) | **240 passed, 9 skipped** (need `salesforce/`, outside the image), 65 deselected |
+| Salesforce deploy with local Apex tests | Succeeded; **Apex 17/17** |
+| `salesforce verify` against the org | **41/41** |
+| Seed after the Phase 3 fields, repeated seed | 7 cases updated, 1 case and 2 evidence created, none preserved; then 0 writes |
+| `salesforce smoke` as the integration user | 12/12 (direct writes still refused) |
 | `read-mcp smoke` through the real server and org | **12/12** |
-| Browser check (scripted models; real API, MCP, Salesforce, PostgreSQL) | Sign-in, streaming, nested cards, queueing, reload restore, API kill → reconnect → resumed run |
-| Frontend `tsc`, `next build` | Clean |
+| `write-mcp smoke` through the real gateway | **15/15**; a rerun replayed every receipt (1 smoke case, 7 receipts) |
+| Browser check (scripted models; real API, both MCP servers, Salesforce, PostgreSQL) | Complaint → confirmed case 00001044 with live cards; follow-up updated the same case; reload restored cards and case strip |
+| Docker Compose `nabd-backend:phase3` | migrate 0003; `read-mcp`, `write-mcp`, `api` healthy; ready |
+| Frontend `tsc` | Clean |
 | `pip check`, `git diff --check`, secret scan | Clean |
-| Real-model English scenarios (12, `-m llm`, once each) | **10/12 pass**; the 2 failures (a wrong delivery month, a missing refund statement) were fixed and **pass** on one recheck |
+| Real-model English scenarios (20, `-m llm`, once each) | Phase 3 set **7/8**, Phase 2 set as full turns **9/12** (after two over-strict checks were fixed); after two prompt fixes 3 of the 4 failures **pass** on recheck; `several_orders_needs_info` still fails its expectation |
 
-Details are in the [Phase 2 handoff](phases/02-support-chat.md#verification-results)
-and the [Phase 1 handoff](phases/01-salesforce.md#verification-results). No
-paid LLM calls were made in Phases 0–1. Phase 2's only paid calls were the
-approved single English scenario run.
+Details are in the [Phase 3 handoff](phases/03-complaints.md#verification-results),
+the [Phase 2 handoff](phases/02-support-chat.md#verification-results) and the
+[Phase 1 handoff](phases/01-salesforce.md#verification-results). Paid LLM
+calls were made only in the approved scenario runs of Phases 2 and 3.
 
 Open legacy voice issues remain documented in `docs/plans/phase-1-status.md`;
 voice work is deferred and they do not block NABD phases.
 
 ## Last observed runtime — 18 November 2026
 
-- Salesforce: `nabd-dev` connected to `sf` CLI 2.158.7; integration user active.
-- `backend/.env.nabd` (Git-ignored) has database, Salesforce and
-  `NABD_OPENAI_API_KEY` settings (values never recorded). It does not yet have
-  `NABD_READ_MCP_CONTEXT_SECRET`, so the browser chat stays disabled (503
-  `chat_not_configured`) until it is added.
-- Docker: dev `db` (55432), `test-db` (55433) and the **Phase 0** API image
-  on 8081 were running. That container and the dev database were left at
-  migration 0001; Phase 2 needs `up -d --build` (below), which migrates to 0002.
+- Salesforce: `nabd-dev` connected to `sf` CLI 2.158.7; integration user active
+  with `NABD_Integration_Read` and `NABD_Integration_Gateway`.
+- `backend/.env.nabd` (Git-ignored) has database, Salesforce,
+  `NABD_OPENAI_API_KEY`, `NABD_READ_MCP_CONTEXT_SECRET` and
+  `NABD_WRITE_MCP_CONTEXT_SECRET` (both secrets generated locally in Phase 3;
+  values never recorded). The chat is enabled.
+- Docker: dev `db` (55432) and `test-db` (55433) running; the Phase 3 stack
+  (`read-mcp` 8091, `write-mcp` 8092, `api` 8081, image
+  `nabd-backend:phase3`) was started and healthy. The dev database is at
+  migration 0003.
+- Test data in the org from Phase 3 checks: smoke case 00001043 (C008,
+  closed), probe 00001042 (C008, closed as withdrawn) and browser case
+  00001044 (C006, closed as withdrawn).
 - GitHub: `origin` is `badrafyf77/customer-support-voice-agent` (private).
-  `main` and `codex/nabd-chat-salesforce` were both pushed at `57d648c`. The
-  macOS keychain may hold another GitHub account, so pushes use the GitHub CLI
-  login: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …`
+  Pushes use the GitHub CLI login:
+  `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …`
   after checking `gh api user -q .login` prints `badrafyf77`.
 
 Recheck these in every new session; a recorded healthy state does not imply
@@ -118,65 +143,49 @@ NABD_TEST_DATABASE_URL=postgresql://nabd:nabd_test@127.0.0.1:55433/nabd_test \
 sf org display --target-org nabd-dev
 PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
 PYTHONPATH=code .venv-text/bin/python -m nabd read-mcp smoke
+PYTHONPATH=code .venv-text/bin/python -m nabd write-mcp smoke
 ```
 
-To run the chat: add `NABD_READ_MCP_CONTEXT_SECRET` (32+ random characters)
-and `NABD_OPENAI_API_KEY` to `backend/.env.nabd`, then
-`docker compose -f docker-compose.nabd.yml up -d --build --wait api` and
-`npm run dev` in `frontend/` (http://localhost:3000). If `sf org display`
-reports an expired session, run `sf org login web --alias nabd-dev`.
+To run the chat: `docker compose -f docker-compose.nabd.yml up -d --build --wait api`
+and `npm run dev` in `frontend/` (http://localhost:3000). A fresh checkout
+needs both MCP secrets (32+ random characters each) and `NABD_OPENAI_API_KEY`
+in `backend/.env.nabd` first. If `sf org display` reports an expired session,
+run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-**Phase 3 — complaint intelligence and reliable cases** is next and has not
-started. Scope and gate are in the
-[roadmap](roadmap.md#phase-3--complaint-intelligence-and-reliable-cases); the
-product rules are in [decisions](decisions.md#complaints-and-staff-workflow) and
-the target interfaces in [contracts](contracts.md) (complaint assessment,
-Salesforce command/result). Entry criteria: the resume commands above pass.
+**Phase 4 — multilingual behavior** is next and has not started. Scope and
+gate are in the [roadmap](roadmap.md#phase-4--multilingual-behavior); the
+language rules are in [decisions](decisions.md#product-and-data). Entry
+criteria: the resume commands above pass.
 
-First step when Phase 3 is requested: write `docs/nabd/phases/03-complaints.md`
-(plan, boundaries, checks) in the same form as the Phase 2 plan, then implement.
+First step when Phase 4 is requested: write `docs/nabd/phases/04-multilingual.md`
+(plan, boundaries, checks) in the same form as the Phase 3 plan, then implement.
 
-### Starting points for Phase 3 (facts about the code, not decisions)
+### Starting points for Phase 4 (facts about the code, not decisions)
 
-- **Turn pipeline**: `nabd/runtime/worker.py` (`TurnExecutor`) runs
-  `Supervisor.run_turn` in `nabd/agents/supervisor.py`, a single checkpointed
-  `model <-> tools` loop. There is no node yet for the mandatory Complaint
-  analysis or for commands (architecture turn steps 3, 4 and 6).
-- **Reads**: the read MCP server (`nabd/read_mcp/server.py`) exposes
-  `list_cases` with public fields only (number, subject, status, category,
-  order, dates). Semantic case matching will need more case context; extend
-  `NABD_Integration_Read` and the schema contract together with that feature.
-- **Writes do not exist**: the integration user is read-only (Salesforce
-  refuses its writes with `CANNOT_INSERT_UPDATE_ACTIVATE_ENTITY`). There is no
-  write MCP server and no Apex command gateway yet.
-- **Salesforce structure ready for Phase 3**: Case NABD fields
-  (`NABD_Issue_Id__c`, category, customer language, sentiment, urgency,
-  classification confidence, needs-review flag, English summary, resolution and
-  reopen fields, `NABD_Conversation_Id__c`), `Complaint_Evidence__c`,
-  `NABD_Operation_Receipt__c` (empty), five category queues with
-  `NABD_Category_Route__mdt`, and the five agreed statuses.
-- **Signed context**: `nabd/context.py` already takes an audience and scopes,
-  so a write server can require its own audience/scope.
-- **PostgreSQL**: migration `0002_chat_runtime` has sessions, conversations,
-  messages, runs and events. Issue links, execution receipts and durable
-  command jobs (architecture data table) do not exist yet.
-- **Activity cards**: backend codes `agent.*` / `tool.*`
-  (`nabd/agents/mcp_tools.py`, `nabd/runtime/events.py`); English texts in
-  `frontend/src/chat/messages.ts`. New complaint/case activities need codes
-  and texts there.
-- **Tests to reuse**: scripted models (`tests/fakes.py`), `FixtureReads` and the
-  in-memory read MCP server (`tests/nabd_fakes.py`), agent tests
-  (`tests/nabd/test_agents.py`), the uvicorn + PostgreSQL API tests
-  (`tests/nabd/test_chat_postgres.py`), and the paid English scenarios
-  (`tests/nabd/test_chat_scenarios.py`, `-m llm`, ask first).
-- **Phase 2 caveats carried forward**: real-model evidence is single runs (the
-  last two fixes were rechecked only on their own scenarios); the assistant now
-  tells customers it cannot open cases or arrange refunds, which Phase 3 must
-  change once those exist.
+- **Prompts are English-only**: `nabd/agents/prompts/supervisor.md` says
+  "English"; `orders.md` and `complaints.md` assume English input. The
+  Complaint specialist already returns a `language` per issue
+  (`en`/`fr`/`ar`/`ary`/`mixed`), stored as `Customer_Language__c` and on
+  evidence as `Original_Language__c`; `Original_Script__c` is not set yet.
+- **Knowledge** has `Language__c` with only `en`; the read MCP returns
+  English revisions. Policy outcomes come from code (`return_check`).
+- **Activity texts** are English templates keyed by stable codes in
+  `frontend/src/chat/messages.ts`; bubbles use `dir="auto"`, cards do not set
+  direction.
+- **Fixtures** already hold Darija (both scripts), Arabic, French and mixed
+  customers C011–C016 with cases and original wording; FX-ISSUE-0002 (C011)
+  waits on the customer.
+- **Case matching** compares new messages with English case summaries;
+  cross-language matching is the model's job, not code's.
+- **Tests to reuse**: scripted flows in `tests/nabd/test_complaints.py`; the
+  paid harness `tests/nabd/live_turns.py` supports multi-turn conversations
+  (real Salesforce reads, fixture cases).
+- **Phase 3 caveats carried forward**: see the
+  [Phase 3 known limitations](phases/03-complaints.md#known-limitations).
 
-When Phase 3 is finished: update its handoff, this status, START_HERE, the
+When Phase 4 is finished: update its handoff, this status, START_HERE, the
 roadmap and the AGENTS pointer, commit as `badrafyf77`, then merge into `main`
 and push both branches.
 

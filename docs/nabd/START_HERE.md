@@ -6,18 +6,21 @@ needed to resume is in the repository; the previous chat is not required.
 ## Current checkpoint
 
 - Branch: `codex/nabd-chat-salesforce`. It equals `main` on GitHub at the end
-  of Phase 2 (`57d648c`); finished phases are merged into `main`.
+  of Phase 3; finished phases are merged into `main`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
   (`02178fa` plus handoff commits). Real-model English run: 10/12, then the two
   failures fixed and passing on a recheck.
-- Next: **NABD Phase 3 — complaint intelligence and reliable cases**, not
-  started. Its starting points are in
-  [status](status.md#starting-points-for-phase-3-facts-about-the-code-not-decisions).
-- Last measured suite: **213 passed** (57 paid scenarios deselected) on macOS
-  with real PostgreSQL. Real-org `salesforce verify` 39/39, `salesforce smoke`
-  12/12, `read-mcp smoke` 12/12. See [status](status.md) for limits.
+- Completed: **NABD Phase 3 — complaint intelligence and reliable cases**
+  (`9879593` plus the handoff commit). Real-model run: Phase 3 set 7/8 then the failure passed on recheck; Phase 2 set 9/12 (after two check fixes), then 2 of 3 failures passed on recheck.
+- Next: **NABD Phase 4 — multilingual behavior**, not started. Its starting
+  points are in
+  [status](status.md#starting-points-for-phase-4-facts-about-the-code-not-decisions).
+- Last measured suite: **249 passed** (65 paid scenarios deselected) on macOS
+  with real PostgreSQL. Real-org `salesforce verify` 41/41, Apex 17/17,
+  `salesforce smoke` 12/12, `read-mcp smoke` 12/12, `write-mcp smoke` 15/15.
+  See [status](status.md) for limits.
 - The root `AGENTS.md` directs new sessions here. Later phase completions must
   update this checkpoint, status, roadmap, and that short pointer together.
 
@@ -27,15 +30,16 @@ needed to resume is in the repository; the previous chat is not required.
    results, current phase, environment snapshot, and next entry criteria.
 2. [Accepted decisions](decisions.md): settled product choices and engineering
    requirements. Do not re-ask questions already answered here.
-3. [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026): the
-   read MCP server, agents, durable runs, events, API and chat, with what is
-   verified and what is not. The [Salesforce reference](salesforce.md) covers
-   the org, schema and adapter underneath.
-4. Phase 3's scope and gate in the
-   [roadmap](roadmap.md#phase-3--complaint-intelligence-and-reliable-cases),
-   its rules in [decisions](decisions.md#complaints-and-staff-workflow), and
-   the starting points in [status](status.md#next-step). Write
-   `docs/nabd/phases/03-complaints.md` first when Phase 3 is requested.
+3. [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026): the
+   complaint stage, case workflow, write MCP server and Apex gateway, with what
+   is verified and what is not. The [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026)
+   covers the chat underneath and the [Salesforce reference](salesforce.md)
+   the org, schema, gateway and adapter.
+4. Phase 4's scope and gate in the
+   [roadmap](roadmap.md#phase-4--multilingual-behavior), the language rules in
+   [decisions](decisions.md#product-and-data), and the starting points in
+   [status](status.md#next-step). Write `docs/nabd/phases/04-multilingual.md`
+   first when Phase 4 is requested.
 5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
    responsibilities, data ownership, agent flow, and future public interfaces.
 6. [Roadmap](roadmap.md) and [development commands](README.md): later sequence,
@@ -49,7 +53,7 @@ From the repository root:
 git status --short --branch
 git fetch origin && git log -1 --oneline origin/main
 git log -5 --oneline
-git show --stat 02178fa
+git show --stat 9879593
 sf org display --target-org nabd-dev
 ```
 
@@ -67,10 +71,10 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 - Salesforce knowledge ownership is settled: **FAQs and policies live in
   Salesforce**, alongside customers, orders, deliveries, cases, and tasks.
 - `/readyz` returning ready proves the storage foundation is ready. The
-  read MCP server, chat API and Next.js chat exist (Phase 2); the chat answers
-  503 `chat_not_configured` until `NABD_READ_MCP_CONTEXT_SECRET` and
-  `NABD_OPENAI_API_KEY` are set. Write MCP, case writes and complaint analysis
-  do not exist yet (Phase 3).
+  chat answers 503 `chat_not_configured` until both MCP context secrets
+  (`NABD_READ_MCP_CONTEXT_SECRET`, `NABD_WRITE_MCP_CONTEXT_SECRET`) and
+  `NABD_OPENAI_API_KEY` are set. Complaint analysis and case writes exist
+  (Phase 3); staff-to-chat updates (Phase 5) and risk warnings (Phase 6) do not.
 - `salesforce/force-app` metadata is generated from
   `backend/code/nabd/salesforce/schema.py`. Change the schema, then run
   `python -m nabd salesforce generate`; never hand-edit generated XML.
@@ -78,15 +82,19 @@ phase; switch to (or recreate from `main`) the working branch before editing.
   never fixtures or the legacy SQLite shop database.
 - `backend/code/server.py` and `docs/plans/phase-1-status.md` are legacy voice
   artifacts. Their Phase 1 is not NABD's next Phase 1.
-- The legacy 113 unit tests still pass. The 45 legacy and 12 NABD paid
-  scenario runs are deselected by default. The 12 NABD scenarios ran once each
-  in Phase 2 with the user's approval; ask before any further paid run.
+- The legacy 113 unit tests still pass. The 45 legacy and 20 NABD paid
+  scenario runs are deselected by default. The NABD scenarios ran once each
+  in Phases 2 and 3 with the user's approval; ask before any further paid run.
 - NABD agents live in `backend/code/nabd/agents/`; the legacy
   `agents/support` and `agents/orders` graphs are voice-era code kept for
   their tests, not the NABD runtime.
-- Phase 2's integration user is read-only and the chat has no write path.
-  Phase 3 builds the write MCP server and Apex command gateway; do not give
-  the read server or the integration user write access as a shortcut.
+- Case writes go only through the write MCP server and the Apex gateway
+  `NabdCaseCommands`. The integration user has no object create/edit rights
+  (one licence is shared by both MCP servers); keep it that way, and change
+  case rules in the gateway and `nabd/agents/cases.py` together.
+- Apex SOQL in the gateway must state `WITH SYSTEM_MODE`: implicit-mode queries
+  on objects the integration user cannot read failed at runtime although the
+  Apex tests (run as admin) passed.
 - Git: commit and push as `badrafyf77` with no AI attribution lines; merge a
   finished phase into `main` and push (the owner's standing instruction).
 - Product commitments are fixed unless the user changes them. Tunable technical
@@ -96,11 +104,11 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md,
-> then docs/nabd/status.md. Phases 0–2 are complete. Start Phase 3 (complaint
-> intelligence and reliable cases): first write docs/nabd/phases/03-complaints.md
-> in the same form as the Phase 2 plan, then implement Phase 3 only. Preserve
-> all accepted decisions, ask me before any paid model run, update the phase
-> handoff and verification results, and when Phase 3 is finished merge it into
-> main and push as badrafyf77.
+> then docs/nabd/status.md. Phases 0–3 are complete. Start Phase 4 (multilingual
+> behavior): first write docs/nabd/phases/04-multilingual.md in the same form as
+> the Phase 3 plan, then implement Phase 4 only. Preserve all accepted
+> decisions, ask me before any paid model run, update the phase handoff and
+> verification results, and when Phase 4 is finished merge it into main and
+> push as badrafyf77.
 
 For a later phase, replace the phase number and follow the then-current status.
