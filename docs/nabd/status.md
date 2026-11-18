@@ -8,7 +8,7 @@ Updated: 18 November 2026 (Africa/Casablanca).
 Phase 4's [plan and running handoff](phases/04-multilingual.md) record the
 implementation, free checks and approved paid evaluation. Working branch:
 `codex/nabd-chat-salesforce`, started from the Phase 3 handoff `603545d`.
-Phase 4 checkpoints: `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, latest `f341970`.
+Phase 4 checkpoints: `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`, latest `b4d5f71`.
 The first paid run measured 21/36 automatic passes; its 19-scenario recheck
 passed 13/19. The focused confirmation of the final six passed 3/6: two
 over-strict checks (now fixed) and one genuine Latin Darija script failure,
