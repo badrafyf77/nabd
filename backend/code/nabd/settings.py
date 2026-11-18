@@ -188,11 +188,11 @@ class ModelSettings(BaseSettings):
 
     openai_api_key: SecretStr = Field(min_length=1)
     supervisor_model: str = "gpt-5.4-mini"
-    supervisor_reasoning_effort: str | None = "none"
+    supervisor_reasoning_effort: str | None = "low"
     orders_model: str = "gpt-5.4-mini"
     orders_reasoning_effort: str | None = "low"
     complaints_model: str = "gpt-5.4-mini"
-    complaints_reasoning_effort: str | None = "low"
+    complaints_reasoning_effort: str | None = "medium"
     model_timeout_seconds: float = Field(default=30.0, ge=1, le=300)
 
 

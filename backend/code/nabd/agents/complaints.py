@@ -27,7 +27,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.graph import START, StateGraph
 from pydantic import BaseModel, Field, ValidationError
 
-from nabd.agents.language import MessageLanguage, TurnLanguage
+from nabd.agents.language import MessageLanguage, TurnLanguage, original_script
 from nabd.agents.loop import LoopState, add_loop, invoke_model, run_tool_calls, tools_allowed
 from nabd.agents.mcp_tools import McpTools, tool_activity
 from nabd.runtime.events import Activity, RunContext
@@ -232,7 +232,8 @@ def verify_assessment(raw: str, *, evidence: set[str], orders_seen: set[str], ca
         question = (parsed.question or "").strip() or "Could you tell me a little more about the problem?"
     labels = {label.message_id: label.language for label in parsed.message_languages
               if label.message_id in customer_messages}
-    language = parsed.language.public() if parsed.language else None
+    current = customer_messages.get(current_message_id)
+    language = parsed.language.public(original_script(current.text) if current else None) if parsed.language else None
     if language:
         labels[current_message_id] = language["input_language"]
     return Assessment(outcome, question, issues, unverified, tool_calls, language, labels)

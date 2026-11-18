@@ -14,6 +14,11 @@ identities; the phase implementation owns their concrete representation.
 Phase 4 adds a model-selected `language` on the complaint assessment, even for
 non-complaints: `input_language` (`en`/`fr`/`ar`/`ary`/`mixed`),
 `reply_language` (`en`/`fr`/`ar`/`ary`) and `reply_script` (`latin`/`arabic`).
+The model also marks `script_requested` when an explicit response-script
+preference overrides the customer's writing system. Otherwise pure Arabic or
+Latin source script is preserved for Darija by code. Mixed/neutral source text
+keeps the model's choice. The public language object contains only the three
+enum values; the preference flag is not customer activity data.
 `message_languages` labels only real customer message IDs in the turn history.
 Exact message text and Unicode script are copied by code into evidence. Old
 stored assessments remain readable; a missing language label stays unknown.

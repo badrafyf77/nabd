@@ -123,3 +123,11 @@ they do not require repeating the product interview.
   non-complaints. Persist it with the complaint plan and publish enum-only
   language events. Per-message evidence labels are independent of case language;
   code copies the original text and determines its writing systems with Unicode.
+- **Phase 4 evaluated defaults (18 November 2026).** The initial paid run used
+  Supervisor reasoning `none` and Complaints `low`, and exposed script leakage,
+  missed refund cases and repeated-contact errors. The recheck uses the same
+  `gpt-5.4-mini` models with Supervisor `low`, Orders `low`, Complaints `medium`,
+  stronger language/receipt instructions and an explicit script-preference flag.
+  Non-English customer dates use exact ISO values from tools, while staff
+  findings retain full English dates plus ISO, avoiding unreliable month/day
+  translation. No dates or policy decisions are recomputed by a model.

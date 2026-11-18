@@ -50,6 +50,8 @@ Answer with JSON only:
   tool wrote it (for example "Sunday 4 October 2026"); never rewrite or work
   out a date. For a delayed parcel give the first promised date and the new
   one. For a return say whether it is possible, why, and the deadline.
+  Include the tool's ISO date in parentheses after each written-out date; the
+  Supervisor uses that exact value in non-English replies. Do not drop it.
 - `facts`: short statements, each with `evidence`: the exact evidence
   references (such as `ShopEasy_Order__c:a0X...@2026-11-18T09:00:00Z`) copied
   from the tool results that prove it.

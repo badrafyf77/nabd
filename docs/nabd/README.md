@@ -161,6 +161,7 @@ answer 503 `chat_not_configured`.
 | `NABD_READ_MCP_HOST` / `_PORT` / `_ALLOWED_HOSTS` | Server bind address and accepted `Host` headers | 127.0.0.1 / 8091 / local names |
 | `NABD_OPENAI_API_KEY` | Key for both agents (paid); passed explicitly | None |
 | `NABD_SUPERVISOR_MODEL`, `NABD_ORDERS_MODEL` | Models (Responses API) | `gpt-5.4-mini` |
+| `NABD_SUPERVISOR_REASONING_EFFORT`, `NABD_ORDERS_REASONING_EFFORT`, `NABD_COMPLAINTS_REASONING_EFFORT` | Phase 4 model reasoning defaults | `low`, `low`, `medium` |
 | `NABD_CHAT_ALLOWED_ORIGINS` | Origins allowed to send state-changing requests | localhost:3000 |
 | `NABD_CHAT_TURN_DEADLINE_SECONDS`, `_AGENT_TOOL_CALLS`, `_TURN_TOOL_CALLS` | Turn limits | 120, 5, 20 |
 | `NABD_CHAT_RUN_LEASE_SECONDS`, `_MAX_RUN_ATTEMPTS`, `_WORKER_CONCURRENCY` | Run queue | 30, 3, 4 |

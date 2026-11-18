@@ -95,3 +95,12 @@ def test_supervisor_gets_selected_language_and_orders_gets_exact_original_wordin
         Turn(MID, form.delayed, "Sara", fx.SEED_DATE, []), {"language": selected})
     embedded = re.search(r"selected language/script:\s*(\{[^}]+\})", prompt).group(1)
     assert json.loads(embedded) == selected
+
+
+def test_darija_script_follows_original_unless_an_explicit_preference_overrides_it():
+    from nabd.agents.language import TurnLanguage
+    inferred = TurnLanguage(input_language="ary", reply_language="ary", reply_script="latin")
+    assert inferred.public("arabic")["reply_script"] == "arabic"
+    requested = TurnLanguage(input_language="ary", reply_language="ary", reply_script="latin", script_requested=True)
+    assert requested.public("arabic")["reply_script"] == "latin"
+    assert inferred.public("mixed")["reply_script"] == "latin"  # mixed/neutral text remains the model's choice

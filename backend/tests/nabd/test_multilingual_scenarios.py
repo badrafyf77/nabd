@@ -37,16 +37,24 @@ def check(result, conversation, form, *, operations=None, case=None, language=Tr
           f"confirmed: {result.confirmed}")
     selections = [e.payload for e in result.events if e.type == "conversation.language"]
     print(f"  language: {selections}")
+    print(f"  assessment: {result.assessment}")
     assert result.reply.strip()
     if language:
-        assert selections == [form.selection], selections
+        assert len(selections) == 1
+        selected = selections[0]
+        assert selected["reply_language"] == form.reply_language and selected["reply_script"] == form.script, selections
+        # A single Darija discourse marker in an otherwise French message can
+        # be labeled primary French or mixed; response behavior must be identical.
+        assert selected["input_language"] in ({"mixed", "fr"} if form.language == "mixed" else {form.language}), selections
         if form.script == "arabic":
             assert len(re.findall(r"[\u0621-\u064a]", result.reply)) >= 5, "reply is not in Arabic script"
         else:
-            assert len(re.findall(r"[\u0621-\u064a]", result.reply)) < 5, "reply changed to Arabic script"
+            assert len(re.findall(r"[\u0621-\u064a]", result.reply)) < (1 if form.reply_language == "ary" else 5), "reply changed to Arabic script"
     if operations is not None:
         assert sorted(c.operation for c in result.commands) == sorted(operations)
     assert len(result.commands) == len(result.confirmed)
+    assert all(number in result.reply for number in result.confirmed), "omitted confirmed case work"
+    assert not re.search(r'"entry_keys"\s*:', result.reply), "visible tool argument JSON"
     if case:
         assert all(c.case_id == conversation.world.case(case).id for c in result.commands)
     known = {c.number for c in conversation.world.customer_cases(conversation.customer)}
@@ -66,7 +74,7 @@ def test_multilingual_scenario(scenario, live, loop):
                 "ambiguous": "C010", "held_out": "C007"}[flow]
     c = LiveConversation(customer, models, salesforce)
     def say(text, form=f, **expected):
-        print(f"\n[{scenario.name}] {customer}: {text}")
+        print(f"\n[{scenario.name}] {c.customer}: {text}")
         result = loop.run(c.say(text))
         check(result, c, form, **expected)
         return result
@@ -77,8 +85,9 @@ def test_multilingual_scenario(scenario, live, loop):
                     for a in e.payload["result"]["articles"]]
         assert any(a["revision"] == "faq.delivery_cost@2" for a in articles)
         assert not re.search(r"2[.,]99", result.reply)
+        assert not re.search(r"dès\s*[£]?\s*40|à partir de\s*[£]?\s*40", result.reply, re.I), "changed strict policy boundary"
     elif flow == "returns":
-        for text, anchor in [(f.allowed_return, r"8 December|December 8|8 décembre|8 دجنبر|8 ديسمبر|8 decembre|8 décembre"),
+        for text, anchor in [(f.allowed_return, r"2026-12-08|8 December|December 8|8 décembre|8 دجنبر|8 ديسمبر|8 decembre|8 décembre"),
                              (f.late_return, r"30|thirty|trente|ثلاثين|ثلاثون")]:
             result = say(text, operations=[])
             assert "agent.orders" in result.completed() and "tool.get_order" in result.completed()
@@ -89,7 +98,7 @@ def test_multilingual_scenario(scenario, live, loop):
             if text == f.allowed_return:
                 assert re.search(anchor, result.reply, re.I), "return deadline missing/changed"
             else:
-                assert re.search(r"30|3 November|3 novembre|3 نونبر|3 نوفمبر|window|délai|فات|فاتت|fate|fett|fout|sla|سال|انته|مهلة|مدة", result.reply, re.I)
+                assert re.search(r"2026-11-03|30|3 November|3 novembre|3 نونبر|3 نوفمبر|window|délai|فات|فاتت|fate|fett|fout|sla|سال|انته|مهلة|مدة", result.reply, re.I)
     elif flow == "refund":
         result = say(f.refund, operations=["create_case"])
         [command] = result.commands
