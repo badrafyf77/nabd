@@ -45,3 +45,9 @@ def original_script(text: str) -> str | None:
     if len(scripts) > 1:
         return "mixed"
     return next(iter(scripts), None)
+
+
+def violates_latin_script(text: str, language: dict[str, str] | None) -> bool:
+    return bool(language and language.get("reply_language") == "ary" and language.get("reply_script") == "latin"
+                and any(unicodedata.category(c).startswith("L") and "ARABIC" in unicodedata.name(c, "")
+                        for c in text))

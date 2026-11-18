@@ -290,6 +290,7 @@ class ComplaintStage:
         return {
             "outcome": assessment.outcome,
             "language": assessment.language,
+            "order_options": stored.get("order_options", []),
             "questions": stored.get("questions", []),
             "notes": stored.get("notes", []),
             "facts": [fact.statement for issue in assessment.issues for fact in issue.facts],
@@ -304,22 +305,33 @@ class ComplaintStage:
             raise RuntimeError(f"case history unavailable ({outcome.error})")
         case_history = outcome.data
         candidates = parse_candidates(case_history)
+        # A signed, customer-scoped reference index, like case history. Models
+        # still interpret product references and choose any detail tools needed.
+        overview = await reads.call(run, "list_orders", {}, allowed=("list_orders",),
+                                    activity=tool_activity(run, {"id": "order-overview", "name": "list_orders"}, me))
+        order_rows = overview.data.get("orders", []) if overview.ok else []
+        options = [{"order_number": row["order_number"], "products": row.get("products", [])}
+                   for row in order_rows]
         lines = list(turn.history) or [ChatLine("customer", turn.message_id, turn.text, turn.message_at)]
         current = next((line for line in lines if line.message_id == turn.message_id),
                        ChatLine("customer", turn.message_id, turn.text, turn.message_at))
         messages = {line.message_id: line for line in lines if line.role == "customer"}
         messages.setdefault(current.message_id, current)
         specialist = ComplaintSpecialist(self.model, reads, turn.today)
-        found = await specialist.investigate(run, specialist.request(lines, current, case_history), me)
+        found = await specialist.investigate(run, specialist.request(lines, current, case_history,
+                                                                    overview.for_model()), me)
         assessment = verify_assessment(
-            found.raw, evidence=found.evidence | outcome.evidence, orders_seen=found.orders_seen,
+            found.raw, evidence=found.evidence | outcome.evidence | overview.evidence,
+            orders_seen=found.orders_seen | {row["order_number"] for row in order_rows},
             candidates=candidates, customer_messages=messages, current_message_id=turn.message_id,
             tool_calls=found.tool_calls)
         at = current.at or datetime.now(timezone.utc)
-        plan = build_plan(run.run_id, assessment, candidates, messages, at, lost_orders=found.lost_orders,
+        lost_orders = found.lost_orders | {row["order_number"] for row in order_rows
+                                          if (row.get("delivery") or {}).get("status") == "lost"}
+        plan = build_plan(run.run_id, assessment, candidates, messages, at, lost_orders=lost_orders,
                           review_threshold=self.review_threshold)
         stored = {"assessment": assessment.to_json(), "questions": plan.questions, "notes": plan.notes,
-                  "lost_orders": sorted(found.lost_orders),
+                  "lost_orders": sorted(lost_orders), "order_options": options,
                   "messages": {key: {"text": line.text, "at": line.at.isoformat() if line.at else None}
                                for key, line in messages.items()}}
         await self.store.save_case_plan(run.run_id, run.conversation_id, run.customer_id, stored, plan.commands)

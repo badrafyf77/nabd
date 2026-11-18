@@ -1,0 +1,1640 @@
+{
+  "checkpoint": "94957e5",
+  "models": "gpt-5.4-mini; Supervisor low, Orders low, Complaints medium",
+  "automated": "13/19",
+  "results": [
+    {
+      "name": "english-refund",
+      "automated_pass": false,
+      "failure": "AssertionError: assert [] == ['create_case']",
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "I want a refund for my Bluetooth speaker.",
+          "reply": "Your Bluetooth speaker is in order SE-1051. It was delivered on Sunday 8 November 2026, and it can be returned for a refund until Tuesday 8 December 2026.  \n\nI can’t arrange the refund myself from this chat, but you can return it within that window.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "needs_clarification",
+            "question": "Which order is the Bluetooth speaker from?",
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "77de0c3e-c0d0-4144-b7aa-81b0023fada3": "en"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "english-switch_case",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C003",
+          "message": "My cooking pot SE-1061 is late.",
+          "reply": "I’ve recorded this as case 00002001 with our Delivery team.\n\nYour order SE-1061 is delayed and is with Royal Parcel. It was first due on Sunday 15 November 2026 and is now expected on Friday 20 November 2026. The last update shows it at Manchester depot, held due to high volume.",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1061 cooking pot delivery delayed",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The order is delayed but the latest expected delivery date is still in the future, so this is urgent but not yet a confirmed loss.",
+                "signals": [],
+                "staff_action": "carrier_investigation",
+                "language": "en",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "6de568d6-a53a-48ee-af3b-f32249d483bf"
+                ],
+                "reported": [
+                  "The customer says their cooking pot order SE-1061 is late."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1061 was placed on Tuesday 10 November 2026 (2026-11-10) for one Cast iron cooking pot.",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK1BQAU@2026-11-18T03:20:37Z",
+                      "ShopEasy_Order_Item__c:a07gL00001cWLd0QAG@2026-11-18T03:20:38Z"
+                    ]
+                  },
+                  {
+                    "statement": "The delivery status for order SE-1061 is delayed and the parcel is with Royal Parcel.",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The parcel was originally expected on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The last recorded location is Manchester depot, held due to high volume, with last update Wednesday 18 November 2026 (2026-11-18).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says order SE-1061, a cast iron cooking pot, is late. The order is delayed in Royal Parcel's network, with the originally expected date of Sunday 15 November 2026 (2026-11-15) changed to Friday 20 November 2026 (2026-11-20). The last scan shows Manchester depot, held due to high volume, updated on Wednesday 18 November 2026 (2026-11-18).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "6de568d6-a53a-48ee-af3b-f32249d483bf": "en"
+            }
+          }
+        },
+        {
+          "customer": "C003",
+          "message": "The same cooking pot still hasn't arrived. Please update that case.",
+          "reply": "I’ve updated case 00002001 with our Delivery team.\n\nIt’s still showing as delayed, with the latest update saying it was at Manchester depot and held due to high volume on Wednesday 18 November 2026.",
+          "commands": [
+            "update_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1061 cooking pot delivery still delayed",
+                "match": "same",
+                "action": "update",
+                "existing_case": "00002001",
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The order is still delayed and the customer says it has not arrived yet, so the open delivery issue remains unresolved.",
+                "signals": [
+                  "repeated_unresolved"
+                ],
+                "staff_action": "carrier_investigation",
+                "language": "en",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "66a91c0f-b4ed-44fb-a36c-aa1a08e8f473",
+                  "6de568d6-a53a-48ee-af3b-f32249d483bf"
+                ],
+                "reported": [
+                  "The same cooking pot still has not arrived.",
+                  "The customer wants the existing case updated."
+                ],
+                "facts": [
+                  {
+                    "statement": "Case 00002001 is open for order SE-1061 and is about a delayed cooking pot delivery.",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  },
+                  {
+                    "statement": "The case summary says the order was first due on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  },
+                  {
+                    "statement": "The last update in the case summary says the parcel was at Manchester depot and held due to high volume on Wednesday 18 November 2026 (2026-11-18).",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says order SE-1061, a cooking pot, still has not arrived and wants the existing case updated. This is the same delayed delivery issue already recorded in case 00002001. The case is open and the summary shows the parcel was delayed in Royal Parcel's network, with the expected date changed from Sunday 15 November 2026 (2026-11-15) to Friday 20 November 2026 (2026-11-20).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "66a91c0f-b4ed-44fb-a36c-aa1a08e8f473": "en",
+              "6de568d6-a53a-48ee-af3b-f32249d483bf": "en"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "english-ambiguous",
+      "automated_pass": false,
+      "failure": "StopIteration",
+      "turns": [
+        {
+          "customer": "C010",
+          "message": "I want to return something I bought, but I haven't said which item yet.",
+          "reply": "Which item would you like to return, and can you share the order number if you have it?",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "needs_clarification",
+            "question": "Which item would you like to return, and can you share the order number if you have it?",
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "92340f2c-7b04-4ccf-9049-f429ce596ee8": "en"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "french-knowledge",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C001",
+          "message": "Combien coûte la livraison ?",
+          "reply": "La livraison standard coûte 3,99 £ et elle est gratuite pour les commandes de plus de 40 £.  \nLa livraison le lendemain coûte 6,99 £.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "fr",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "fr",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "851b2beb-199b-4570-80f6-773122682d4f": "fr"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "french-refund",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "Je veux être remboursé pour mon enceinte Bluetooth.",
+          "reply": "J’ai enregistré cela comme le dossier 00002001 avec notre équipe Returns & Refunds.  \nJe ne peux pas faire le remboursement moi-même ici, mais l’équipe l’examinera sous ce numéro.\n\nVotre enceinte Bluetooth de la commande SE-1051 peut être retournée jusqu’au 2026-12-08.",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "fr",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 2,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1051 refund request for Bluetooth speaker",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Returns_Refunds",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The customer is requesting a refund, which needs staff review, but there is no indication of immediate safety or time-critical loss.",
+                "signals": [],
+                "staff_action": "refund",
+                "language": "fr",
+                "order_numbers": [
+                  "SE-1051"
+                ],
+                "message_ids": [
+                  "32a6a0c1-0af9-4250-b9bb-723a9c27daf8"
+                ],
+                "reported": [
+                  "The customer wants a refund for the Bluetooth speaker."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1051 contains one Bluetooth speaker.",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK18QAE@2026-11-18T03:20:37Z",
+                      "ShopEasy_Order_Item__c:a07gL00001cWLcxQAG@2026-11-18T03:20:38Z"
+                    ]
+                  },
+                  {
+                    "statement": "Order SE-1051 was delivered on Sunday 8 November 2026 (2026-11-08).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiEQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The Bluetooth speaker on order SE-1051 is returnable and can be returned until Tuesday 8 December 2026 (2026-12-08).",
+                    "evidence": [
+                      "KnowledgeEntry__c:a01gL00002A5z7ZQAR@2026-11-18T11:15:40Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says they want a refund for their Bluetooth speaker. Order SE-1051 contains one Bluetooth speaker and was delivered on Sunday 8 November 2026 (2026-11-08). The order records show the speaker is returnable until Tuesday 8 December 2026 (2026-12-08).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "fr",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "32a6a0c1-0af9-4250-b9bb-723a9c27daf8": "fr"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "french-switch_case",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C003",
+          "message": "My cooking pot SE-1061 is late.",
+          "reply": "I’ve recorded this as case 00002001 with our Delivery team.  \n\nYour order SE-1061 is delayed. It was expected on Sunday 15 November 2026 and is now expected on Friday 20 November 2026. The latest update shows it at Manchester depot, held due to high volume, on Wednesday 18 November 2026.",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1061 delayed delivery",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The parcel is marked delayed and the original expected delivery date has passed, but the updated expected date is still in the future.",
+                "signals": [],
+                "staff_action": null,
+                "language": "en",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "11f7b8f2-f358-4dd4-8f4f-bbbd89eb7420"
+                ],
+                "reported": [
+                  "The customer says their cooking pot order SE-1061 is late."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1061 contains one cast iron cooking pot and was placed on Tuesday 10 November 2026 (2026-11-10).",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK1BQAU@2026-11-18T03:20:37Z",
+                      "ShopEasy_Order_Item__c:a07gL00001cWLd0QAG@2026-11-18T03:20:38Z"
+                    ]
+                  },
+                  {
+                    "statement": "The delivery for order SE-1061 is delayed.",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The delivery was originally expected on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The last delivery update shows the parcel at Manchester depot, held due to high volume, on Wednesday 18 November 2026 (2026-11-18).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says order SE-1061, a cast iron cooking pot, is late. The records show the delivery is delayed: it was originally expected on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20). The latest scan says the parcel is at Manchester depot and held due to high volume on Wednesday 18 November 2026 (2026-11-18).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "11f7b8f2-f358-4dd4-8f4f-bbbd89eb7420": "en"
+            }
+          }
+        },
+        {
+          "customer": "C003",
+          "message": "Cette même cocotte n'est toujours pas arrivée. Ajoutez cela au même dossier, s'il vous plaît.",
+          "reply": "C’est bien ajouté au même dossier 00002001 avec notre équipe Livraison.  \n\nVotre cocotte SE-1061 est toujours en retard, et le dossier est toujours ouvert.",
+          "commands": [
+            "update_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "fr",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1061 delayed delivery still unresolved",
+                "match": "same",
+                "action": "update",
+                "existing_case": "00002001",
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The parcel is still delayed, but the latest record already shows a future expected delivery date rather than a lost parcel.",
+                "signals": [
+                  "repeated_unresolved"
+                ],
+                "staff_action": "carrier_investigation",
+                "language": "fr",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "34041225-aadd-48d5-adca-60cbae78d83f"
+                ],
+                "reported": [
+                  "The customer says the same cooking pot has still not arrived and asks to add this to the same case."
+                ],
+                "facts": [
+                  {
+                    "statement": "Case 00002001 is about order SE-1061 and is currently open with category Delivery.",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  },
+                  {
+                    "statement": "The case summary records that SE-1061 was originally expected on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says the same cast iron cooking pot from order SE-1061 still has not arrived and asks for this message to be added to the same case. The existing case 00002001 is already open for the delayed delivery. Records show the parcel was originally due on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "fr",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "34041225-aadd-48d5-adca-60cbae78d83f": "fr"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "arabic-refund",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "أريد استرداد ثمن مكبر الصوت الذي يعمل بالبلوتوث.",
+          "reply": "لقد سُجِّلت حالتك كـ **00002001** مع **فريق المرتجعات والاسترداد**.  \nلا أستطيع ترتيب الاسترداد بنفسي من هنا، لكن الفريق سيراجع الطلب تحت هذا الرقم.\n\nطلبك يخص **مكبر الصوت الذي يعمل بالبلوتوث**، وتم تسليمه في **Sunday 8 November 2026 (2026-11-08)**.",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "ar",
+              "reply_language": "ar",
+              "reply_script": "arabic"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1051 Bluetooth speaker refund request",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Returns_Refunds",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The customer is asking for a refund, which needs staff review, but there is no report of safety risk or an immediate delivery problem.",
+                "signals": [],
+                "staff_action": "refund",
+                "language": "ar",
+                "order_numbers": [
+                  "SE-1051"
+                ],
+                "message_ids": [
+                  "45702bdb-fc12-4ce7-a9b0-d7e74fc62a3e"
+                ],
+                "reported": [
+                  "The customer wants a refund for the Bluetooth speaker.",
+                  "The customer did not give a reason for the refund request."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1051 contains a Bluetooth speaker.",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK18QAE@2026-11-18T03:20:37Z"
+                    ]
+                  },
+                  {
+                    "statement": "Order SE-1051 was delivered on Sunday 8 November 2026 (2026-11-08).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiEQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer is asking for a refund for the Bluetooth speaker. Records show order SE-1051 contains a Bluetooth speaker and it was delivered on Sunday 8 November 2026 (2026-11-08). The customer did not give a reason for the refund request.",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "ar",
+              "reply_language": "ar",
+              "reply_script": "arabic"
+            },
+            "message_languages": {
+              "45702bdb-fc12-4ce7-a9b0-d7e74fc62a3e": "ar"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "arabic-switch_case",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C003",
+          "message": "My cooking pot SE-1061 is late.",
+          "reply": "I've recorded this as case 00002001 with our Delivery team.\n\nFor SE-1061, the delivery is delayed. It was due on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20). The last recorded location is Manchester depot, held due to high volume, with a last update on Wednesday 18 November 2026 (2026-11-18).",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1061 delayed delivery",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The parcel is delayed but still in transit, so it needs attention soon though there is no sign of a lost or unsafe shipment.",
+                "signals": [],
+                "staff_action": "carrier_investigation",
+                "language": "en",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "89e3cb1f-6d3a-4134-a83e-cb44e036e068"
+                ],
+                "reported": [],
+                "facts": [
+                  {
+                    "statement": "Order SE-1061 was placed on Tuesday 10 November 2026 (2026-11-10).",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK1BQAU@2026-11-18T03:20:37Z"
+                    ]
+                  },
+                  {
+                    "statement": "The delivery status for SE-1061 is delayed.",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The delivery was originally expected on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The last recorded location is Manchester depot, held due to high volume, with a last update on Wednesday 18 November 2026 (2026-11-18).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says their cast iron cooking pot order SE-1061 is late. Records show the parcel is delayed, with the expected delivery moved from Sunday 15 November 2026 (2026-11-15) to Friday 20 November 2026 (2026-11-20). The carrier update shows it is at Manchester depot and being held due to high volume. They want help with the delayed delivery.",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "89e3cb1f-6d3a-4134-a83e-cb44e036e068": "en"
+            }
+          }
+        },
+        {
+          "customer": "C003",
+          "message": "قدر الطبخ نفسه لم يصل بعد. أضيفوا هذه المعلومة إلى الشكوى نفسها من فضلكم.",
+          "reply": "تمت إضافة هذه المعلومة إلى القضية 00002001 نفسها.  \nقدر الطبخ SE-1061 ما زال متأخرًا، وموعِد التوصيل الجديد هو الجمعة 2026-11-20.",
+          "commands": [
+            "update_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "ar",
+              "reply_language": "ar",
+              "reply_script": "arabic"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1061 delayed delivery update",
+                "match": "same",
+                "action": "update",
+                "existing_case": "00002001",
+                "category": "Delivery",
+                "category_confidence": 1.0,
+                "sentiment": "negative",
+                "urgency": "high",
+                "urgency_reason": "The parcel is still not with the customer after an earlier delay report, and they are asking to add this as new evidence to the same open complaint.",
+                "signals": [
+                  "repeated_unresolved"
+                ],
+                "staff_action": "carrier_investigation",
+                "language": "ar",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "bd0e2c20-0d25-49ff-868e-646567bae875",
+                  "89e3cb1f-6d3a-4134-a83e-cb44e036e068"
+                ],
+                "reported": [
+                  "The cooking pot order SE-1061 still has not arrived.",
+                  "The customer wants this added to the same complaint."
+                ],
+                "facts": [
+                  {
+                    "statement": "Case 00002001 is an open delivery complaint about order SE-1061.",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  },
+                  {
+                    "statement": "The delivery for SE-1061 was due on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  },
+                  {
+                    "statement": "The last recorded location is Manchester depot, and the parcel is held due to high volume.",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says their cooking pot order SE-1061 still has not arrived and wants this added to the same complaint. Case 00002001 is already open for the same delayed delivery. Records show the parcel was due on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20), with the last recorded location at Manchester depot and a hold due to high volume.",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "ar",
+              "reply_language": "ar",
+              "reply_script": "arabic"
+            },
+            "message_languages": {
+              "bd0e2c20-0d25-49ff-868e-646567bae875": "ar",
+              "89e3cb1f-6d3a-4134-a83e-cb44e036e068": "en"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_latin-knowledge",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C001",
+          "message": "Bch7al livraison?",
+          "reply": "Standard delivery katswa **£3.99** w katsir **b free** ila l-order fawq **£40**.  \nNext-day delivery katswa **£6.99**.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "ac507f0e-5c1f-4acc-991e-46a40649196e": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_latin-returns",
+      "automated_pass": false,
+      "failure": "AssertionError: reply changed to Arabic script",
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "Wach mazal nqder nrjje3 l'enceinte Bluetooth dyali?",
+          "reply": "Iyah, t9der trjja3 l’enceinte Bluetooth dyal SE-1051.  \nTslmat nhar Sunday 8 November 2026, w mazal return window محلول حتى Tuesday 8 December 2026.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "9a0c4684-5851-48ce-938b-328605c5ee3e": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_latin-refund",
+      "automated_pass": false,
+      "failure": "AssertionError: reply changed to Arabic script",
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "Bghit nrjje3 flous l'enceinte Bluetooth dyali.",
+          "reply": "Ttsjjelat case 00002001 m3a Returns & Refunds team.  \nMa n9drsh nrtab l-rj3a dyal l-flous mn had chchat, walakin had case ghadi ytchafed تحت 00002001.  \nIla bghiti, n9dr nshرح lik chno kayn f policy dyal rj3a.",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "Bluetooth speaker SE-1051 refund requested",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Returns_Refunds",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The customer is asking for a refund, which needs staff handling, but there is no sign of immediate danger or a time-critical delivery issue.",
+                "signals": [],
+                "staff_action": "refund",
+                "language": "ary",
+                "order_numbers": [
+                  "SE-1051"
+                ],
+                "message_ids": [
+                  "393139b0-530a-4f53-8a5c-a16141f4bf07"
+                ],
+                "reported": [
+                  "The customer wants a refund for their Bluetooth speaker."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1051 includes a Bluetooth speaker.",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK18QAE@2026-11-18T03:20:37Z"
+                    ]
+                  },
+                  {
+                    "statement": "Order SE-1051 was delivered on Sunday 8 November 2026 (2026-11-08).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiEQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer is asking for a refund for their Bluetooth speaker. The account shows order SE-1051 contains a Bluetooth speaker, and it was delivered on Sunday 8 November 2026 (2026-11-08). There are no existing cases on the account.",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "393139b0-530a-4f53-8a5c-a16141f4bf07": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_latin-ambiguous",
+      "automated_pass": false,
+      "failure": "StopIteration",
+      "turns": [
+        {
+          "customer": "C010",
+          "message": "Bghit nrjje3 chi 7aja chrit, walakin mazal ma geltch likom achmen produit.",
+          "reply": "Shno huwa l-product aw l-order li bghiti trjjo3?",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "needs_clarification",
+            "question": "Which product or order would you like to return?",
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "f95e2370-a6b0-42d7-a316-6c12344bbecf": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_latin-held_out",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C001",
+          "message": "بشحال التوصيل؟",
+          "reply": "التوصيل العادي كيكلف £3.99، وكيولي مجاني فـ الطلبات اللي فوق £40.  \nالتوصيل لنهار الجاي كيكلف £6.99.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            },
+            "message_languages": {
+              "404e4e52-8829-407f-801e-d3c534a06e8c": "ary"
+            }
+          }
+        },
+        {
+          "customer": "C001",
+          "message": "3afak jawbni b darija b l7orof latiniya: wach kayna livraison gratuite?",
+          "reply": "Iyyeh، kayna livraison gratuite ila l-ordr fawq £40.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "b9d20d33-c224-45e9-bb68-f41491aaf3f8": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_arabic-returns",
+      "automated_pass": false,
+      "failure": "AssertionError: assert ('agent.orders' in ['tool.list_case_history', 'agent.complaints', 'tool.list_orders', 'agent.orders', 'agent.supervisor'] and 'tool.get_order' in ['tool.list_case_history', 'agent.complaints', 'tool.list_orders', 'agent.orders', 'agent.supervisor'])",
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "واش مازال نقدر نرجع لونسَانت بلوتوث ديالي؟",
+          "reply": "لقيت واحد الطلب قريب: **SE-1051** ديال **Bluetooth speaker**، ماشي سماعات بلوتوث.  \nكاينين حتى **SE-1052** (Oak desk lamp) و **SE-1053** (Trail running shoes).\n\nشنو هو الطلب اللي كتقصد: **SE-1051**, **SE-1052**, ولا **SE-1053**؟",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            },
+            "message_languages": {
+              "e1342975-3f2c-4f2a-837c-a3c10ec23bcb": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_arabic-refund",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "بغيت نرجع فلوس لونسَانت بلوتوث ديالي.",
+          "reply": "تسجلات هاد الطلب فـ القضية 00002001 مع فريق Returns & Refunds.  \nما نقدرش نرتب ليك الريفوند من هنا، ولكن الفريق غادي يراجع الطلب تحت هاد الرقم.\n\nإلى بغيتي، نقدر نفسر ليك شنو كيقولو سياسة الارجاع.",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "SE-1051 Bluetooth speaker refund request",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Returns_Refunds",
+                "category_confidence": 0.98,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The customer is asking for money back, which needs staff review and may affect their refund timing, but there is no sign of immediate safety or delivery risk.",
+                "signals": [],
+                "staff_action": "refund",
+                "language": "ary",
+                "order_numbers": [
+                  "SE-1051"
+                ],
+                "message_ids": [
+                  "d971a659-1346-4621-b975-97855110d8fc"
+                ],
+                "reported": [
+                  "Customer wants a refund for the Bluetooth speaker.",
+                  "The request appears to be about order SE-1051."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1051 includes a Bluetooth speaker.",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK18QAE@2026-11-18T03:20:37Z"
+                    ]
+                  },
+                  {
+                    "statement": "Order SE-1051 was delivered on Sunday 8 November 2026 (2026-11-08).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiEQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer is asking for a refund for the Bluetooth speaker. Order SE-1051 includes a Bluetooth speaker and was delivered on Sunday 8 November 2026 (2026-11-08). This is a new returns/refunds complaint and needs a refund review.",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            },
+            "message_languages": {
+              "d971a659-1346-4621-b975-97855110d8fc": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "darija_arabic-switch_case",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C003",
+          "message": "My cooking pot SE-1061 is late.",
+          "reply": "I’ve recorded this as case 00002001 with our Delivery team.  \n\nYour cast iron cooking pot SE-1061 was due on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20). The last known location is Manchester depot, held due to high volume, with the last update on Wednesday 18 November 2026 (2026-11-18).",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "Cast iron cooking pot SE-1061 delayed",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The parcel is delayed and not yet delivered, but the latest expected date is 2026-11-20 so it is not yet past the new ETA.",
+                "signals": [],
+                "staff_action": "carrier_investigation",
+                "language": "en",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "1d18d97b-6f50-4c87-a29f-9d39193d8adf"
+                ],
+                "reported": [
+                  "Customer says the cast iron cooking pot in order SE-1061 is late."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1061 was placed on Tuesday 10 November 2026 (2026-11-10).",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK1BQAU@2026-11-18T03:20:37Z"
+                    ]
+                  },
+                  {
+                    "statement": "Order SE-1061 contains one cast iron cooking pot priced at £64.0.",
+                    "evidence": [
+                      "ShopEasy_Order_Item__c:a07gL00001cWLd0QAG@2026-11-18T03:20:38Z"
+                    ]
+                  },
+                  {
+                    "statement": "The delivery for SE-1061 is delayed and has not been delivered yet.",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The parcel was originally expected on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  },
+                  {
+                    "statement": "The last known location is Manchester depot, held due to high volume, with last update on Wednesday 18 November 2026 (2026-11-18).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says order SE-1061, a cast iron cooking pot, is late. The order was placed on Tuesday 10 November 2026 (2026-10-10) and the delivery record shows it is delayed, not yet delivered, and currently at Manchester depot due to high volume. It was originally expected on Sunday 15 November 2026 (2026-11-15) and is now expected on Friday 20 November 2026 (2026-11-20).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "1d18d97b-6f50-4c87-a29f-9d39193d8adf": "en"
+            }
+          }
+        },
+        {
+          "customer": "C003",
+          "message": "نفس القدرة مازال ما وصلاتش. زيد هادشي فنفس الملف عافاك.",
+          "reply": "زدت هاد التحديث فـ case 00002001 مع فريق التوصيل.",
+          "commands": [
+            "update_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "Cast iron cooking pot SE-1061 still delayed",
+                "match": "same",
+                "action": "update",
+                "existing_case": "00002001",
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The parcel is still not delivered and the customer is asking to add the unresolved delay to the same case.",
+                "signals": [
+                  "repeated_unresolved"
+                ],
+                "staff_action": "carrier_investigation",
+                "language": "ary",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "1d18d97b-6f50-4c87-a29f-9d39193d8adf",
+                  "5ce45f1e-70eb-450a-81ac-f8562f5199a4"
+                ],
+                "reported": [
+                  "The customer says the same cooking pot still has not arrived.",
+                  "The customer wants this added to the same case."
+                ],
+                "facts": [
+                  {
+                    "statement": "Case 00002001 exists for order SE-1061 about a delayed cast iron cooking pot.",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  },
+                  {
+                    "statement": "The case status is New and the staff action is carrier_investigation.",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says in Darija that the same cooking pot still has not arrived and asks for it to be added to the same file. Case 00002001 is already open for order SE-1061, and the record shows this is a delivery delay. The case is still open and already assigned for carrier investigation.",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "ary",
+              "reply_language": "ary",
+              "reply_script": "arabic"
+            },
+            "message_languages": {
+              "1d18d97b-6f50-4c87-a29f-9d39193d8adf": "en",
+              "5ce45f1e-70eb-450a-81ac-f8562f5199a4": "ary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "mixed-knowledge",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C001",
+          "message": "Bch7al la livraison, please ? Répondez en français.",
+          "reply": "La livraison standard coûte 3,99 £ et elle est gratuite pour les commandes de plus de 40 £.  \nLa livraison le lendemain coûte 6,99 £.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "41a50837-291d-48b3-8b2f-d12105b225b0": "mixed"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "mixed-returns",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C002",
+          "message": "Wach je peux encore retourner mon enceinte Bluetooth ? Répondez en français.",
+          "reply": "Oui, pour votre enceinte Bluetooth de la commande **SE-1051**, le retour est encore possible.  \nLa fenêtre de retour est ouverte jusqu’au **2026-12-08**.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "4330dc27-999f-4f39-89c7-1c7dda49ede2": "mixed"
+            }
+          }
+        },
+        {
+          "customer": "C002",
+          "message": "Wach je peux encore retourner mes chaussures de trail ? Répondez en français.",
+          "reply": "Pour vos **chaussures de trail** de la commande **SE-1053**, non, ce n’est plus possible.  \nElles sont bien retournables, mais la fenêtre de retour de 30 jours a pris fin le **2026-11-03**.",
+          "commands": [],
+          "confirmed": [],
+          "language": [
+            {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "no_complaint",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [],
+            "language": {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "3363f7dd-bf6c-4eda-989b-4f48b2dc0d9d": "mixed"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "mixed-switch_case",
+      "automated_pass": true,
+      "failure": null,
+      "turns": [
+        {
+          "customer": "C003",
+          "message": "My cooking pot SE-1061 is late.",
+          "reply": "I’ve recorded this as case 00002001 with our Delivery team.  \nOrder SE-1061 is delayed, and the new expected delivery date is Friday 20 November 2026.",
+          "commands": [
+            "create_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 1,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "Cast iron cooking pot SE-1061 delayed",
+                "match": "new",
+                "action": "create",
+                "existing_case": null,
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The original delivery date has passed and the order is marked delayed, but the courier now shows a new expected delivery date of Friday 20 November 2026 (2026-11-20).",
+                "signals": [],
+                "staff_action": "carrier_investigation",
+                "language": "en",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "791f8897-12d6-4a65-80d9-a6fc8b0be33c"
+                ],
+                "reported": [
+                  "The customer says their cooking pot SE-1061 is late."
+                ],
+                "facts": [
+                  {
+                    "statement": "Order SE-1061 is for one cast iron cooking pot.",
+                    "evidence": [
+                      "ShopEasy_Order_Item__c:a07gL00001cWLd0QAG@2026-11-18T03:20:38Z"
+                    ]
+                  },
+                  {
+                    "statement": "Order SE-1061 was ordered on Tuesday 10 November 2026 (2026-11-10) and is currently shipped.",
+                    "evidence": [
+                      "ShopEasy_Order__c:a08gL000019vK1BQAU@2026-11-18T03:20:37Z"
+                    ]
+                  },
+                  {
+                    "statement": "Delivery for SE-1061 is delayed, with a new expected date of Friday 20 November 2026 (2026-11-20) and the last update on Wednesday 18 November 2026 (2026-11-18).",
+                    "evidence": [
+                      "ShopEasy_Delivery__c:a06gL00000ZiMiHQAV@2026-11-18T03:20:39Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says their cast iron cooking pot order SE-1061 is late. Records show the order was placed on Tuesday 10 November 2026 (2026-11-10) and the delivery is currently delayed. The courier now expects delivery on Friday 20 November 2026 (2026-11-20), after the original expected date of Sunday 15 November 2026 (2026-11-15).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "en",
+              "reply_language": "en",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "791f8897-12d6-4a65-80d9-a6fc8b0be33c": "en"
+            }
+          }
+        },
+        {
+          "customer": "C003",
+          "message": "Nefs lqedra n'est toujours pas arrivée, زيد هادشي فنفس الملف. Répondez en français.",
+          "reply": "C’est bien noté dans le dossier 00002001.  \nVotre cocotte SE-1061 est toujours en retard, avec une livraison prévue pour Friday 20 November 2026.",
+          "commands": [
+            "update_case"
+          ],
+          "confirmed": [
+            "00002001"
+          ],
+          "language": [
+            {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            }
+          ],
+          "assessment": {
+            "outcome": "issues",
+            "question": null,
+            "unverified": [],
+            "tool_calls": 0,
+            "issues": [
+              {
+                "ref": "issue-1",
+                "title": "Cast iron cooking pot SE-1061 still delayed",
+                "match": "same",
+                "action": "update",
+                "existing_case": "00002001",
+                "category": "Delivery",
+                "category_confidence": 0.99,
+                "sentiment": "negative",
+                "urgency": "medium",
+                "urgency_reason": "The customer says the parcel is still not arrived and wants the same issue added to the existing case. It is a delivery delay, but the expected delivery date in the case is Friday 20 November 2026, so it is not yet past due based on the record.",
+                "signals": [
+                  "repeated_unresolved"
+                ],
+                "staff_action": "carrier_investigation",
+                "language": "mixed",
+                "order_numbers": [
+                  "SE-1061"
+                ],
+                "message_ids": [
+                  "c321b812-eddf-4f9b-b4fb-8c51e241d8e9"
+                ],
+                "reported": [
+                  "The customer says the cooking pot for order SE-1061 is still not arrived.",
+                  "The customer asks to add this to the same case/file.",
+                  "The customer requests a reply in French."
+                ],
+                "facts": [
+                  {
+                    "statement": "Case 00002001 is an open Delivery case for order SE-1061.",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  },
+                  {
+                    "statement": "The case summary says the delivery is currently delayed and the expected delivery date is Friday 20 November 2026 (2026-11-20).",
+                    "evidence": [
+                      "Case:500NB0000002001AAA@2026-11-18T09:01:00Z"
+                    ]
+                  }
+                ],
+                "summary": "The customer says the cooking pot order SE-1061 is still not arrived and wants this added to the same case. This is the same delivery delay already recorded in case 00002001. The case notes say delivery is currently delayed and the expected delivery date is Friday 20 November 2026 (2026-11-20).",
+                "confirmation_message_id": null,
+                "question": null
+              }
+            ],
+            "language": {
+              "input_language": "mixed",
+              "reply_language": "fr",
+              "reply_script": "latin"
+            },
+            "message_languages": {
+              "c321b812-eddf-4f9b-b4fb-8c51e241d8e9": "mixed"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

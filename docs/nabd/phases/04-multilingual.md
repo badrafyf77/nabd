@@ -130,3 +130,36 @@ before a public release.
 
 The owner approved starting the 36-scenario evaluation, once each, and at most
 one recheck of failures after the free code checks passed. Results pending.
+
+### Evaluation findings and follow-up
+
+- Initial checkpoint `e352b0a`: **21/36 automated passes**, with four additional
+  manually identified failures (strict £40 boundary translations, visible tool
+  argument JSON, an omitted receipt and an inaccurate delayed-status wording).
+  Full synthetic messages/replies and outcomes are in
+  [first-run results](../evidence/phase4-first-run.json).
+- Checkpoint `94957e5`: approved recheck of those 19 failing scenarios:
+  **13/19 pass, 6 fail**. See [recheck results](../evidence/phase4-recheck.json).
+  The initial 17 other scenarios were not rerun with the new defaults. These
+  are separate measurements, not a claim of a fresh 36/36 result.
+- Remaining failures: English refund/unspecified return, Latin Darija
+  return/refund/unspecified return, and Arabic Darija return. Typed assessment
+  logs showed a model asking for an order without using its lookup tools.
+  Latin replies still contained Arabic fragments. The regional spelling of
+  enceinte also led to a legitimate clarification instead of a policy answer.
+- The next implementation supplies a fresh customer-scoped order overview
+  before classification and a number/product index for the Supervisor. It
+  preserves model semantic matching and all authorization rules; return
+  eligibility still requires the specialist's computed `get_order` check.
+- Latin Darija now has a deterministic Unicode format check and at most one
+  same-Supervisor rewrite with tools disabled. Invalid drafts are buffered and
+  never streamed or checkpointed. A second invalid draft fails the attempt;
+  retry resumes without repeating confirmed cases. This is a writing-system
+  contract, not a new semantic evaluator. Other languages retain streaming.
+- Evaluation clarifications: a French-dominant mixed message may label its input
+  French or mixed, but must answer in the requested language/script. An ambiguous
+  enceinte spelling may ask once for the order before checking its policy.
+  Unspecified returns must present owned named choices; a redundant Orders call
+  is unnecessary when the fresh authorized index already supplies them.
+- The approved recheck is exhausted. Any focused paid confirmation of these
+  final fixes needs a new explicit approval. Free verification continues first.

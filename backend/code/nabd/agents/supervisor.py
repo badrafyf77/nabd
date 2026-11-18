@@ -22,10 +22,11 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import START, StateGraph
 
 from nabd.agents.loop import LoopState, add_loop, invoke_model, run_tool_calls, tools_allowed
+from nabd.agents.language import violates_latin_script
 from nabd.agents.mcp_tools import McpTools, tool_activity
 from nabd.agents.orders import OrdersSpecialist
 from nabd.runtime.events import Activity, DeltaBuffer, RunContext
@@ -128,7 +129,8 @@ def reply_text(messages: list[Any], message_id: str) -> str:
     start = next((i for i, m in enumerate(messages) if isinstance(m, HumanMessage) and m.id == message_id), None)
     if start is None:
         return ""
-    parts = [m.text.strip() for m in messages[start + 1:] if isinstance(m, AIMessage) and m.text.strip()]
+    parts = [m.text.strip() for m in messages[start + 1:]
+             if isinstance(m, AIMessage) and not m.tool_calls and m.text.strip()]
     return "\n\n".join(parts)
 
 
@@ -154,6 +156,7 @@ class Supervisor:
                 .replace("{customer_name}", turn.customer_name)
                 .replace("{case_work}", case_work_text(case_notes))
                 .replace("{language}", json.dumps((case_notes or {}).get("language")))
+                .replace("{order_options}", json.dumps((case_notes or {}).get("order_options", []), ensure_ascii=False))
                 .replace("{knowledge_index}", _index_lines(turn.knowledge_index)))
 
     def graph(self, run: RunContext, tools: McpTools, turn: Turn, deltas: DeltaBuffer, me: Activity,
@@ -167,6 +170,9 @@ class Supervisor:
 
         async def model_node(state: dict[str, Any]) -> dict[str, Any]:
             prompt = self.system_prompt(turn, state.get("case_notes"))
+            language = (state.get("case_notes") or {}).get("language")
+            latin = bool(language and language.get("reply_language") == "ary"
+                         and language.get("reply_script") == "latin")
             first = True
 
             async def on_text(piece: str) -> None:
@@ -177,7 +183,19 @@ class Supervisor:
                 await deltas.add(piece)
 
             reply = await invoke_model(self.model, schemas, prompt, state["messages"],
-                                       allow_tools=tools_allowed(state, run), on_text=on_text)
+                                       allow_tools=tools_allowed(state, run), on_text=None if latin else on_text)
+            if not reply.tool_calls and latin:
+                if violates_latin_script(reply.text, language):
+                    # A writing-system contract check, not a semantic quality
+                    # evaluator. One same-model rewrite, with all tools disabled.
+                    reply = await invoke_model(self.model, schemas, prompt, [*state["messages"], reply,
+                        SystemMessage("Rewrite your last answer in Moroccan Darija using ONLY Latin letters "
+                                      "and Arabizi numerals. No Arabic letters, including short words. Keep "
+                                      "every fact, amount, date and case/order number unchanged. Return only "
+                                      "the corrected customer answer; do not call tools.")], allow_tools=False)
+                if reply.tool_calls or violates_latin_script(reply.text, language):
+                    raise RuntimeError("reply_script_invalid")
+                await on_text(reply.text)  # rejected drafts were never streamed or checkpointed
             update: dict[str, Any] = {"messages": [reply]}
             if not reply.tool_calls:
                 update["completed_run"] = state.get("run_id")

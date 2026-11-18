@@ -38,6 +38,19 @@ latest language restore localized chat chrome and per-run activity cards.
 Darija has separate Arabic/Latin templates; references use bidi isolation and
 layouts use logical CSS properties. Tool-derived English details are labeled.
 
+The complaint stage reads an authorized order reference index alongside case
+history before classification. This prevents asking for an order number that a
+unique product reference already identifies. Both models still resolve meaning
+and choose detail tools; return eligibility always requires `get_order` and its
+computed check. The Supervisor can clarify a choice from this reference index
+without a redundant Orders invocation. The index is saved with the durable plan.
+
+For Latin Darija, code checks Unicode writing-system compliance before publishing
+the answer. If needed, the same Supervisor gets one format-only rewrite with tools
+disabled. Rejected text is neither streamed nor checkpointed; a second invalid
+draft fails the attempt. A checkpoint resume reuses confirmed case work. This is
+a bounded output-format contract, not the Phase 7 semantic quality evaluator.
+
 All three agents interpret English, French, Arabic, both Darija scripts and
 mixed input. The Supervisor translates retrieved Salesforce knowledge and
 staff findings, preserving policy outcomes, identifiers, amounts and tool dates.

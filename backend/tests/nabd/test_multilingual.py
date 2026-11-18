@@ -104,3 +104,49 @@ def test_darija_script_follows_original_unless_an_explicit_preference_overrides_
     requested = TurnLanguage(input_language="ary", reply_language="ary", reply_script="latin", script_requested=True)
     assert requested.public("arabic")["reply_script"] == "latin"
     assert inferred.public("mixed")["reply_script"] == "latin"  # mixed/neutral text remains the model's choice
+
+
+def test_complaint_gets_owned_order_context_before_deciding_to_ask_for_a_number():
+    world = World()
+    model = scripted(answer(FORMS[0], issue(category="Returns_Refunds", staff_action="refund",
+                                          order_numbers=["SE-1051"], customer_message_ids=[MID])))
+    _, sink = turn(world, FORMS[0].refund, model, customer="C002")
+    request = model.requests[0]["messages"][1].content
+    overview = json.loads(request.split("The customer's authorized order overview (list_orders):\n", 1)[1])
+    assert {row["order_number"] for row in overview["orders"]} == {"SE-1051", "SE-1052", "SE-1053"}
+    assert world.gateway.calls[0].order_number == "SE-1051"
+    assert world.gateway.calls[0].category == "Returns_Refunds"
+    assert any(e.code == "tool.list_orders" and e.state == "completed" for e in sink.events)
+
+
+def test_latin_script_check_rewrites_once_without_exposing_draft_or_repeating_case_work():
+    form, world = FORMS[3], World()
+    supervisor = scripted(say("Ttsjjel case 00002001, شكراً."), say("Ttsjjel case 00002001, chokran."))
+    reply, sink = turn(world, form.refund,
+                       scripted(answer(form, issue(category="Returns_Refunds", staff_action="refund",
+                                                   customer_message_ids=[MID]))),
+                       customer="C002", supervisor=supervisor)
+    assert reply == "Ttsjjel case 00002001, chokran."
+    assert len(supervisor.requests) == 2 and supervisor.requests[1]["tool_choice"] == "none"
+    streamed = "".join(e.payload["text"] for e in sink.events if e.type == "message.delta")
+    assert streamed == reply and len(world.gateway.calls) == 1
+
+
+def test_latin_script_check_is_bounded_and_fails_instead_of_publishing_invalid_text():
+    form, world = FORMS[3], World()
+    supervisor = scripted(say("شكراً"), say("شكراً"))
+    with pytest.raises(RuntimeError, match="reply_script_invalid"):
+        turn(world, form.knowledge, scripted(answer(form)), customer="C001", supervisor=supervisor)
+    assert len(supervisor.requests) == 2 and not world.gateway.calls
+
+
+def test_a_failed_script_rewrite_resumes_without_repeating_confirmed_case_work():
+    form, world = FORMS[3], World()
+    with pytest.raises(RuntimeError, match="reply_script_invalid"):
+        turn(world, form.refund,
+             scripted(answer(form, issue(category="Returns_Refunds", staff_action="refund", customer_message_ids=[MID]))),
+             customer="C002", supervisor=scripted(say("شكراً"), say("شكراً")))
+    unused = FakeChatModel()
+    reply, _ = turn(world, form.refund, unused, customer="C002", attempt=2,
+                    supervisor=scripted(say("Ttsjjel case 00002001.")))
+    assert reply == "Ttsjjel case 00002001." and len(world.gateway.calls) == 1 and not unused.requests

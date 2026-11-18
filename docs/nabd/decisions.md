@@ -131,3 +131,11 @@ they do not require repeating the product interview.
   Non-English customer dates use exact ISO values from tools, while staff
   findings retain full English dates plus ISO, avoiding unreliable month/day
   translation. No dates or policy decisions are recomputed by a model.
+- **Phase 4 reference and script contracts (18 November 2026).** The paid
+  recheck exposed missing reference lookups and Arabic letters in Latin Darija.
+  Read the scoped order overview together with case history before classifying;
+  save its product/number index for clarification. Models still resolve meaning
+  and request details; eligibility is never inferred from the index. A Unicode
+  check permits one same-Supervisor format-only rewrite with tools disabled for
+  invalid Latin Darija. Rejected drafts stay out of SSE/checkpoints. This adds
+  no agent or semantic evaluator and cannot repeat case side effects.

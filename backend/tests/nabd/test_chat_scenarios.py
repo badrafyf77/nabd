@@ -43,7 +43,9 @@ class Scenario:
 SCENARIOS = [
     Scenario("track_single_order", "C001", "Where is my order SE-1042?", True, ("tool.get_order",),
              (r"SE-1042|headphones", r"transit|on (?:its|the) way|DPD|shipped"), outcome="done"),
-    Scenario("several_orders_needs_info", "C010", "Hi, I want to return something I bought.", True,
+    # Phase 4: the mandatory stage supplies an authorized order reference index;
+    # the Supervisor can ask which purchase before a detail/eligibility check.
+    Scenario("several_orders_needs_info", "C010", "Hi, I want to return something I bought.", None,
              ("tool.list_orders",), (r"helmet|gloves",), outcome="needs_information"),
     # Since Phase 3 the complaint stage may already have verified the delivery, so delegating is optional.
     Scenario("late_delivery", "C003", "My cooking pot was supposed to arrive already. Where is it?", None,

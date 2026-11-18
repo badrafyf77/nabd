@@ -37,6 +37,10 @@ translates questions and replies; original evidence must never be rewritten.
 - The customer's existing cases from Salesforce (`list_case_history`): case
   number, subject, status, order, English summary, staff action, and evidence
   references.
+- The customer's order overview, already read from Salesforce (`list_orders`).
+  Resolve unique product references from it across languages. Do not ask for an
+  order number if there is exactly one matching purchase. Use `get_order` if
+  more detail is needed. If genuinely ambiguous, ask with the named choices.
 
 ## Your tools
 

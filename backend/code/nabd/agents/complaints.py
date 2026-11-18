@@ -280,7 +280,8 @@ class ComplaintSpecialist:
         return PROMPT.read_text(encoding="utf-8").replace("{today}", human_date(self.today))
 
     @staticmethod
-    def request(history: list[ChatLine], current: ChatLine, case_history: dict[str, Any]) -> str:
+    def request(history: list[ChatLine], current: ChatLine, case_history: dict[str, Any],
+                order_overview: dict[str, Any] | None = None) -> str:
         lines = ["Conversation so far (oldest first):"]
         earlier = [line for line in history if line.message_id != current.message_id]
         for line in earlier or []:
@@ -291,6 +292,9 @@ class ComplaintSpecialist:
         lines += ["", f"Current customer message: [customer {current.message_id}] {current.text}", "",
                   "The customer's cases from Salesforce (list_case_history):",
                   json.dumps(case_history, ensure_ascii=False)]
+        if order_overview is not None:
+            lines += ["", "The customer's authorized order overview (list_orders):",
+                      json.dumps(order_overview, ensure_ascii=False)]
         return "\n".join(lines)
 
     def _graph(self, run: RunContext, activity: Activity):
