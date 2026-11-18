@@ -9,7 +9,9 @@ from pydantic import SecretStr
 from nabd import context
 from nabd.read_mcp.server import return_check
 from nabd.salesforce import fixtures as fx
-from nabd_fakes import FixtureReads, SECRET, http_client, mcp_app, read_mcp_client, running, token, unavailable
+from nabd_fakes import (
+    SECRET, FixtureReads, case_token, http_client, mcp_app, read_mcp_client, running, token, unavailable,
+)
 
 
 def run(coro):
@@ -76,7 +78,7 @@ def test_tools_resources_and_prompt_are_listed_with_read_only_tools():
 
     tools, resources, templates, prompts = run(main())
     assert {t.name for t in tools} == {"get_customer_profile", "list_orders", "get_order", "list_cases",
-                                       "list_knowledge", "get_knowledge"}
+                                       "list_case_history", "list_knowledge", "get_knowledge"}
     assert all(t.annotations.read_only_hint for t in tools)
     assert all("customer" not in json.dumps(t.input_schema.get("properties", {})) for t in tools)
     assert {str(r.uri) for r in resources} == {"nabd://customer/profile", "nabd://knowledge/index"}
@@ -145,6 +147,22 @@ def test_cases_omit_internal_fields():
     assert not error and cases["count"] >= 1
     assert set(cases["cases"][0]) == {"case_number", "subject", "status", "category", "order_number",
                                       "opened", "closed"}
+
+
+def test_case_history_needs_its_own_scope_and_omits_internal_assessments():
+    reads = FixtureReads()
+    error, text = run(_call(reads, token("C004"), "list_case_history"))
+    assert error and "[not_allowed]" in text
+    assert not any(name == "list_case_history" for name, _ in reads.calls)  # refused before Salesforce
+    error, history = run(_call(reads, case_token("C004"), "list_case_history"))
+    assert not error and history["count"] == 1
+    case = history["cases"][0]
+    assert case["case_number"] == "00001001" and "SE-1071" in case["summary"]
+    assert case["staff_action"] == "carrier_investigation" and case["staff_action_completed"] is False
+    assert case["evidence"][0].startswith("Case:500FX")
+    assert not set(case) & {"priority", "sentiment", "urgency", "confidence", "needs_review"}
+    error, other = run(_call(reads, case_token("C001"), "list_case_history"))
+    assert not error and other["count"] == 0  # another customer's cases never appear
 
 
 def test_salesforce_outages_become_coded_errors_without_details():

@@ -28,9 +28,33 @@ flowchart TD
     SF --> STAFF[Salesforce staff workspace and dashboards]
 ```
 
-## Current boundary: Phases 0–2
+## Current boundary: Phases 0–3
 
-Phase 2 adds the chat path of the diagram without the Complaint specialist,
+Phase 3 adds the Complaint specialist, the validated case workflow, the write
+MCP server and the Salesforce case command gateway; background summary/risk
+jobs and the staff subscriber are still missing:
+
+- `nabd/agents/complaints.py` and `nabd/agents/cases.py`: the mandatory
+  complaint stage. It runs first in every turn (before the Supervisor model),
+  under a per-customer PostgreSQL advisory lock. Code fetches the customer's
+  case history through the read MCP tool `list_case_history` (a separate
+  scope); the specialist investigates orders and returns a typed assessment;
+  code verifies it, applies routing, priority and lifecycle rules, stores the
+  plan and its commands (migration `0003_case_commands`), then sends them.
+- `nabd/write_mcp/`: the write MCP server (port 8092, its own audience, scope
+  and secret) with named case operations over `nabd/salesforce/commands.py`.
+- Salesforce `NabdCaseCommands`: the Apex gateway that versions, locks,
+  transitions, de-duplicates evidence and saves receipts in one transaction.
+- The worker reconciles commands whose outcome stayed unknown after their run
+  ended, and updates the same activity card.
+
+The Supervisor's prompt lists only the stage's confirmed results. The
+specialist investigates with its own read tools, so the stage runs before the
+Supervisor; this orders turn steps 2–5 below as 3, 4, 2, 5.
+
+### Phase 2 boundary
+
+Phase 2 added the chat path of the diagram without the Complaint specialist,
 validated case workflow, write MCP, background jobs or staff subscriber:
 
 - `nabd/read_mcp/`: the read MCP server (separate process, Streamable HTTP),
@@ -45,8 +69,8 @@ validated case workflow, write MCP, background jobs or staff subscriber:
 - `nabd/api.py`: demo sign-in and the contract endpoints, SSE with replay.
 - `frontend/src/chat/`: the browser chat and activity cards.
 
-Turn sequence steps 3, 4 and 6 (complaint analysis, commands, post-response
-jobs) are not implemented; the Supervisor tells customers it cannot open cases yet.
+In Phase 2 turn steps 3, 4 and 6 were not implemented; Phase 3 implements 3
+and 4. Step 6 (post-response jobs) is still open.
 
 ### Phase 1 boundary
 

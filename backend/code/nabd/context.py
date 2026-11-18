@@ -1,4 +1,4 @@
-"""Signed customer context: how the API tells the read MCP server whom a run serves.
+"""Signed customer context: how the API tells the MCP servers whom a run serves.
 
 The model never supplies the customer. For each run the API mints a short-lived
 token, HMAC-SHA256-signed with a secret shared only by the API and the MCP
@@ -22,6 +22,11 @@ from nabd.salesforce.soql import CUSTOMER_ID
 
 READ_AUDIENCE = "nabd-read-mcp"
 READ_SCOPE = "nabd.read"
+# The Complaint stage alone may read case summaries for matching (Phase 3).
+CASE_HISTORY_SCOPE = "nabd.read.case_history"
+# The write MCP server has its own audience, scope and secret.
+WRITE_AUDIENCE = "nabd-write-mcp"
+WRITE_SCOPE = "nabd.write.cases"
 ISSUER = "nabd-api"
 _VERSION = "v1"
 _MAX_TOKEN_LENGTH = 2048

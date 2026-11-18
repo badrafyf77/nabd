@@ -1,7 +1,8 @@
 """The Supervisor: the only agent that writes to the customer.
 
-A LangGraph ``model <-> tools`` graph checkpointed per conversation in
-PostgreSQL. Each run adds the customer's message (with its stored message ID,
+A LangGraph graph checkpointed per conversation in PostgreSQL: the mandatory
+complaint stage (``nabd.agents.cases``) runs first, then the ``model <-> tools``
+loop writes a reply that may cite only the case work that stage confirmed. Each run adds the customer's message (with its stored message ID,
 so a retried run cannot add it twice) and streams the reply text into
 coalesced events. ``ask_orders_specialist`` awaits the Orders specialist
 inside the turn while the Supervisor's activity shows it is waiting on it.
@@ -13,9 +14,9 @@ the graph had already completed, and otherwise starts the turn.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,7 @@ ASK_ORDERS = {
 class SupervisorState(LoopState, total=False):
     run_id: str  # the run that last started a turn on this conversation
     completed_run: str  # set when that run's turn reached a final answer
+    case_notes: dict[str, Any] | None  # this turn's complaint stage outcome (confirmed case work)
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,54 @@ class Turn:
     customer_name: str
     today: date
     knowledge_index: list[dict[str, Any]]
+    history: tuple[Any, ...] = ()  # ChatLine items up to and including this message
+    message_at: datetime | None = None
+
+
+ComplaintStageCall = Callable[[], Awaitable[dict[str, Any]]]
+
+VERBS = {"create_case": "open", "update_case": "update", "reopen_case": "reopen",
+         "request_closure": "update", "close_case": "close"}
+REASONS = {
+    "case_closed": "the case is already closed", "case_open": "the case is still open",
+    "staff_action_pending": "staff still have to finish their part", "version_changed": "staff changed it meanwhile",
+    "closed_as_duplicate": "staff closed it as a duplicate", "order_not_found": "the order is not on the account",
+    "case_not_found": "the case is not on the account",
+}
+
+
+def case_work_text(notes: dict[str, Any] | None) -> str:
+    """The confirmed case work of this turn, written for the Supervisor's prompt."""
+    if notes is None:
+        return "- No case check ran for this message. Do not say any case was opened or changed."
+    lines = []
+    for case in notes.get("cases", []):
+        title, number = case.get("title") or "the problem", case.get("case_number")
+        team = f"the {case['team']} team" if case.get("team") else "a team member"
+        status = case.get("case_status")
+        if case["status"] == "confirmed":
+            lines.append({
+                "create_case": f"- Opened case {number} with {team}: \"{title}\". Status: {status}.",
+                "update_case": f"- Added this message to existing case {number} (\"{title}\"). Status: {status}.",
+                "reopen_case": f"- Reopened case {number} (\"{title}\") because the problem came back. "
+                               f"Status: {status}.",
+                "request_closure": f"- Case {number} (\"{title}\"): the records show it is solved. Ask the "
+                                   "customer to confirm it is solved before it can be closed.",
+                "close_case": f"- Closed case {number} (\"{title}\") after the customer confirmed it is solved.",
+            }[case["operation"]])
+        elif case["status"] == "pending":
+            lines.append(f"- Still waiting for Salesforce to confirm a case about \"{title}\". Say it is being "
+                         "recorded; give no case number.")
+        else:
+            reason = REASONS.get(case.get("reason") or "", "it could not be saved right now")
+            lines.append(f"- Could not {VERBS[case['operation']]} the case about \"{title}\" ({reason}). "
+                         "Do not say it was recorded.")
+    lines += [f"- Ask the customer: {question}" for question in notes.get("questions", [])]
+    lines += [f"- {note}" for note in notes.get("notes", [])]
+    lines += [f"- Checked fact: {fact}" for fact in notes.get("facts", [])]
+    if not lines:
+        lines.append("- No complaint in this message, so no case was needed.")
+    return "\n".join(lines)
 
 
 def human_date(value: date) -> str:
@@ -97,18 +147,24 @@ class Supervisor:
         self.orders_model = orders_model
         self.checkpointer = checkpointer
 
-    def system_prompt(self, turn: Turn) -> str:
+    def system_prompt(self, turn: Turn, case_notes: dict[str, Any] | None = None) -> str:
         return (PROMPT.read_text(encoding="utf-8")
                 .replace("{today}", human_date(turn.today))
                 .replace("{customer_name}", turn.customer_name)
+                .replace("{case_work}", case_work_text(case_notes))
                 .replace("{knowledge_index}", _index_lines(turn.knowledge_index)))
 
-    def graph(self, run: RunContext, tools: McpTools, turn: Turn, deltas: DeltaBuffer, me: Activity):
+    def graph(self, run: RunContext, tools: McpTools, turn: Turn, deltas: DeltaBuffer, me: Activity,
+              stage: ComplaintStageCall | None = None):
         schemas = [*tools.schemas(TOOLS), ASK_ORDERS]
         specialist = OrdersSpecialist(self.orders_model, tools, turn.today)
-        prompt = self.system_prompt(turn)
+
+        async def complaints_node(state: dict[str, Any]) -> dict[str, Any]:
+            """Mandatory complaint analysis and case work, before the Supervisor writes its reply."""
+            return {"case_notes": await stage() if stage is not None else None}
 
         async def model_node(state: dict[str, Any]) -> dict[str, Any]:
+            prompt = self.system_prompt(turn, state.get("case_notes"))
             first = True
 
             async def on_text(piece: str) -> None:
@@ -152,17 +208,20 @@ class Supervisor:
             return await run_tool_calls(state, run, execute)
 
         graph = StateGraph(SupervisorState)
+        graph.add_node("complaints", complaints_node)
         add_loop(graph, model_node, tools_node)
-        graph.add_edge(START, "model")
+        graph.add_edge(START, "complaints")
+        graph.add_edge("complaints", "model")
         return graph.compile(checkpointer=self.checkpointer, name="nabd_supervisor")
 
     async def run_turn(self, run: RunContext, tools: McpTools, turn: Turn,
-                       on_delta: Callable[[DeltaBuffer], None] | None = None) -> str:
+                       on_delta: Callable[[DeltaBuffer], None] | None = None,
+                       stage: ComplaintStageCall | None = None) -> str:
         me = await run.activity("supervisor", "agent.supervisor").start()
         deltas = DeltaBuffer(run, assistant_message_id(run.run_id))
         if on_delta:
             on_delta(deltas)
-        graph = self.graph(run, tools, turn, deltas, me)
+        graph = self.graph(run, tools, turn, deltas, me, stage)
         config = {"configurable": {"thread_id": run.conversation_id}, "run_name": "nabd_supervisor",
                   "recursion_limit": 2 * run.agent_tool_calls + 6,
                   "metadata": {"agent": "supervisor", "run_id": run.run_id}}
@@ -176,7 +235,7 @@ class Supervisor:
             if repairs := dangling_tool_results(values.get("messages", [])):
                 await graph.aupdate_state(config, {"messages": repairs}, as_node="tools")
             await graph.ainvoke({"messages": [HumanMessage(turn.text, id=turn.message_id)],
-                                 "run_id": run.run_id, "tool_calls_made": 0}, config)
+                                 "run_id": run.run_id, "tool_calls_made": 0, "case_notes": None}, config)
         await deltas.flush()
         final = await graph.aget_state(config)
         text = reply_text(final.values.get("messages", []), turn.message_id)

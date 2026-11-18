@@ -1,8 +1,9 @@
 """CPU-only FastAPI entry point. Start with uvicorn nabd.app:app --app-dir code.
 
-Health and readiness work with storage alone. The chat (Phase 2) also needs
-the read MCP server, the OpenAI key and the Salesforce integration settings;
-without them the chat routes answer 503 ``chat_not_configured``.
+Health and readiness work with storage alone. The chat also needs the read
+and write MCP servers (and their context secrets), the OpenAI key and the
+Salesforce integration settings; without them the chat routes answer 503
+``chat_not_configured``.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from psycopg import Error as DatabaseError
 from psycopg_pool import PoolTimeout
 from pydantic import ValidationError
 
+from nabd.agents.cases import ComplaintStage
 from nabd.agents.mcp_tools import McpConnector, http_connector
 from nabd.agents.models import AgentModels, build_models
 from nabd.agents.supervisor import Supervisor
@@ -31,7 +33,7 @@ from nabd.runtime.worker import EventNotifier, RunWorker, TurnExecutor
 from nabd.salesforce.reads import SalesforceReads
 from nabd.salesforce.rest import ClientCredentialsAuth, SalesforceClient
 from nabd.settings import (
-    BusinessSettings, ChatSettings, ModelSettings, ReadMcpSettings, SalesforceSettings, Settings,
+    BusinessSettings, ChatSettings, ModelSettings, ReadMcpSettings, SalesforceSettings, Settings, WriteMcpSettings,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,12 +49,14 @@ class ChatDependencies:
     read_mcp: ReadMcpSettings
     chat: ChatSettings
     business: BusinessSettings
+    connect_writes: McpConnector
+    write_mcp: WriteMcpSettings
 
 
 async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
     try:
         read_mcp, models, salesforce = ReadMcpSettings(), ModelSettings(), SalesforceSettings()
-        chat, business = ChatSettings(), BusinessSettings()
+        chat, business, write_mcp = ChatSettings(), BusinessSettings(), WriteMcpSettings()
     except ValidationError as error:
         missing = sorted({".".join(str(p) for p in item["loc"]) for item in error.errors()})
         logger.warning("NABD chat disabled; missing or invalid settings: %s", ", ".join(missing))
@@ -64,6 +68,7 @@ async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
         models=build_models(models),
         connect=http_connector(read_mcp.url, read_mcp.timeout_seconds),
         read_mcp=read_mcp, chat=chat, business=business,
+        connect_writes=http_connector(write_mcp.url, write_mcp.timeout_seconds), write_mcp=write_mcp,
     )
 
 
@@ -79,10 +84,13 @@ def create_app(settings: Settings | None = None, *, chat: ChatDependencies | Non
             deps = chat if chat is not None else await _production_chat(stack)
             if deps is not None:
                 notifier = EventNotifier(config.database_url.get_secret_value())
-                store = Store(database.pool, local_notify=notifier.wake)
+                store = Store(database.pool, local_notify=notifier.wake,
+                              lock_conninfo=config.database_url.get_secret_value())
+                stage = ComplaintStage(deps.models.complaints, store, deps.chat.review_confidence)
                 executor = TurnExecutor(Supervisor(deps.models.supervisor, deps.models.orders,
                                                    database.checkpointer),
-                                        deps.connect, deps.read_mcp, deps.chat, deps.business)
+                                        deps.connect, deps.read_mcp, deps.chat, deps.business,
+                                        stage, deps.connect_writes, deps.write_mcp)
                 worker = RunWorker(store, executor, deps.chat)
                 runtime = ChatRuntime(store, notifier, worker, deps.reads, deps.chat)
                 runtime.tasks.append(asyncio.create_task(notifier.listen(), name="nabd-event-listener"))
@@ -99,7 +107,7 @@ def create_app(settings: Settings | None = None, *, chat: ChatDependencies | Non
                         with contextlib.suppress(asyncio.CancelledError, Exception):
                             await task
 
-    application = FastAPI(title="NABD API", version="0.2.0", lifespan=lifespan)
+    application = FastAPI(title="NABD API", version="0.3.0", lifespan=lifespan)
     application.include_router(router)
 
     @application.get("/healthz")

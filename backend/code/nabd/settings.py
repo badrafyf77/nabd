@@ -158,6 +158,29 @@ class ReadMcpSettings(BaseSettings):
         return _csv(self.allowed_hosts)
 
 
+class WriteMcpSettings(BaseSettings):
+    """The write MCP server (case operations) and its own signed-context secret."""
+
+    model_config = _env("NABD_WRITE_MCP_")
+
+    url: str = "http://127.0.0.1:8092/mcp"
+    host: str = "127.0.0.1"
+    port: int = Field(default=8092, ge=1, le=65535)
+    allowed_hosts: str = "127.0.0.1:8092,localhost:8092"
+    # Shared by the API (mints) and the write MCP server (verifies); different from the read secret.
+    context_secret: SecretStr = Field(min_length=32)
+    timeout_seconds: float = Field(default=30.0, ge=1, le=120)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        return ReadMcpSettings.validate_url(value)
+
+    @property
+    def allowed_host_list(self) -> tuple[str, ...]:
+        return _csv(self.allowed_hosts)
+
+
 class ModelSettings(BaseSettings):
     """OpenAI models of the NABD agents. The key is passed explicitly, never via os.environ."""
 
@@ -168,6 +191,8 @@ class ModelSettings(BaseSettings):
     supervisor_reasoning_effort: str | None = "none"
     orders_model: str = "gpt-5.4-mini"
     orders_reasoning_effort: str | None = "low"
+    complaints_model: str = "gpt-5.4-mini"
+    complaints_reasoning_effort: str | None = "low"
     model_timeout_seconds: float = Field(default=30.0, ge=1, le=300)
 
 
@@ -188,6 +213,12 @@ class ChatSettings(BaseSettings):
     max_run_attempts: int = Field(default=3, ge=1, le=10)
     worker_concurrency: int = Field(default=4, ge=1, le=32)
     max_message_chars: int = Field(default=4000, ge=1, le=20000)
+    # Phase 3: case work.
+    history_messages: int = Field(default=12, ge=2, le=50)
+    review_confidence: float = Field(default=0.6, ge=0, le=1)  # below: General Support + review flag
+    reconcile_after_seconds: float = Field(default=30.0, ge=1, le=3600)
+    reconcile_interval_seconds: float = Field(default=10.0, ge=1, le=600)
+    max_reconcile_attempts: int = Field(default=5, ge=1, le=50)
 
     @property
     def allowed_origin_list(self) -> tuple[str, ...]:

@@ -16,12 +16,14 @@ from dataclasses import dataclass
 
 from psycopg import AsyncConnection
 
+from nabd.agents.cases import ComplaintStage
+from nabd.agents.complaints import ChatLine
 from nabd.agents.mcp_tools import McpConnector
 from nabd.agents.supervisor import Supervisor, Turn, assistant_message_id
-from nabd.context import mint
+from nabd.context import CASE_HISTORY_SCOPE, READ_SCOPE, WRITE_AUDIENCE, WRITE_SCOPE, mint
 from nabd.runtime.events import NewEvent, RunContext, TurnBudget
-from nabd.runtime.store import NOTIFY_CHANNEL, ClaimedRun, Store
-from nabd.settings import BusinessSettings, ChatSettings, ReadMcpSettings
+from nabd.runtime.store import NOTIFY_CHANNEL, ClaimedRun, CommandRow, Store
+from nabd.settings import BusinessSettings, ChatSettings, ReadMcpSettings, WriteMcpSettings
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,20 @@ class TurnExecutor:
     read_mcp: ReadMcpSettings
     chat: ChatSettings
     business: BusinessSettings
+    complaints: ComplaintStage
+    connect_writes: McpConnector
+    write_mcp: WriteMcpSettings
+
+    def _tokens(self, customer_id: str, conversation_id: str, run_id: str) -> tuple[str, str, str]:
+        """Read (Supervisor and Orders), case-history read (Complaint stage) and write tokens of one run."""
+        ttl = self.chat.turn_deadline_seconds + 60
+        common = {"customer_id": customer_id, "conversation_id": conversation_id, "run_id": run_id,
+                  "ttl_seconds": ttl}
+        return (
+            mint(self.read_mcp.context_secret, **common),
+            mint(self.read_mcp.context_secret, scopes=(READ_SCOPE, CASE_HISTORY_SCOPE), **common),
+            mint(self.write_mcp.context_secret, scopes=(WRITE_SCOPE,), audience=WRITE_AUDIENCE, **common),
+        )
 
     async def execute(self, store: Store, run: ClaimedRun) -> None:
         context = RunContext(run.conversation_id, run.id, run.attempt, run.customer_id, store,
@@ -80,15 +96,34 @@ class TurnExecutor:
         if run.attempt > 1:
             await context.emit(NewEvent(type="run.retrying", state="retrying", payload={"attempt": run.attempt}))
         await context.emit(NewEvent(type="run.started", state="running", payload={"attempt": run.attempt}))
-        bearer = mint(self.read_mcp.context_secret, customer_id=run.customer_id,
-                      conversation_id=run.conversation_id, run_id=run.id,
-                      ttl_seconds=self.chat.turn_deadline_seconds + 60)
+        read, case_read, write = self._tokens(run.customer_id, run.conversation_id, run.id)
         async with asyncio.timeout(self.chat.turn_deadline_seconds):
-            async with self.connect(bearer) as tools:
+            async with self.connect(read) as tools, self.connect(case_read) as case_reads, \
+                    self.connect_writes(write) as writes:
                 index = (await tools.read_json("nabd://knowledge/index"))["entries"]
-                turn = Turn(run.message_id, run.text, run.customer_name, self.business.today(), index)
-                text = await self.supervisor.run_turn(context, tools, turn)
+                lines = await store.recent_messages(run.conversation_id, run.message_id, self.chat.history_messages)
+                history = tuple(ChatLine(line["role"], line["id"], line["text"], line["at"]) for line in lines)
+                at = next((line.at for line in history if line.message_id == run.message_id), None)
+                turn = Turn(run.message_id, run.text, run.customer_name, self.business.today(), index, history, at)
+
+                async def stage() -> dict:
+                    return await self.complaints.run(context, turn, case_reads, writes)
+
+                text = await self.supervisor.run_turn(context, tools, turn, stage=stage)
         await store.complete_run(run, assistant_message_id(run.id), text or EMPTY_REPLY)
+
+    async def reconcile(self, store: Store, row: CommandRow) -> None:
+        """Settle one case command whose run ended before Salesforce gave a definite answer."""
+        _, _, write = self._tokens(row.customer_id, row.conversation_id, row.run_id)
+        context = RunContext(row.conversation_id, row.run_id, 0, row.customer_id, store, TurnBudget(0))
+        async with self.connect_writes(write) as writes:
+            await self.complaints.reconcile(context, row, writes)
+
+    async def give_up(self, store: Store, row: CommandRow) -> None:
+        """Close the card of a command that was abandoned or used up its attempts."""
+        context = RunContext(row.conversation_id, row.run_id, 0, row.customer_id, store, TurnBudget(0))
+        activity = self.complaints.card(context, row)
+        await activity.fail(row.error_code or "failed")
 
 
 class RunWorker:
@@ -106,6 +141,34 @@ class RunWorker:
         async with asyncio.TaskGroup() as group:
             for slot in range(self.settings.worker_concurrency):
                 group.create_task(self._slot(slot))
+            group.create_task(self._reconcile_forever())
+
+    async def reconcile_once(self) -> int:
+        """Settle leftover case commands of finished runs; returns how many were handled."""
+        rows, given_up = await self.store.claim_reconcile(
+            older_than_seconds=self.settings.reconcile_after_seconds, lease_seconds=60,
+            max_attempts=self.settings.max_reconcile_attempts)
+        for row in given_up:
+            with contextlib.suppress(Exception):
+                await self.executor.give_up(self.store, row)
+        for row in rows:
+            try:
+                await self.executor.reconcile(self.store, row)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                logger.warning("Reconciling case command %s failed (%s)", row.operation_id, type(error).__name__)
+        return len(rows) + len(given_up)
+
+    async def _reconcile_forever(self) -> None:
+        while True:
+            try:
+                await self.reconcile_once()
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                logger.warning("Case reconciliation pass failed (%s)", type(error).__name__)
+            await asyncio.sleep(self.settings.reconcile_interval_seconds)
 
     async def _slot(self, slot: int) -> None:
         while True:

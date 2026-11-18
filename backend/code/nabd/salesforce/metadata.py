@@ -399,11 +399,28 @@ def integration_permission_set() -> str:
     return document(
         "PermissionSet",
         n("description", "Read-only API access for the NABD backend integration user. Covers only the "
-                         "fields the Phase 1 read adapter returns; writes arrive with the Phase 3 gateway."),
+                         "fields the read adapter returns. Writes go only through the case command gateway."),
         *_field_permissions(readable, integration=True),
         n("hasActivationRequired", False),
         n("label", "NABD Integration Read"),
         *[_object_permission(obj.name, create=False, edit=False, view_all=False) for obj in readable],
+    )
+
+
+def gateway_permission_set() -> str:
+    """Execute access to the typed case command gateway, and nothing else.
+
+    The gateway class runs in system mode and enforces customer ownership,
+    versions, transitions and receipts itself, so the integration user needs no
+    create or edit permission on any object.
+    """
+    return document(
+        "PermissionSet",
+        n("classAccesses", n("apexClass", s.GATEWAY_CLASS), n("enabled", True)),
+        n("description", "Lets the NABD integration user call the NabdCaseCommands case command gateway. "
+                         "Grants no object create or edit rights; direct record writes stay refused."),
+        n("hasActivationRequired", False),
+        n("label", "NABD Integration Gateway"),
     )
 
 
@@ -496,6 +513,7 @@ def render() -> dict[str, str]:
     files.update(_category_route_type())
     files[f"permissionsets/{s.STAFF_PERMISSION_SET}.permissionset-meta.xml"] = staff_permission_set()
     files[f"permissionsets/{s.INTEGRATION_PERMISSION_SET}.permissionset-meta.xml"] = integration_permission_set()
+    files[f"permissionsets/{s.GATEWAY_PERMISSION_SET}.permissionset-meta.xml"] = gateway_permission_set()
     files[f"applications/{s.APP_NAME}.app-meta.xml"] = app_file()
     for group, label in s.GROUPS.items():
         files[f"groups/{group}.group-meta.xml"] = document(

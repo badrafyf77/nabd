@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>NABD_Summary_Hash__c</fullName>
+    <description>SHA-256 of the English summary NABD last wrote. A different hash means staff edited the summary, so NABD keeps their text.</description>
+    <externalId>false</externalId>
+    <label>NABD Summary Hash</label>
+    <length>64</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

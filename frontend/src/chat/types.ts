@@ -47,6 +47,15 @@ export type Snapshot = {
           created_at: string }[];
   events: ServerEvent[];
   partial: Record<string, { run_id: string; text: string }>;
+  cases: CaseLink[];
+};
+
+// A case this conversation opened or changed, as Salesforce last confirmed it.
+export type CaseLink = {
+  case_number: string;
+  department: string | null;
+  status: string | null;
+  last_operation: string;
 };
 
 export type Activity = {
@@ -60,6 +69,7 @@ export type Activity = {
   error?: string;
   waitingFor?: string;
   waitingOn?: string | null;
+  waitingReason?: string;
   retry?: number;
   startedAt: string;
   endedAt?: string;
@@ -94,5 +104,6 @@ export type ConversationState = {
   runOrder: string[];
   activities: Record<string, Activity>;
   partial: Record<string, PartialReply>; // by run ID
+  cases: Record<string, CaseLink>; // by case number, confirmed only
   gap: boolean;
 };

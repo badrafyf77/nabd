@@ -217,6 +217,10 @@ RESOLUTION_OUTCOMES = _values(
     ("resolved", "Resolved"), ("unresolved", "Not resolved"), ("withdrawn", "Withdrawn by customer"),
     ("duplicate", "Duplicate of another case"),
 )
+STAFF_ACTIONS = _values(
+    ("refund", "Refund"), ("replacement", "Replacement"), ("billing_review", "Billing review"),
+    ("carrier_investigation", "Carrier investigation"), ("other", "Other staff action"),
+)
 EVIDENCE_KINDS = _values(
     ("customer_report", "Customer report"), ("verified_fact", "Verified fact"),
     ("customer_confirmation", "Customer confirmation"),
@@ -433,15 +437,34 @@ CASE = SObject(
         Field("Needs_Review__c", "Needs Staff Review", "Checkbox", default_value="false",
               description="Set when category or matching is ambiguous."),
         Field("English_Summary__c", "English Summary", "LongTextArea", length=32768, visible_lines=6,
+              integration_readable=True,
               description="Staff-facing English summary. Original customer wording stays in evidence."),
-        Field("Resolution_Outcome__c", "Resolution Outcome", "Picklist", values=RESOLUTION_OUTCOMES),
+        Field("Resolution_Outcome__c", "Resolution Outcome", "Picklist", values=RESOLUTION_OUTCOMES,
+              integration_readable=True),
         Field("Resolution_Confirmed_At__c", "Resolution Confirmed At", "DateTime",
               description="When the customer confirmed the resolution."),
         Field("Resolution_Confirmation_Message__c", "Resolution Confirmation Message ID", "Text", length=64,
               description="Source message ID of the customer's confirmation."),
-        Field("Reopen_Count__c", "Reopen Count", "Number", precision=4, scale=0, default_value="0"),
-        Field("Last_Reopened_At__c", "Last Reopened At", "DateTime"),
+        Field("Reopen_Count__c", "Reopen Count", "Number", precision=4, scale=0, default_value="0",
+              integration_readable=True),
+        Field("Last_Reopened_At__c", "Last Reopened At", "DateTime", integration_readable=True),
         Field("NABD_Conversation_Id__c", "NABD Conversation ID", "Text", length=64, staff_editable=False),
+        Field("NABD_Assessed_Priority__c", "NABD Assessed Priority", "Picklist", values=CASE_PRIORITIES,
+              staff_editable=False,
+              description="Priority from NABD's policy rules when NABD last set it. While Priority still "
+                          "equals it, NABD may raise Priority; once staff change Priority, NABD leaves it."),
+        Field("NABD_Priority_Reason__c", "NABD Priority Reason", "Text", length=255, staff_editable=False,
+              description="The policy rule behind the assessed priority, such as 'Medium: lost parcel'."),
+        Field("NABD_Summary_Hash__c", "NABD Summary Hash", "Text", length=64, staff_editable=False,
+              description="SHA-256 of the English summary NABD last wrote. A different hash means staff "
+                          "edited the summary, so NABD keeps their text."),
+        Field("Staff_Action_Required__c", "Staff Action Required", "Picklist", values=STAFF_ACTIONS,
+              integration_readable=True,
+              description="Work only staff can do, such as a refund. NABD never performs it."),
+        Field("Staff_Action_Completed__c", "Staff Action Completed", "Checkbox", default_value="false",
+              integration_readable=True,
+              description="Staff tick this when the required action is done. NABD cannot close the case "
+                          "before that."),
         _fingerprint(),
     ),
     layout_sections=(
@@ -449,9 +472,11 @@ CASE = SObject(
             "NABD Complaint Analysis",
             ("NABD_Issue_Id__c", "ShopEasy_Order__c", "Complaint_Category__c", "Customer_Language__c",
              "Needs_Review__c", "Classification_Confidence__c"),
-            ("Sentiment__c", "Urgency__c", "Reopen_Count__c", "Last_Reopened_At__c", "NABD_Conversation_Id__c"),
+            ("Sentiment__c", "Urgency__c", "NABD_Assessed_Priority__c", "NABD_Priority_Reason__c",
+             "Reopen_Count__c", "Last_Reopened_At__c", "NABD_Conversation_Id__c"),
         ),
         LayoutSection("NABD Summary", ("English_Summary__c",)),
+        LayoutSection("NABD Staff Action", ("Staff_Action_Required__c",), ("Staff_Action_Completed__c",)),
         LayoutSection(
             "NABD Resolution",
             ("Resolution_Outcome__c", "Resolution_Confirmed_At__c"),
@@ -661,7 +686,7 @@ RISK_EVIDENCE = SObject(
     ),
 )
 
-# --- Operation receipts (the Phase 3 write gateway records these) -----------------
+# --- Operation receipts (written only by the NabdCaseCommands gateway) -------------
 
 OPERATION_RECEIPT = SObject(
     name="NABD_Operation_Receipt__c", label="NABD Operation Receipt", plural_label="NABD Operation Receipts",
@@ -737,6 +762,9 @@ GROUPS = {STAFF_GROUP: "NABD Staff", INTEGRATION_GROUP: "NABD Integration"}
 
 STAFF_PERMISSION_SET = "NABD_Staff"
 INTEGRATION_PERMISSION_SET = "NABD_Integration_Read"
+# Execute-only access to the typed case command gateway; no object create/edit rights.
+GATEWAY_PERMISSION_SET = "NABD_Integration_Gateway"
+GATEWAY_CLASS = "NabdCaseCommands"
 INTEGRATION_PERMISSION_SET_LICENSE = "SalesforceAPIIntegrationPsl"
 INTEGRATION_PROFILE = "Minimum Access - API Only Integrations"
 

@@ -20,7 +20,10 @@ from nabd.app import ChatDependencies, create_app
 from nabd.migrations import migrate
 from nabd.salesforce import fixtures as fx
 from nabd.settings import ChatSettings
-from nabd_fakes import FixtureReads, findings, in_memory_connector, read_mcp_settings, tool_json
+from nabd_fakes import (
+    FakeGateway, FixtureReads, findings, in_memory_connector, in_memory_write_connector, no_complaint_model,
+    read_mcp_settings, tool_json, write_settings,
+)
 from test_postgres import empty_database  # noqa: F401  (fixture)
 
 pytestmark = pytest.mark.postgres
@@ -37,9 +40,11 @@ def chat_settings(**overrides):
 
 
 @contextmanager
-def live_server(settings, models, reads, chat=None):
+def live_server(settings, models, reads, chat=None, gateway=None):
+    gateway = gateway or FakeGateway(reads)
     deps = ChatDependencies(reads=reads, models=models, connect=in_memory_connector(reads),
-                            read_mcp=read_mcp_settings(), chat=chat or chat_settings(), business=FixedCalendar())
+                            read_mcp=read_mcp_settings(), chat=chat or chat_settings(), business=FixedCalendar(),
+                            connect_writes=in_memory_write_connector(gateway), write_mcp=write_settings())
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
@@ -102,7 +107,7 @@ def orders_turn_models():
                lambda messages: findings(summary="SE-1042 is in transit.", orders=["SE-1042"], facts=[
                    {"statement": "SE-1042 is in transit.",
                     "evidence": tool_json(messages, "get_order")["evidence"][:1]}]))
-    return AgentModels(supervisor=supervisor, orders=orders)
+    return AgentModels(supervisor=supervisor, orders=orders, complaints=no_complaint_model())
 
 
 @pytest.fixture
@@ -113,7 +118,7 @@ def database(empty_database):  # noqa: F811
 
 def test_demo_sign_in_binds_the_customer_and_enforces_ownership(database):
     reads = FixtureReads()
-    with live_server(database, AgentModels(FakeChatModel(), FakeChatModel()), reads) as base:
+    with live_server(database, AgentModels(FakeChatModel(), FakeChatModel(), no_complaint_model()), reads) as base:
         anonymous = httpx.Client(base_url=base)
         customers = anonymous.get("/api/demo/customers").json()["customers"]
         assert {c["customer_id"] for c in customers} >= {"C001", "C011"}
@@ -187,7 +192,7 @@ def test_duplicate_messages_are_idempotent_and_extra_turns_queue_in_order(databa
         return say("First answer.")
 
     supervisor.add(slow_first, say("Second answer."))
-    with live_server(database, AgentModels(supervisor, FakeChatModel()), FixtureReads()) as base:
+    with live_server(database, AgentModels(supervisor, FakeChatModel(), no_complaint_model()), FixtureReads()) as base:
         sara = sign_in(base, "C001")
         conversation = sara.post("/api/conversations").json()["id"]
         url = f"/api/conversations/{conversation}/messages"
@@ -210,7 +215,7 @@ def test_duplicate_messages_are_idempotent_and_extra_turns_queue_in_order(databa
 def test_the_turn_deadline_fails_the_run_honestly(database):
     supervisor = FakeChatModel()
     supervisor.add(lambda messages: (time.sleep(7), say("Too late."))[1])
-    with live_server(database, AgentModels(supervisor, FakeChatModel()), FixtureReads(),
+    with live_server(database, AgentModels(supervisor, FakeChatModel(), no_complaint_model()), FixtureReads(),
                      chat=chat_settings(turn_deadline_seconds=5)) as base:
         sara = sign_in(base, "C001")
         conversation = sara.post("/api/conversations").json()["id"]
@@ -233,7 +238,7 @@ def test_a_backend_restart_resumes_the_interrupted_run(database):
 
     first = FakeChatModel()
     first.add(call("list_cases", "call_cases"), stuck)
-    with live_server(database, AgentModels(first, FakeChatModel()), reads) as base:
+    with live_server(database, AgentModels(first, FakeChatModel(), no_complaint_model()), reads) as base:
         sara = sign_in(base, "C011")
         conversation = sara.post("/api/conversations").json()["id"]
         run_id = sara.post(f"/api/conversations/{conversation}/messages",
@@ -245,7 +250,7 @@ def test_a_backend_restart_resumes_the_interrupted_run(database):
 
     second = FakeChatModel()
     second.add(say("Your case is being handled."))
-    with live_server(database, AgentModels(second, FakeChatModel()), reads) as base:
+    with live_server(database, AgentModels(second, FakeChatModel(), no_complaint_model()), reads) as base:
         sara = httpx.Client(base_url=base, cookies=cookies, timeout=20)
         events = read_events(sara, conversation, last_id=0, until=completed(run_id), timeout=40)
     types = [e["type"] for e in events]

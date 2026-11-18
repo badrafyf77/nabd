@@ -116,7 +116,16 @@ def _case(complaint: fx.Complaint) -> SeedRecord:
         "Resolution_Confirmed_At__c": complaint.confirmed_at,
         "Resolution_Confirmation_Message__c": complaint.confirmation_message_id,
         "NABD_Conversation_Id__c": complaint.conversation_id,
+        "NABD_Assessed_Priority__c": complaint.priority, "NABD_Priority_Reason__c": complaint.priority_reason,
+        "NABD_Summary_Hash__c": summary_hash(complaint.summary),
+        "Staff_Action_Required__c": complaint.staff_action,
+        "Staff_Action_Completed__c": complaint.staff_action_completed,
     }, references)
+
+
+def summary_hash(text: str) -> str:
+    """The hash the case gateway compares to tell NABD's summary from a staff edit."""
+    return hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()
 
 
 def _evidence(complaint: fx.Complaint, evidence: fx.Evidence) -> SeedRecord:
@@ -211,6 +220,8 @@ def current_values(record: SeedRecord, row: dict[str, Any], reverse: dict[str, d
 # edit. Append here whenever the mapping of an already-seeded object grows.
 ADDED_FIELDS: dict[str, frozenset[str]] = {
     s.KNOWLEDGE.name: frozenset({"Policy_Days__c"}),  # Phase 2
+    "Case": frozenset({"NABD_Assessed_Priority__c", "NABD_Priority_Reason__c", "NABD_Summary_Hash__c",
+                       "Staff_Action_Required__c", "Staff_Action_Completed__c"}),  # Phase 3
 }
 
 
@@ -218,7 +229,8 @@ def _matches_stored(record: SeedRecord, current: dict[str, Any], stored: str) ->
     if fingerprint(current) == stored:
         return True
     added = ADDED_FIELDS.get(record.sobject, frozenset()) & current.keys()
-    if not added or any(current[name] is not None for name in added):
+    # An unticked checkbox is the empty value of a newly added checkbox field.
+    if not added or any(current[name] not in (None, False) for name in added):
         return False
     return fingerprint({name: value for name, value in current.items() if name not in added}) == stored
 

@@ -102,6 +102,30 @@ class CaseSummary(Model):
     record: RecordRef
 
 
+class CaseHistoryEntry(Model):
+    """A case with the context the Complaint stage needs to match a new report to it.
+
+    Holds the staff-facing English summary but no internal assessment
+    (sentiment, urgency, confidence, review flag, priority reasoning).
+    """
+
+    case_number: str
+    subject: str | None
+    status: str
+    category: str | None
+    order_number: str | None
+    opened_at: datetime
+    closed_at: datetime | None
+    is_closed: bool
+    summary: str | None
+    reopen_count: int
+    last_reopened_at: datetime | None
+    resolution: str | None
+    staff_action: str | None
+    staff_action_completed: bool
+    record: RecordRef
+
+
 class KnowledgeRevision(Model):
     entry_key: str
     revision: int
@@ -156,6 +180,12 @@ _CUSTOMER_FIELDS = select(
 _CASE_FIELDS = select(
     s.CASE.name, "Id", "SystemModstamp", "CaseNumber", "Subject", "Status", "Priority",
     "Complaint_Category__c", "ShopEasy_Order__r.Order_Number__c", "CreatedDate", "ClosedDate", "IsClosed",
+)
+_CASE_HISTORY_FIELDS = select(
+    s.CASE.name, "Id", "SystemModstamp", "CaseNumber", "Subject", "Status", "Complaint_Category__c",
+    "ShopEasy_Order__r.Order_Number__c", "CreatedDate", "ClosedDate", "IsClosed", "English_Summary__c",
+    "Reopen_Count__c", "Last_Reopened_At__c", "Resolution_Outcome__c", "Staff_Action_Required__c",
+    "Staff_Action_Completed__c",
 )
 _KNOWLEDGE_FIELDS = select(
     s.KNOWLEDGE.name, "Id", "SystemModstamp", "Name", "Entry_Key__c", "Revision__c", "Revision_Key__c",
@@ -283,6 +313,28 @@ class SalesforceReads:
                 order_number=(row.get("ShopEasy_Order__r") or {}).get("Order_Number__c"),
                 opened_at=_datetime(row["CreatedDate"]), closed_at=_datetime(row["ClosedDate"]),
                 is_closed=bool(row["IsClosed"]), record=_ref(s.CASE.name, row),
+            )
+            for row in rows
+        ]
+
+    async def list_case_history(self, customer_id: str) -> list[CaseHistoryEntry]:
+        """The customer's cases with summaries, newest first, for semantic case matching."""
+        customer_id = require(CUSTOMER_ID, customer_id, "customer ID")
+        rows = await self.client.query(
+            f"SELECT {_CASE_HISTORY_FIELDS} FROM Case "
+            f"WHERE Account.ShopEasy_Customer_Id__c = {literal(customer_id)} "
+            f"ORDER BY CreatedDate DESC LIMIT {MAX_CASES}"
+        )
+        return [
+            CaseHistoryEntry(
+                case_number=row["CaseNumber"], subject=row["Subject"], status=row["Status"],
+                category=row["Complaint_Category__c"],
+                order_number=(row.get("ShopEasy_Order__r") or {}).get("Order_Number__c"),
+                opened_at=_datetime(row["CreatedDate"]), closed_at=_datetime(row["ClosedDate"]),
+                is_closed=bool(row["IsClosed"]), summary=row["English_Summary__c"],
+                reopen_count=int(row["Reopen_Count__c"] or 0), last_reopened_at=_datetime(row["Last_Reopened_At__c"]),
+                resolution=row["Resolution_Outcome__c"], staff_action=row["Staff_Action_Required__c"],
+                staff_action_completed=bool(row["Staff_Action_Completed__c"]), record=_ref(s.CASE.name, row),
             )
             for row in rows
         ]

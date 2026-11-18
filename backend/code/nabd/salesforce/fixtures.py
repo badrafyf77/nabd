@@ -118,6 +118,10 @@ class Complaint:
     outcome: str | None = None
     confirmation_message_id: str | None = None
     confirmed_at: datetime | None = None
+    # Phase 3: the policy reason behind the priority and any staff-only action.
+    priority_reason: str | None = None
+    staff_action: str | None = None
+    staff_action_completed: bool = False
 
 
 @dataclass(frozen=True)
@@ -328,6 +332,7 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
             subject="Smart watch order SE-1071 lost in transit", category="Delivery", status="Working",
             priority="Medium", language="en", sentiment="negative", urgency="medium",
             confidence=Decimal("0.940"), conversation_id="fixture-conv-0001",
+            priority_reason="Medium: lost parcel reported", staff_action="carrier_investigation",
             summary="Customer reports that smart watch order SE-1071 has not arrived and tracking stopped "
                     "at the London hub. The delivery record shows the parcel as lost. A carrier "
                     "investigation is open.",
@@ -346,6 +351,7 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
             subject="Order SE-1141 delayed", category="Delivery", status="Waiting on Customer",
             priority="Low", language="ary", sentiment="negative", urgency="low",
             confidence=Decimal("0.910"), conversation_id="fixture-conv-0002",
+            priority_reason="Low: routine delivery delay",
             summary="Customer says order SE-1141 should have arrived two days ago and tracking now shows "
                     "it as delayed. He asked for the new delivery date; we are waiting for him to say "
                     "whether he wants to keep the order.",
@@ -361,6 +367,7 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
             subject="Glass kettle from SE-1143 arrived broken", category="Orders_Products",
             status="Waiting on Staff", priority="Low", language="ar", sentiment="negative", urgency="medium",
             confidence=Decimal("0.880"), conversation_id="fixture-conv-0003",
+            priority_reason="Low: damaged item without a stronger signal", staff_action="replacement",
             summary="Customer reports that the glass electric kettle in order SE-1143, delivered two days "
                     "ago, arrived broken and cannot be used. She asks for a replacement. Reported within "
                     "the 7-day damaged-item window; staff must approve the replacement.",
@@ -376,6 +383,7 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
             subject="Possible duplicate charge for SE-1144", category="Billing_Payments", status="New",
             priority="High", language="mixed", sentiment="negative", urgency="high",
             confidence=Decimal("0.900"), conversation_id="fixture-conv-0004",
+            priority_reason="High: suspected duplicate charge", staff_action="billing_review",
             summary="Customer reports being charged twice (2 x £79.99) for order SE-1144 although he paid "
                     "once. This is an unverified customer report of a duplicate charge, so the case is "
                     "High priority for Billing.",
@@ -390,7 +398,9 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
             issue_id="FX-ISSUE-0005", customer_id="C014", order_number="SE-1146",
             subject="Lost parcel SE-1146 replaced", category="Delivery", status="Closed", priority="Medium",
             language="fr", sentiment="positive", urgency="medium", confidence=Decimal("0.950"),
-            conversation_id="fixture-conv-0005", outcome="resolved",
+            conversation_id="fixture-conv-0005",
+            priority_reason="Medium: lost parcel reported", staff_action="replacement",
+            staff_action_completed=True, outcome="resolved",
             confirmation_message_id="FX-MSG-0006", confirmed_at=at(-8, 16, 20),
             summary="Customer reported that order SE-1146 was marked lost. The delivery record confirmed "
                     "the loss and replacement order SE-1147 was sent. The customer confirmed she received "
@@ -414,6 +424,7 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
             subject="Refund pending for returned boots (SE-1148)", category="Returns_Refunds",
             status="Waiting on Staff", priority="Low", language="fr", sentiment="neutral", urgency="low",
             confidence=Decimal("0.930"), conversation_id="fixture-conv-0006",
+            priority_reason="Low: routine refund request", staff_action="refund",
             summary="Customer says he returned the leather ankle boots from order SE-1148 ten days ago with "
                     "the prepaid label and has not been refunded. Refunds are approved by staff; a staff "
                     "follow-up checks the return receipt.",
@@ -430,6 +441,7 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
             subject="Customer says nobody answered her email", category="General_Support", status="New",
             priority="Low", language="ary", sentiment="negative", urgency="low",
             confidence=Decimal("0.410"), needs_review=True, conversation_id="fixture-conv-0007",
+            priority_reason="Low: no stronger signal",
             summary="Customer is unhappy that nobody has answered an email she sent last week. She did not "
                     "say what the email was about, so the category is uncertain and staff should review.",
             evidence=(
@@ -437,6 +449,26 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
                          "السلام، بقيت كنتسنى شي واحد يجاوبني على الإيميل من السيمانة اللي فاتت وحتى واحد "
                          "ما رد عليا. هادشي ماشي معقول.",
                          "ary", "arabic", at(0, 8, 55)),
+            ),
+        ),
+        # Phase 3: an English case that a later conversation can close with evidence.
+        Complaint(
+            issue_id="FX-ISSUE-0008", customer_id="C007", order_number="SE-1101",
+            subject="Ceramic plant pot SE-1101 marked delivered but not found", category="Delivery",
+            status="Waiting on Customer", priority="Low", language="en", sentiment="negative", urgency="low",
+            confidence=Decimal("0.920"), conversation_id="fixture-conv-0008",
+            priority_reason="Low: routine delivery question",
+            summary="Customer says order SE-1101 (ceramic plant pot) shows as delivered on Monday 16 November "
+                    "but she cannot find the parcel. We asked her to check with neighbours and her safe "
+                    "place before a carrier investigation is opened.",
+            evidence=(
+                Evidence("FX-MSG-0009", "customer_report",
+                         "My order SE-1101 says it was delivered on Monday but I can't find it anywhere. "
+                         "Where is my plant pot?",
+                         "en", "latin", at(-1, 17, 10)),
+                Evidence("FX-FACT-0008", "verified_fact",
+                         "Delivery SE-1101 has status Delivered on 16 November.",
+                         "en", "latin", at(-1, 17, 11), verified_source="ShopEasy_Delivery__c:SE-1101"),
             ),
         ),
     )

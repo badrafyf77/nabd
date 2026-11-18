@@ -32,7 +32,7 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from nabd.context import READ_SCOPE, InvalidContext, verify
+from nabd.context import CASE_HISTORY_SCOPE, READ_SCOPE, InvalidContext, verify
 from nabd.salesforce import reads as sf
 from nabd.salesforce.rest import (
     ClientCredentialsAuth, SalesforceAuthError, SalesforceClient, SalesforceError, SalesforceUnavailable,
@@ -76,10 +76,12 @@ class ContextVerifier:
         )
 
 
-def _customer_id() -> str:
+def _customer_id(scope: str = READ_SCOPE) -> str:
     token = get_access_token()
     if token is None or not token.subject or READ_SCOPE not in token.scopes:
         raise ToolError("[unauthorized] This request has no signed customer context.")
+    if scope not in token.scopes:
+        raise ToolError("[not_allowed] This signed context may not use this tool.")
     return token.subject
 
 
@@ -188,6 +190,27 @@ class CaseList(BaseModel):
     cases: list[CaseInfo]
     count: int
     evidence: list[str]
+
+
+class CaseHistoryItem(BaseModel):
+    case_number: str
+    subject: str | None
+    status: str
+    category: str | None
+    order_number: str | None
+    opened: str
+    closed: str | None
+    summary: str | None = Field(description="Staff-facing English summary of the problem so far.")
+    reopened_times: int
+    resolution: str | None
+    staff_action: str | None = Field(description="Work only staff can do, such as a refund.")
+    staff_action_completed: bool
+    evidence: list[str]
+
+
+class CaseHistory(BaseModel):
+    cases: list[CaseHistoryItem]
+    count: int
 
 
 class KnowledgeIndexEntry(BaseModel):
@@ -314,7 +337,7 @@ def build_server(backend: ReadBackend, secret: SecretStr, *, issuer_url: str, re
     server = MCPServer(
         SERVER_NAME,
         title="NABD read MCP",
-        version="0.2.0",
+        version="0.3.0",
         instructions=INSTRUCTIONS,
         token_verifier=ContextVerifier(secret),
         auth=AuthSettings(issuer_url=issuer_url, resource_server_url=resource_url,
@@ -391,6 +414,23 @@ def build_server(backend: ReadBackend, secret: SecretStr, *, issuer_url: str, re
             CaseInfo(case_number=c.case_number, subject=c.subject, status=c.status, category=c.category,
                      order_number=c.order_number, opened=day(c.opened_at.date()),
                      closed=day(c.closed_at.date()) if c.closed_at else None)
+            for c in cases
+        ])
+
+    @server.tool(title="Case history", annotations=READ_ONLY)
+    async def list_case_history() -> CaseHistory:
+        """The customer's cases with summaries and lifecycle state, newest first, to match a complaint.
+
+        Needs the case-history scope, which only the Complaint stage's context carries.
+        """
+        cases = await _call(backend.require().list_case_history(_customer_id(CASE_HISTORY_SCOPE)))
+        return CaseHistory(count=len(cases), cases=[
+            CaseHistoryItem(
+                case_number=c.case_number, subject=c.subject, status=c.status, category=c.category,
+                order_number=c.order_number, opened=day(c.opened_at.date()),
+                closed=day(c.closed_at.date()) if c.closed_at else None, summary=c.summary,
+                reopened_times=c.reopen_count, resolution=c.resolution, staff_action=c.staff_action,
+                staff_action_completed=c.staff_action_completed, evidence=[evidence_ref(c.record)])
             for c in cases
         ])
 

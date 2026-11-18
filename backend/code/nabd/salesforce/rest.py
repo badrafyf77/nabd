@@ -193,15 +193,21 @@ class SalesforceClient:
         return f"/services/data/v{self.api_version}"
 
     async def request(self, method: str, path: str, *, params: dict[str, str] | None = None,
-                      json_body: Any = None) -> Any:
-        """Send one request, refreshing the session once if Salesforce expired it."""
+                      json_body: Any = None, raw_json: bytes | None = None) -> Any:
+        """Send one request, refreshing the session once if Salesforce expired it.
+
+        ``raw_json`` sends exact bytes, for callers whose request body must be
+        byte-identical on every retry (the case gateway hashes it).
+        """
+        headers = {"Accept": "application/json"}
+        if raw_json is not None:
+            headers["Content-Type"] = "application/json"
         for attempt in (1, 2):
             token = await self.auth.token(refresh=attempt == 2)
             try:
                 response = await self.http.request(
-                    method, f"{token.instance_url}{path}", params=params, json=json_body,
-                    headers={"Authorization": f"Bearer {token.value.get_secret_value()}",
-                             "Accept": "application/json"},
+                    method, f"{token.instance_url}{path}", params=params, json=json_body, content=raw_json,
+                    headers={**headers, "Authorization": f"Bearer {token.value.get_secret_value()}"},
                 )
             except httpx.HTTPError as error:
                 raise SalesforceUnavailable(f"Salesforce request failed ({type(error).__name__}).") from None

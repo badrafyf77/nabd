@@ -1,7 +1,7 @@
 """OpenAI chat models of the NABD agents, built from ``ModelSettings``.
 
 GPT-5 models only accept tools together with a reasoning effort through
-OpenAI's Responses API, so both agents use it. The API key is passed to the
+OpenAI's Responses API, so every agent uses it. The API key is passed to the
 client explicitly; NABD never reads the legacy voice ``.env`` or OPENAI_API_KEY.
 """
 from __future__ import annotations
@@ -24,10 +24,12 @@ def _chat(settings: ModelSettings, model: str, effort: str | None) -> ChatOpenAI
 class AgentModels:
     supervisor: BaseChatModel
     orders: BaseChatModel
+    complaints: BaseChatModel
 
 
 def build_models(settings: ModelSettings) -> AgentModels:
     return AgentModels(
         supervisor=_chat(settings, settings.supervisor_model, settings.supervisor_reasoning_effort),
         orders=_chat(settings, settings.orders_model, settings.orders_reasoning_effort),
+        complaints=_chat(settings, settings.complaints_model, settings.complaints_reasoning_effort),
     )

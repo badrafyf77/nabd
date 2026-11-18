@@ -265,3 +265,12 @@
   .chat-main { height: auto; min-height: 70vh; }
   .timeline, .chat-header, .composer { padding-left: 16px; padding-right: 16px; }
 }
+
+/* Case work (Phase 3): shown only for Salesforce-confirmed cases. */
+.case-confirmed { margin: 4px 0 2px 22px; padding: 4px 8px; border-radius: 6px; background: var(--green-soft);
+                  color: var(--green-dark); font-size: 13px; font-weight: 600; display: inline-block; }
+.case-strip { list-style: none; margin: 0; padding: 8px 24px; display: flex; flex-wrap: wrap; gap: 8px;
+              border-bottom: 1px solid var(--line, #e5e7eb); }
+.case-strip li { display: flex; gap: 6px; align-items: baseline; padding: 4px 10px; border-radius: 999px;
+                 background: var(--green-soft); font-size: 13px; }
+@media (max-width: 720px) { .case-strip { padding-left: 16px; padding-right: 16px; } }

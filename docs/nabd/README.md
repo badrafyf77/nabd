@@ -6,7 +6,8 @@ The implementation progresses through phases 0–7. **For a new chat, start with
 [START_HERE](START_HERE.md)** for the checkpoint, reading order, pitfalls, and
 copyable continuation prompt. Current progress is in [status](status.md). Phase 1
 delivered the [Salesforce business system](salesforce.md); Phase 2 the
-[support chat](phases/02-support-chat.md) described below.
+[support chat](phases/02-support-chat.md); Phase 3 the
+[complaint cases](phases/03-complaints.md) described below.
 
 ## Phase 0: run the text foundation
 
@@ -169,6 +170,57 @@ Read MCP commands (from `backend/`, no model calls):
 | `python -m nabd read-mcp smoke [--url URL]` | 12 read checks through the real server and Salesforce |
 | `python -m nabd read-mcp prompt --customer C011` | Render the `staff_review` prompt for one customer |
 
+## Phase 3: complaint cases
+
+Every customer message now passes the complaint stage before the reply: the
+Complaint specialist (a third model) reads the customer's cases and orders,
+code decides the case action, and the **write MCP server** (8092) sends it to
+the Salesforce case command gateway. The API needs one more secret, different
+from the read one:
+
+```bash
+python3 -c "import secrets; print('NABD_WRITE_MCP_CONTEXT_SECRET=' + secrets.token_urlsafe(48))" >> backend/.env.nabd
+```
+
+Docker (from `backend/`) builds `nabd-backend:phase3`, migrates to 0003 and
+starts `read-mcp`, `write-mcp` and `api`:
+
+```bash
+docker compose -f docker-compose.nabd.yml up -d --build --wait api
+```
+
+Locally, add a fourth terminal: `PYTHONPATH=code .venv-text/bin/python -m nabd write-mcp serve`.
+
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `NABD_WRITE_MCP_CONTEXT_SECRET` | API/write-MCP secret for case-operation contexts (32+ chars, not the read secret) | None |
+| `NABD_WRITE_MCP_URL` | Write MCP endpoint the API calls | `http://127.0.0.1:8092/mcp` |
+| `NABD_WRITE_MCP_HOST` / `_PORT` / `_ALLOWED_HOSTS` | Server bind address and accepted `Host` headers | 127.0.0.1 / 8092 / local names |
+| `NABD_COMPLAINTS_MODEL`, `NABD_COMPLAINTS_REASONING_EFFORT` | Complaint specialist model | `gpt-5.4-mini`, `low` |
+| `NABD_CHAT_HISTORY_MESSAGES` | Conversation messages the specialist sees | 12 |
+| `NABD_CHAT_REVIEW_CONFIDENCE` | Below this category confidence: General Support with review flag | 0.6 |
+| `NABD_CHAT_RECONCILE_AFTER_SECONDS`, `_RECONCILE_INTERVAL_SECONDS`, `_MAX_RECONCILE_ATTEMPTS` | Background settling of unanswered case commands | 30, 10, 5 |
+
+Salesforce changes are deployed with the usual `generate`, `deploy`,
+`configure` (assigns `NABD_Integration_Gateway`), `seed` and `verify`
+commands. Case write checks (from `backend/`, no model calls):
+
+| Command | What it does |
+| --- | --- |
+| `python -m nabd write-mcp serve` | Serve Streamable HTTP on `NABD_WRITE_MCP_HOST:PORT` |
+| `python -m nabd write-mcp smoke` | 15 checks through the real gateway; writes one labelled test case for C008 and closes it; reruns replay the same receipts |
+
+Paid scenarios (ask the owner first; each runs once):
+
+```bash
+cd backend
+.venv-text/bin/python -m pytest -m llm tests/nabd/test_case_scenarios.py -s   # 8 Phase 3 flows
+.venv-text/bin/python -m pytest -m llm tests/nabd/test_chat_scenarios.py -s   # 12 Phase 2 flows as full turns
+```
+
+They use real models, real Salesforce reads and the in-memory gateway for
+cases, so they are repeatable and leave no cases in the org.
+
 ## Verification
 
 ```bash
@@ -195,8 +247,10 @@ The restart test runs two separate backend processes, checkpoints a real graph
 containing a LangChain message, then restores the message and resumes the graph
 with a new process. The Phase 2 chat tests serve the API with uvicorn against
 real PostgreSQL, the in-memory read MCP server and scripted models, including a
-server restart in the middle of a run. No LLM or Salesforce calls occur in
-these checks.
+server restart in the middle of a run. The Phase 3 tests add the in-memory
+write MCP server and a fake gateway that follows the Apex rules: complaint
+flows, crash and timeout recovery, the PostgreSQL advisory lock and background
+reconciliation. No LLM or Salesforce calls occur in these checks.
 
 Paid NABD scenarios (real models, real MCP and Salesforce; ask first):
 
