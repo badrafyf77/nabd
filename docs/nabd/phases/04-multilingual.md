@@ -1,6 +1,6 @@
 # Phase 4 — Multilingual behavior
 
-**Status: in progress (18 November 2026).** Depends on completed
+**Status: complete (18 November 2026), implementation checkpoint `b4d5f71`.** Depends on completed
 [Phase 3](03-complaints.md), checkpoint `9879593` and its handoff commits.
 
 ## Outcome
@@ -76,8 +76,8 @@ where appropriate, including after replay and refresh.
 
 ## Handoff
 
-To be completed with implementation, commands, measured results, limitations,
-checkpoint and Phase 5 entry criteria.
+Implementation, commands, measured results, limitations, checkpoint and Phase 5
+entry criteria, in the order they happened.
 
 ### Implementation and free verification — 18 November 2026
 
@@ -129,7 +129,8 @@ before a public release.
 ### Paid evaluation
 
 The owner approved starting the 36-scenario evaluation, once each, and at most
-one recheck of failures after the free code checks passed. Results pending.
+one recheck of failures after the free code checks passed; later focused
+rechecks were approved one at a time. Results follow.
 
 ### Evaluation findings and follow-up
 
@@ -233,7 +234,37 @@ one recheck of failures after the free code checks passed. Results pending.
 - Fix (prompt only, `prompts/complaints.md`): a wish to return an unspecified
   purchase is `no_complaint` with no question, and any which-order/product
   question must name the matching purchases from the authorized overview.
-  Free suite: **275 passed**, 101 deselected. Not measured with the real model.
+  Free suite: **275 passed**, 101 deselected.
+
+### Third recheck of `634ea21` — `english-ambiguous`, once
+
+- **1/1 pass.** The complaint stage returned `no_complaint`; the reply asked
+  which item and listed all four owned orders by product and number.
+
+### Completion summary
+
+- Every scenario that failed in the 36-scenario run has passed after its fix,
+  each in its own approved run: first run 21/36, recheck 13/19, focused six
+  3/6, then 0/3, 2/3 and 1/1 on the remaining failures. These are separate
+  measurements of successive versions, **not** a fresh 36/36 run of the final
+  version. The 17 first-run passes and the 13 recheck passes were not rerun
+  after later prompt changes; the last complaint-prompt change (unspecified
+  returns) was measured only on `english-ambiguous`.
+- Gate evidence: all six language/forms completed core support, knowledge,
+  return, refund-case and cross-language case flows with unchanged ownership,
+  case identity and policy outcomes; RTL and Latin browser presentation and
+  replay were verified on the real stack with scripted models.
+- Final free verification: macOS, real PostgreSQL **275 passed**, 101 paid
+  scenarios deselected. The org, MCP smoke, Linux image and frontend results
+  above were measured earlier in Phase 4 and were not repeated for these
+  prompt/agent-only changes.
+
+### Phase 5 entry criteria
+
+- Resume commands in [status](../status.md) pass: offline suite, `salesforce
+  verify`, `read-mcp smoke`, `write-mcp smoke`.
+- Carry forward the limitations above and the Phase 3 limitations. The full
+  multilingual scenarios three times are the Phase 7 release measurement.
 
 ### Current limitations to carry forward
 

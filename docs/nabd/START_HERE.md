@@ -5,12 +5,8 @@ needed to resume is in the repository; the previous chat is not required.
 
 ## Current checkpoint
 
-- Branch: `codex/nabd-chat-salesforce`. Phase 4 implementation checkpoints are
-  `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`, latest `b4d5f71`; `main` still holds Phase 3 at `603545d`.
-  Phase 4 remains unmerged: the focused confirmation passed 3/6; the recheck
-  of its three failures passed 0/3 on new prompt-behavior faults, now fixed in
-  the prompt; the second recheck passed 2/3, and its English failure is fixed
-  in the complaint prompt but unmeasured (see the Phase 4 handoff).
+- Branch: `codex/nabd-chat-salesforce`. It equals `main` on GitHub at the end
+  of Phase 4; finished phases are merged into `main`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
@@ -21,13 +17,15 @@ needed to resume is in the repository; the previous chat is not required.
   the 8 new case flows 7/8 and the 12 Phase 2 flows 9/12; after two prompt
   fixes 3 of those 4 failures passed a recheck, and `several_orders_needs_info`
   still fails its expectation (it lists returnable items instead of asking).
-- Current: **NABD Phase 4 — multilingual behavior**, implemented and under
-  real-model evaluation on the working branch. See the
-  [Phase 4 plan and running handoff](phases/04-multilingual.md).
-- Last measured suite: **249 passed** (65 paid scenarios deselected) on macOS
+- Completed: **NABD Phase 4 — multilingual behavior** (`b4d5f71`). Approved
+  real-model runs: 21/36, then rechecks of the failures down to 1/1; every
+  failing scenario passed after its fix, but there is no fresh full 36/36 run
+  of the final version. See the [Phase 4 handoff](phases/04-multilingual.md#completion-summary).
+- Next: **NABD Phase 5 — live staff follow-up** (not started).
+- Last measured suite: **275 passed** (101 paid scenarios deselected) on macOS
   with real PostgreSQL. Real-org `salesforce verify` 41/41, Apex 17/17,
-  `salesforce smoke` 12/12, `read-mcp smoke` 12/12, `write-mcp smoke` 15/15.
-  See [status](status.md) for limits.
+  `salesforce smoke` 12/12, `read-mcp smoke` 14/14, `write-mcp smoke` 15/15
+  (measured during Phase 4). See [status](status.md) for limits.
 - The root `AGENTS.md` directs new sessions here. Later phase completions must
   update this checkpoint, status, roadmap, and that short pointer together.
 
@@ -37,16 +35,17 @@ needed to resume is in the repository; the previous chat is not required.
    results, current phase, environment snapshot, and next entry criteria.
 2. [Accepted decisions](decisions.md): settled product choices and engineering
    requirements. Do not re-ask questions already answered here.
-3. [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026): the
-   complaint stage, case workflow, write MCP server and Apex gateway, with what
-   is verified and what is not. The [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026)
-   covers the chat underneath and the [Salesforce reference](salesforce.md)
-   the org, schema, gateway and adapter.
-4. [Phase 4 plan and running handoff](phases/04-multilingual.md), its scope and gate in the
-   [roadmap](roadmap.md#phase-4--multilingual-behavior), the language rules in
-   [decisions](decisions.md#product-and-data), and the starting points in
-   [status](status.md#next-step). Continue the existing implementation rather
-   than writing a new plan or restarting its evaluation.
+3. [Phase 4 handoff](phases/04-multilingual.md#handoff): language/script
+   selection, multilingual prompts, localized RTL activity, the Latin Darija
+   script repair and every measured run, with its limitations. The
+   [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026) covers
+   the complaint stage, case gateway and write MCP server, the
+   [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) the
+   chat underneath, and the [Salesforce reference](salesforce.md) the org.
+4. Phase 5's scope and gate in the
+   [roadmap](roadmap.md#phase-5--live-staff-follow-up) and the entry criteria in
+   [status](status.md#next-step). Write `docs/nabd/phases/05-staff-follow-up.md`
+   first when Phase 5 is requested.
 5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
    responsibilities, data ownership, agent flow, and future public interfaces.
 6. [Roadmap](roadmap.md) and [development commands](README.md): later sequence,
@@ -60,7 +59,7 @@ From the repository root:
 git status --short --branch
 git fetch origin && git log -1 --oneline origin/main
 git log -5 --oneline
-git show --stat 9879593
+git show --stat b4d5f71
 sf org display --target-org nabd-dev
 ```
 
@@ -114,11 +113,11 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md,
-> then docs/nabd/status.md. Phases 0–3 are complete. Continue the existing Phase 4
-> implementation at b4d5f71 and its plan/handoff; the initial paid evaluation and
-> approved recheck are recorded there. Do not repeat paid runs without new approval.
-> Preserve all accepted decisions, update the phase handoff and
-> verification results, and when Phase 4 is finished merge it into main and
+> then docs/nabd/status.md. Phases 0–4 are complete. Start Phase 5 (live staff
+> follow-up): first write docs/nabd/phases/05-staff-follow-up.md in the same form
+> as the Phase 4 plan, then implement Phase 5 only. Preserve all accepted
+> decisions, ask me before any paid model run, update the phase handoff and
+> verification results, and when Phase 5 is finished merge it into main and
 > push as badrafyf77.
 
 For a later phase, replace the phase number and follow the then-current status.
