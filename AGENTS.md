@@ -17,7 +17,10 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
   (support chat, `02178fa`) are complete. Phase 3 is the next pending phase.
   Later phase completions must update status and this pointer.
 - Implement only the phase the user requests. Update its plan/status/handoff,
-  verify it, and create a local checkpoint before declaring it complete.
+  verify it, and create a local checkpoint before declaring it complete. Then
+  merge the finished phase into `main` and push `main` and the phase branch
+  (the owner's standing instruction): commits and pushes as `badrafyf77`, with
+  no AI attribution lines, after a secret scan of what is pushed.
 - `docs/goals/`, `docs/plans/phase-1-*`, `backend/code/server.py`, and the original
   voice Docker files describe the legacy project. The old "Phase 1" is different
   from NABD Phase 1. Prefer `docs/nabd/` for active scope and acceptance criteria.

@@ -12,7 +12,9 @@ Updated: 18 November 2026 (Africa/Casablanca).
 | 1 — Salesforce business system | `1a04f5257292a6cfe16cc67c93207985638acdd6` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
 | 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; docs and real-model results in later commits) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 
-Inspect a checkpoint with `git show --stat <commit>`. Later documentation
+Completed phases are merged into `main` on GitHub
+(`badrafyf77/customer-support-voice-agent`, private); Phases 0–2 were merged
+on 18 November 2026. Inspect a checkpoint with `git show --stat <commit>`. Later documentation
 commits are handoff updates, not new implementation phases.
 
 ## Delivered so far

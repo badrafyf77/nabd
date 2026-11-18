@@ -130,8 +130,11 @@ Depends on Phase 6. Testing already accompanies every earlier phase.
 For each phase save its detailed plan and a handoff recording what works, how to
 demonstrate it, test results, limitations, environment requirements, Git checkpoint,
 exact restart commands, and next entry criteria. Update status, START_HERE, and
-the root AGENTS checkpoint pointer together. Create a local Git checkpoint;
-do not push or deploy external resources merely to mark a phase complete.
+the root AGENTS checkpoint pointer together. Create a local Git checkpoint,
+then merge the finished phase into `main` and push `main` and the phase branch
+to `origin` as `badrafyf77` (the repository owner's standing instruction since
+18 November 2026). Unfinished work is not merged. Do not deploy external
+resources merely to mark a phase complete.
 
 "Start Phase N" means read status/decisions/that phase plan, inspect current
 repository state, verify prerequisites, then implement that phase only. Carry
