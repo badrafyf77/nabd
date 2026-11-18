@@ -12,7 +12,7 @@ approval.** Phases 3–7 are pending. Branch: `codex/nabd-chat-salesforce`.
 | --- | --- | --- |
 | 0 — Foundation | `512e03bb2f4bec5c00aeb851cfbf7f3d09942c0b` | [Phase 0 plan](phases/00-foundation.md) |
 | 1 — Salesforce business system | `1a04f5257292a6cfe16cc67c93207985638acdd6` | [Phase 1 handoff](phases/01-salesforce.md#handoff--completed-18-november-2026) |
-| 2 — Support chat and live activity | implementation checkpoint, see `git log --grep "Phase 2"` | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
+| 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; paid scenario run pending) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 
 Inspect a checkpoint with `git show --stat <commit>`. Later documentation
 commits are handoff updates, not new implementation phases.

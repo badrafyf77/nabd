@@ -146,8 +146,8 @@ is Phase 5. Do not add them early.
 
 ## Handoff — 18 November 2026
 
-Git checkpoint: recorded in [status](../status.md) (branch
-`codex/nabd-chat-salesforce`).
+Git checkpoint: `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (*Build NABD support chat with live agent activity
+(Phase 2)*) on `codex/nabd-chat-salesforce`.
 
 ### Delivered
 

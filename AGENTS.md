@@ -14,7 +14,7 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
 - [Architecture](docs/nabd/architecture.md) and [contracts](docs/nabd/contracts.md)
   describe the target; status identifies what actually exists.
 - Phases 0 (`512e03b`) and 1 (Salesforce business system, `1a04f52`) are
-  complete. Phase 2 (support chat) is implemented; its paid English scenario
+  complete. Phase 2 (support chat, `02178fa`) is implemented; its paid English scenario
   run waits for the user's approval. Phase 3 is next. Later phase completions
   must update status and this pointer.
 - Implement only the phase the user requests. Update its plan/status/handoff,

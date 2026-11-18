@@ -9,7 +9,7 @@ needed to resume is in the repository; the previous chat is not required.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - **NABD Phase 2 — support chat and real-time agent progress** is implemented
-  and verified without paid model calls. Its last gate item, a real-model run
+  (`02178fa`) and verified without paid model calls. Its last gate item, a real-model run
   of 12 English scenarios, waits for the user's approval and OpenAI key.
 - Last measured suite: **213 passed** (57 paid scenarios deselected) on macOS
   with real PostgreSQL. Real-org `salesforce verify` 39/39, `salesforce smoke`
