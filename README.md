@@ -1,4 +1,12 @@
-# Customer Support Voice Agent
+# NABD — ShopEasy customer support
+
+Active development is **NABD**, a multilingual text support and complaint
+intelligence platform backed by Salesforce. Start with the
+[NABD development guide](docs/nabd/README.md),
+[phased roadmap](docs/nabd/roadmap.md), and [current status](docs/nabd/status.md).
+
+The documentation below describes the original voice prototype. Its reusable
+agent foundation is being carried into NABD; voice development is deferred.
 
 Realtime browser-to-backend voice-agent project with:
 

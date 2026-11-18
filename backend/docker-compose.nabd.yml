@@ -1,0 +1,79 @@
+name: nabd
+
+x-runtime: &runtime
+  image: nabd-backend:phase0
+  build:
+    context: .
+    dockerfile: Dockerfile.text
+    target: runtime
+  environment:
+    NABD_DATABASE_URL: postgresql://nabd:nabd_dev@db:5432/nabd
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nabd
+      POSTGRES_PASSWORD: nabd_dev
+      POSTGRES_DB: nabd
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - nabd_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nabd -d nabd"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *runtime
+    command: ["python", "-m", "nabd", "migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *runtime
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/readyz', timeout=4)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  test-db:
+    profiles: ["test"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nabd
+      POSTGRES_PASSWORD: nabd_test
+      POSTGRES_DB: nabd_test
+    ports:
+      - "127.0.0.1:55433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nabd -d nabd_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile.text
+      target: tests
+    environment:
+      NABD_TEST_DATABASE_URL: postgresql://nabd:nabd_test@test-db:5432/nabd_test
+    depends_on:
+      test-db:
+        condition: service_healthy
+
+volumes:
+  nabd_postgres:

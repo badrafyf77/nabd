@@ -1,0 +1,136 @@
+# NABD phased roadmap
+
+Implementation order: phases 0–7. Complete and verify one phase before starting
+the next. Read [status](status.md) to resume. [Accepted decisions](decisions.md)
+and [architecture](architecture.md) apply to every phase.
+
+## Phase 0 — Foundation
+
+Plan: [00-foundation](phases/00-foundation.md).
+
+- Preserve the existing baseline and create `codex/nabd-chat-salesforce`.
+- Record decisions, architecture, interfaces, and phase handoff rules.
+- Add independent text startup, pinned speech-free dependencies, settings,
+  PostgreSQL migrations/pooling, persistent checkpointing, and CPU-only Compose.
+- Gate: reproducible startup; correct health/readiness; real graph/message
+  recovery across processes; reusable tests still pass.
+
+## Phase 1 — Salesforce business system
+
+Depends on Phase 0.
+
+- Create the dedicated dev org, External Client App, permissions, and OAuth
+  configuration. Package metadata and repeatable seed commands in the repo.
+- Implement Account/Contact customers, custom order/item/delivery objects,
+  standard Case/Task, versioned FAQ/policy records, evidence, risk, and operation
+  receipts. Finalize concrete schema and permission sets here.
+- Preserve existing synthetic scenarios; add Moroccan/French customers with
+  GBP/shared policies and recorded seed dates. Configure five department queues.
+- Gate: staff can inspect the full dataset/knowledge, authenticated backend reads
+  work, repeat deployment/seed creates no duplicates or unintended staff resets.
+- Handoff: org/deployment instructions, configured identifiers, smoke evidence.
+
+## Phase 2 — Support chat and real-time agent progress
+
+Depends on Phase 1.
+
+- Build authenticated read MCP: customer context, orders/deliveries, FAQ/policies,
+  resources, and staff review prompt. Use real transport calls from the agents.
+- Adapt Supervisor/Orders to Salesforce. Replace voice identity for this flow
+  with trusted demo sign-in. Add conversation/message persistence and durable
+  graph execution; await dependencies, queue extra turns visibly.
+- Implement the planned HTTP/SSE contracts and Next.js chat with expandable
+  activity cards, honest lifecycle states, confirmed findings, and replay.
+- Gate: English support scenarios succeed through Salesforce/MCP; ownership is
+  enforced; progress is visible; refresh/restart restores conversations/events.
+- Handoff: usable English support chat and scope/streaming verification.
+
+## Phase 3 — Complaint intelligence and reliable cases
+
+Depends on Phase 2.
+
+- Add mandatory Complaint analysis on every customer turn, multiple distinct
+  issues, evidence-backed classifications, and semantic case matching.
+- Build write MCP and typed Apex command gateway with transactional operation
+  receipts, conflict checks, locks, retry reconciliation, and durable commands.
+- Implement agreed creation/update/reopen/closure rules, department mapping,
+  priority rules, English summaries, and original evidence. Refunds become
+  staff cases. Stream all operations through activity cards.
+- Gate: complete English delayed/lost/refund/multiple-issue flows; retries and
+  concurrent runs create no duplicates; closure is grounded/customer-confirmed;
+  staff overrides are respected.
+- Handoff: customer-to-case demonstration and fault-injection results.
+
+## Phase 4 — Multilingual behavior
+
+Depends on Phase 3.
+
+- Support automatic language changes, English/French/Arabic, both Darija scripts,
+  and mixed messages. Preserve original wording and staff English summaries.
+- Localize activity templates, support RTL, and retrieve published Salesforce
+  knowledge through source/version-bearing tools. Clarify ambiguous references.
+- Add equivalent scenarios and language-specific held-out challenges; manually
+  review Darija examples.
+- Gate: all language/forms complete core support/case flows without changes to
+  ownership, issue identity, or policy outcomes; browser presentation works.
+- Handoff: language-specific measured results and reviewed fixtures.
+
+## Phase 5 — Live staff follow-up
+
+Depends on Phase 4.
+
+- Finish staff layouts, evidence access, public responses, and case statuses.
+- Publish after-commit Salesforce events and consume them via Pub/Sub with
+  durable cursors, authorized current-state retrieval, and public projection.
+- Handle privacy changes/deletion, deduplication, reconnect reconciliation,
+  missed events, and clearly labeled translations of original staff replies.
+- Gate: correct customer's open chat receives staff changes automatically;
+  internal notes stay restricted; recovery works; healthy p95 latency <=5s.
+- Handoff: complete staff/customer loop and event-recovery evidence.
+
+## Phase 6 — Analytics and proactive warnings
+
+Depends on Phase 5.
+
+- Build Salesforce dashboards: volume/category/language/sentiment/priority,
+  recurring problems, age, and resolution outcomes; display data freshness.
+- Implement versioned configurable risk rules after changes and hourly for
+  aging. Initial rules/defaults are in architecture; validate with fixtures.
+- One follow-up task per active customer/rule episode; update evidence, clear
+  inactive warnings, preserve history. Count distinct issues, not messages.
+- Gate: totals reconcile, warnings explain evidence, tasks deduplicate and
+  resolve/recur correctly, internal risk does not leak to customer streams.
+- Handoff: verified dashboards and risk/task scenarios.
+
+## Phase 7 — Quality review and demonstration release
+
+Depends on Phase 6. Testing already accompanies every earlier phase.
+
+- Add read-only background evaluator and grounded summary review with at most
+  one corrective pass. Grade coverage, language, tool use, and resolution claims.
+- Run complete multilingual scenarios three times, held-out challenges, browser
+  checks, failures/recovery, authorization, privacy, and prompt-injection cases.
+- Measure latency/cost, case accuracy, risk false positives, and sync lag. Deliver
+  operations/runbook, reproducible setup, scripted demo, and follow-up backlog.
+- Gates: deterministic authorization/lifecycle/replay/idempotency tests all pass;
+  no disclosure or repeated side effects in fault tests; >=90% scenario success
+  per language/form across three runs; p95 event-to-browser <=1s and healthy
+  staff updates <=5s. These are targets to measure, not current claims.
+
+## Phase completion and resumption
+
+For each phase save its detailed plan and a handoff recording what works, how to
+demonstrate it, test results, limitations, environment requirements, Git checkpoint,
+exact restart commands, and next entry criteria. Create a local Git checkpoint;
+do not push or deploy external resources merely to mark a phase complete.
+
+"Start Phase N" means read status/decisions/that phase plan, inspect current
+repository state, verify prerequisites, then implement that phase only. Carry
+forward settled decisions. Create concrete contracts with real consumers and
+test each full workflow before broadening it.
+
+## Deferred
+
+Voice development, production authentication, multi-business support, regional
+currencies/policies, approval/refund execution, offline notifications, trained
+churn prediction, and a sandboxed open-ended manager analytics agent.

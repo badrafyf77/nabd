@@ -1,0 +1,29 @@
+FROM python:3.14-slim-bookworm AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/code
+WORKDIR /app
+COPY requirements-text.txt ./
+RUN python -m pip install --no-cache-dir -r requirements-text.txt \
+    && groupadd --gid 10001 nabd \
+    && useradd --uid 10001 --gid nabd --no-create-home nabd
+COPY code/ ./code/
+COPY migrations/ ./migrations/
+COPY alembic.ini ./
+USER 10001:10001
+
+FROM base AS tests
+USER root
+COPY requirements-text-dev.txt ./
+RUN python -m pip install --no-cache-dir -r requirements-text-dev.txt \
+    && mkdir /app/.pytest_cache \
+    && chown 10001:10001 /app/.pytest_cache
+COPY tests/ ./tests/
+COPY pytest.ini ./
+USER 10001:10001
+CMD ["python", "-m", "pytest", "-q"]
+
+FROM base AS runtime
+EXPOSE 8081
+CMD ["python", "-m", "uvicorn", "nabd.app:app", "--host", "0.0.0.0", "--port", "8081"]

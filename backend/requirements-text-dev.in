@@ -1,0 +1,4 @@
+-r requirements-text.in
+-c requirements-text.txt
+pytest>=9,<10
+httpx>=0.28,<1

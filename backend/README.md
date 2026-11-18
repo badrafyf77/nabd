@@ -1,5 +1,10 @@
 # Voice Agent Backend
 
+For active **NABD text development**, use the
+[NABD development guide](../docs/nabd/README.md) and `docker-compose.nabd.yml`.
+The text app has separate dependencies, configuration, and startup. This page
+documents the legacy voice backend.
+
 FastAPI backend for realtime voice-agent sessions. It receives microphone audio
 over WebSocket, transcribes speech, runs the selected agent, streams TTS audio
 back to the client, and exposes a few support endpoints.

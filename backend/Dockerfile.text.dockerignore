@@ -1,0 +1,12 @@
+*
+!requirements-text*.txt
+!code/
+!code/**
+!migrations/
+!migrations/**
+!alembic.ini
+!tests/
+!tests/**
+!pytest.ini
+**/__pycache__/
+**/.pytest_cache/

@@ -18,6 +18,7 @@
 **/.pytest_cache/
 **/.mypy_cache/
 **/.venv/
+**/.venv-*/
 **/venv/
 
 # Local environment and secrets
