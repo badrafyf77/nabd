@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Evidence_Key__c</fullName>
     <caseSensitive>true</caseSensitive>
-    <description>Episode key plus supporting record.</description>
+    <description>Episode key plus the supporting case or evidence ID.</description>
     <externalId>true</externalId>
     <label>Evidence Key</label>
     <length>160</length>

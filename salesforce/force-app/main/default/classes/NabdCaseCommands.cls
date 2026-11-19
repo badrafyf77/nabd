@@ -22,6 +22,11 @@
  * Runs in system mode without sharing because the integration user has no
  * object create/edit permission: these rules are its only write path. Its
  * transactions publish no NABD_Case_Change__e: NABD already knows what it wrote.
+ *
+ * Phase 6: a command that adds new customer evidence (a report or confirmation)
+ * is one customer contact. Its sentiment is stamped on that new evidence and
+ * kept as the case's negative-contact streak, which the risk engine reads.
+ * Replays and commands without new customer evidence change neither.
  */
 @RestResource(urlMapping='/nabd/v1/case-commands/*')
 global without sharing class NabdCaseCommands {
@@ -44,6 +49,8 @@ global without sharing class NabdCaseCommands {
         'refund', 'replacement', 'billing_review', 'carrier_investigation', 'other'
     };
     static final Set<String> EVIDENCE_KINDS = new Set<String>{'customer_report', 'verified_fact', 'customer_confirmation'};
+    static final Set<String> CONTACT_KINDS = new Set<String>{'customer_report', 'customer_confirmation'};
+    static final Set<String> NEGATIVE = new Set<String>{'negative', 'very_negative'};
     static final Pattern OPERATION_ID = Pattern.compile('[A-Za-z0-9_.:\\-]{8,64}');
     static final Pattern ISSUE_ID = Pattern.compile('[A-Za-z0-9_.:\\-]{8,64}');
     static final Pattern CUSTOMER_ID = Pattern.compile('C\\d{3,6}');
@@ -218,7 +225,8 @@ global without sharing class NabdCaseCommands {
         List<Case> cases = [
             SELECT Id, AccountId, CaseNumber, Status, IsClosed, Priority, SystemModstamp, OwnerId,
                    NABD_Issue_Id__c, English_Summary__c, NABD_Summary_Hash__c, NABD_Assessed_Priority__c,
-                   Reopen_Count__c, Resolution_Outcome__c, Staff_Action_Required__c, Staff_Action_Completed__c
+                   Reopen_Count__c, Resolution_Outcome__c, Staff_Action_Required__c, Staff_Action_Completed__c,
+                   Negative_Streak__c
             FROM Case WHERE Id = :caseId WITH SYSTEM_MODE LIMIT 1 FOR UPDATE
         ];
         if (cases.isEmpty() || cases[0].AccountId != account.Id) {
@@ -286,11 +294,12 @@ global without sharing class NabdCaseCommands {
             English_Summary__c = command.summary.left(MAX_TEXT), NABD_Summary_Hash__c = hashOf(command.summary.left(MAX_TEXT)),
             NABD_Issue_Id__c = command.issueId, NABD_Conversation_Id__c = clip(command.conversationId, 64),
             ShopEasy_Order__c = orderId, Staff_Action_Required__c = command.staffAction,
-            Staff_Action_Completed__c = false
+            Staff_Action_Completed__c = false, Negative_Streak__c = 0
         );
+        observeContact(command, created, contactIn(command.evidence), true);
         insert as system created;
         Result result = outcome(command, 'confirmed', null, null);
-        result.evidenceAdded = addEvidence(command, created.Id, command.issueId);
+        result.evidenceAdded = insertEvidence(command, newEvidence(command, created.Id, command.issueId));
         return describe(result, created.Id);
     }
 
@@ -299,9 +308,16 @@ global without sharing class NabdCaseCommands {
         if (target.Status == 'Waiting on Customer') {
             target.Status = 'Working'; // the customer came back with more information
         }
+        return save(command, target, result, false);
+    }
+
+    /** Applies the assessment, the contact and the new evidence of an update to an existing case. */
+    static Result save(Command command, Case target, Result result, Boolean restartStreak) {
+        List<Complaint_Evidence__c> fresh = newEvidence(command, target.Id, issuePrefix(target));
+        observeContact(command, target, contactIn(fresh), restartStreak);
         applyAssessment(command, target, result);
         update as system target;
-        result.evidenceAdded = addEvidence(command, target.Id, issuePrefix(target));
+        result.evidenceAdded = insertEvidence(command, fresh);
         return describe(result, target.Id);
     }
 
@@ -322,19 +338,13 @@ global without sharing class NabdCaseCommands {
         if (String.isNotBlank(target.Staff_Action_Required__c)) {
             target.Staff_Action_Completed__c = false;
         }
-        applyAssessment(command, target, result);
-        update as system target;
-        result.evidenceAdded = addEvidence(command, target.Id, issuePrefix(target));
-        return describe(result, target.Id);
+        return save(command, target, result, true); // a new unresolved period: the streak restarts
     }
 
     static Result requestClosure(Command command, Case target) {
         Result result = outcome(command, 'confirmed', null, null);
         target.Status = 'Waiting on Customer'; // resolved on the record; the customer is asked to confirm
-        applyAssessment(command, target, result);
-        update as system target;
-        result.evidenceAdded = addEvidence(command, target.Id, issuePrefix(target));
-        return describe(result, target.Id);
+        return save(command, target, result, false);
     }
 
     static Result closeCase(Command command, Case target) {
@@ -343,10 +353,7 @@ global without sharing class NabdCaseCommands {
         target.Resolution_Outcome__c = 'resolved';
         target.Resolution_Confirmed_At__c = System.now();
         target.Resolution_Confirmation_Message__c = command.confirmationMessageId.left(64);
-        applyAssessment(command, target, result);
-        update as system target;
-        result.evidenceAdded = addEvidence(command, target.Id, issuePrefix(target));
-        return describe(result, target.Id);
+        return save(command, target, result, false);
     }
 
     /** NABD's own assessment fields, without overwriting what staff changed. */
@@ -385,9 +392,53 @@ global without sharing class NabdCaseCommands {
         }
     }
 
-    static Integer addEvidence(Command command, Id caseId, String prefix) {
+    /**
+     * One customer contact: the command carries sentiment and adds new customer evidence. The
+     * streak counts consecutive negative contacts; any other contact resets it. A create or a
+     * reopening starts a new unresolved period, so the streak restarts there.
+     */
+    static void observeContact(Command command, Case target, Boolean contact, Boolean restart) {
+        if (!contact || String.isBlank(command.sentiment)) {
+            return;
+        }
+        Decimal streak = restart || target.Negative_Streak__c == null ? 0 : target.Negative_Streak__c;
+        target.Negative_Streak__c = NEGATIVE.contains(command.sentiment) ? streak + 1 : 0;
+    }
+
+    static Boolean contactIn(List<EvidenceItem> items) {
+        for (EvidenceItem item : items == null ? new List<EvidenceItem>() : items) {
+            if (CONTACT_KINDS.contains(item.kind)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static Boolean contactIn(List<Complaint_Evidence__c> rows) {
+        for (Complaint_Evidence__c row : rows) {
+            if (CONTACT_KINDS.contains(row.Evidence_Kind__c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static Integer insertEvidence(Command command, List<Complaint_Evidence__c> fresh) {
+        for (Complaint_Evidence__c row : fresh) {
+            if (CONTACT_KINDS.contains(row.Evidence_Kind__c) && String.isNotBlank(command.sentiment)) {
+                row.Assessed_Sentiment__c = command.sentiment; // NABD's assessment at this contact
+            }
+        }
+        if (!fresh.isEmpty()) {
+            insert as system fresh;
+        }
+        return fresh.size();
+    }
+
+    /** The command's evidence rows whose keys the case does not have yet (not inserted). */
+    static List<Complaint_Evidence__c> newEvidence(Command command, Id caseId, String prefix) {
         if (command.evidence == null || command.evidence.isEmpty()) {
-            return 0;
+            return new List<Complaint_Evidence__c>();
         }
         Map<String, Complaint_Evidence__c> byKey = new Map<String, Complaint_Evidence__c>();
         for (EvidenceItem item : command.evidence) {
@@ -409,11 +460,7 @@ global without sharing class NabdCaseCommands {
         ]) {
             byKey.remove(row.Evidence_Key__c);
         }
-        List<Complaint_Evidence__c> fresh = byKey.values();
-        if (!fresh.isEmpty()) {
-            insert as system fresh;
-        }
-        return fresh.size();
+        return byKey.values();
     }
 
     // --- Validation ---------------------------------------------------------------------

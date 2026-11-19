@@ -96,6 +96,8 @@ class Evidence:
     script: str | None
     captured_at: datetime
     verified_source: str | None = None
+    # Phase 6: NABD's sentiment at this contact; customer messages default to the case's sentiment.
+    sentiment: str | None = None
 
 
 @dataclass(frozen=True)
@@ -344,6 +346,12 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
                 Evidence("FX-FACT-0001", "verified_fact",
                          "Delivery SE-1071 has status Lost; last scan at London hub.",
                          "en", "latin", at(-2, 14, 6), verified_source="ShopEasy_Delivery__c:SE-1071"),
+                # Phase 6: the next follow-up is still negative, so this open case shows the
+                # persistent-negative-sentiment warning after seeding.
+                Evidence("FX-MSG-0010", "customer_report",
+                         "It's been another day and still nothing about my watch. Nobody has told me what "
+                         "the carrier found. This is really frustrating.",
+                         "en", "latin", at(-1, 10, 30)),
             ),
         ),
         Complaint(
@@ -409,7 +417,7 @@ def _complaints(seed_date: date) -> tuple[Complaint, ...]:
                 Evidence("FX-MSG-0005", "customer_report",
                          "Bonjour, ma commande SE-1146 devait arriver il y a plusieurs jours et le suivi "
                          "indique maintenant « perdu ». Que pouvez-vous faire ?",
-                         "fr", "latin", at(-20, 10, 2)),
+                         "fr", "latin", at(-20, 10, 2), sentiment="negative"),
                 Evidence("FX-FACT-0005", "verified_fact",
                          "Delivery SE-1146 has status Lost; replacement order SE-1147 was delivered.",
                          "en", "latin", at(-9, 12, 0), verified_source="ShopEasy_Delivery__c:SE-1147"),

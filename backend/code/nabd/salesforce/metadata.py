@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Iterable
 import xml.etree.ElementTree as ET
 
+from nabd.salesforce import analytics as a
 from nabd.salesforce import schema as s
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -23,8 +24,8 @@ NS = "http://soap.sforce.com/2006/04/metadata"
 
 # Folders whose entire content is generated. Everything else is hand-written.
 GENERATED_FOLDERS = (
-    "applications", "customMetadata", "groups", "layouts", "objects", "permissionsets", "queues",
-    "sharingRules", "standardValueSets", "tabs",
+    "applications", "customMetadata", "dashboards", "groups", "layouts", "objects", "permissionsets", "queues",
+    "reports", "sharingRules", "standardValueSets", "tabs",
 )
 
 
@@ -136,7 +137,27 @@ def _value_set(values: Iterable[s.PicklistValue]) -> Node:
     )
 
 
+def formula_field_file(obj: s.SObject, field: s.Field) -> str:
+    """A calculated field: Salesforce computes the value when the record is read."""
+    return document(
+        "CustomField",
+        n("fullName", field.name),
+        n("description", field.description) if field.description else None,
+        n("externalId", False),
+        n("formula", field.formula),
+        n("formulaTreatBlanksAs", "BlankAsBlank"),
+        n("label", field.label),
+        n("required", False),
+        n("trackHistory", False) if obj.custom else None,
+        n("trackTrending", False),
+        n("type", field.type),
+        n("unique", False) if field.type == "Text" else None,
+    )
+
+
 def field_file(obj: s.SObject, field: s.Field) -> str:
+    if field.formula:
+        return formula_field_file(obj, field)
     track = obj.custom and obj.enable_history and field.name == "Status__c"
     is_text = field.type == "Text"
     is_md = field.type == "MasterDetail"
@@ -430,12 +451,27 @@ def integration_permission_set() -> str:
     return document(
         "PermissionSet",
         n("description", "Read-only API access for the NABD backend integration user. Covers only the "
-                         "fields the read adapter returns, and subscribing to the NABD case change event. "
-                         "Writes go only through the case command gateway."),
+                         "fields the read adapter returns, subscribing to the NABD case change event and "
+                         "publishing NABD risk checks. Writes go only through the case command gateway."),
         *_field_permissions(readable, integration=True),
         n("hasActivationRequired", False),
         n("label", "NABD Integration Read"),
         *[_object_permission(obj.name, create=False, edit=False, view_all=False) for obj in readable],
+        *[_event_publish_permission(obj.name) for obj in s.OBJECTS if obj.integration_publishable],
+    )
+
+
+def _event_publish_permission(name: str) -> Node:
+    """Create (publish) on one platform event: the risk check (Phase 6). Salesforce requires Read with it."""
+    return n(
+        "objectPermissions",
+        n("allowCreate", True),
+        n("allowDelete", False),
+        n("allowEdit", False),
+        n("allowRead", True),
+        n("modifyAllRecords", False),
+        n("object", name),
+        n("viewAllRecords", False),
     )
 
 
@@ -518,6 +554,151 @@ def knowledge_sharing_file() -> str:
     )
 
 
+# --- Analytics (Phase 6) --------------------------------------------------------------
+
+
+def _folder_file(root: str, label: str) -> str:
+    return document(
+        root,
+        n("folderShares", n("accessLevel", "View"), n("sharedTo", a.SHARED_WITH_GROUP), n("sharedToType", "Group")),
+        n("name", label),
+    )
+
+
+def report_file(report: a.Report) -> str:
+    filters = [
+        n("criteriaItems", n("column", item.column), n("columnToColumn", False), n("isUnlocked", True),
+          n("operator", item.operator), Node("value", item.value))
+        for item in report.filters
+    ]
+    interval = f"INTERVAL_LAST{report.created_last_days}" if report.created_last_days else "INTERVAL_CUSTOM"
+    grouped = report.grouping.column if report.grouping else None
+    return document(
+        "Report",
+        *[n("columns", n("field", column)) for column in report.columns if column != grouped],
+        n("description", report.description),
+        n("filter", *filters) if filters else None,
+        n("format", "Tabular" if report.tabular else "Summary"),
+        n("groupingsDown", n("dateGranularity", "Day"), n("field", report.grouping.column),
+          n("sortOrder", "Asc")) if report.grouping else None,
+        n("name", report.label),
+        n("reportType", report.report_type),
+        n("rowLimit", report.row_limit) if report.row_limit else None,
+        n("scope", "organization"),
+        n("showDetails", report.tabular),
+        n("showGrandTotal", True),
+        n("showSubTotals", True),
+        n("sortColumn", report.sort_column) if report.sort_column else None,
+        n("sortOrder", "Desc" if report.sort_descending else "Asc") if report.sort_column else None,
+        n("timeFrameFilter", n("dateColumn", report.date_column), n("interval", interval)),
+    )
+
+
+def _component(component: a.Component) -> Node:
+    report = f"{a.REPORT_FOLDER}/{component.report}"
+    if component.kind == "Metric":
+        body = (
+            n("autoselectColumnsFromReport", True),
+            n("componentType", "Metric"),
+            n("displayUnits", "Auto"),
+            n("footer", component.footer) if component.footer else None,
+            n("header", component.header),
+            n("indicatorHighColor", "#54C254"),
+            n("indicatorLowColor", "#C25454"),
+            n("indicatorMiddleColor", "#C2C254"),
+            n("report", report),
+            n("showRange", False),
+        )
+    elif component.kind == "FlexTable":
+        source = a.REPORTS_BY_NAME[component.report]
+        columns = source.columns
+        # Lightning tables must state a sort; it follows the report's own (1 ascending, 2 descending).
+        sort = n("flexTableSortInfo", n("sortColumn", source.sort_column or columns[0]),
+                 n("sortOrder", 2 if source.sort_descending else 1))
+        body = (
+            n("autoselectColumnsFromReport", False),
+            n("componentType", "FlexTable"),
+            n("flexComponentProperties",
+              n("decimalPrecision", -1),
+              *[n("flexTableColumn", n("reportColumn", column), n("showSubTotal", False), n("showTotal", False),
+                  n("type", "detail")) for column in columns],
+              sort,
+              n("hideChatterPhotos", True)),
+            n("footer", component.footer) if component.footer else None,
+            n("groupingSortProperties"),
+            n("header", component.header),
+            n("report", report),
+        )
+    else:
+        body = (
+            n("autoselectColumnsFromReport", True),
+            n("chartAxisRange", "Auto"),
+            n("componentType", component.kind),
+            n("displayUnits", "Auto"),
+            n("drillEnabled", False),
+            n("drillToDetailEnabled", False),
+            n("enableHover", False),
+            n("expandOthers", False),
+            n("footer", component.footer) if component.footer else None,
+            n("groupingSortProperties"),
+            n("header", component.header),
+            n("legendPosition", "Right" if component.kind == "Donut" else "Bottom"),
+            n("maxValuesDisplayed", 12),
+            n("report", report),
+            n("showPercentage", False),
+            n("showTotal", component.kind == "Donut"),
+            n("showValues", True),
+            n("sortBy", "RowLabelAscending"),
+            n("useReportChart", False),
+        )
+    return n(
+        "dashboardGridComponents",
+        n("colSpan", component.columns),
+        n("columnIndex", component.column),
+        n("dashboardComponent", *body),
+        n("rowIndex", component.row),
+        n("rowSpan", component.rows),
+    )
+
+
+def dashboard_file(dashboard: a.Dashboard) -> str:
+    """A dynamic Lightning dashboard: each viewer sees it with their own access."""
+    return document(
+        "Dashboard",
+        n("backgroundEndColor", "#FFFFFF"),
+        n("backgroundFadeDirection", "Diagonal"),
+        n("backgroundStartColor", "#FFFFFF"),
+        n("chartTheme", "light"),
+        n("colorPalette", "unity"),
+        n("dashboardChartTheme", "light"),
+        n("dashboardColorPalette", "unity"),
+        n("dashboardGridLayout",
+          *[_component(component) for component in dashboard.components],
+          n("numberOfColumns", 12),
+          n("rowHeight", 36)),
+        n("dashboardType", "LoggedInUser"),
+        n("description", dashboard.description),
+        n("isGridLayout", True),
+        n("textColor", "#000000"),
+        n("title", dashboard.title),
+        n("titleColor", "#000000"),
+        n("titleSize", 12),
+    )
+
+
+def _analytics_files() -> dict[str, str]:
+    files = {
+        f"reports/{a.REPORT_FOLDER}.reportFolder-meta.xml": _folder_file("ReportFolder", a.REPORT_FOLDER_LABEL),
+        f"dashboards/{a.DASHBOARD_FOLDER}.dashboardFolder-meta.xml":
+            _folder_file("DashboardFolder", a.DASHBOARD_FOLDER_LABEL),
+    }
+    for report in a.REPORTS:
+        files[f"reports/{a.REPORT_FOLDER}/{report.name}.report-meta.xml"] = report_file(report)
+    for dashboard in a.DASHBOARDS:
+        files[f"dashboards/{a.DASHBOARD_FOLDER}/{dashboard.name}.dashboard-meta.xml"] = dashboard_file(dashboard)
+    return files
+
+
 # --- Assembly -----------------------------------------------------------------------
 
 
@@ -556,6 +737,7 @@ def render() -> dict[str, str]:
     files["standardValueSets/CaseStatus.standardValueSet-meta.xml"] = case_status_file()
     files["standardValueSets/CaseOrigin.standardValueSet-meta.xml"] = case_origin_file()
     files["sharingRules/KnowledgeEntry__c.sharingRules-meta.xml"] = knowledge_sharing_file()
+    files.update(_analytics_files())
     return dict(sorted(files.items()))
 
 

@@ -11,6 +11,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
+from nabd.salesforce import analytics as a
 from nabd.salesforce import fixtures as fx
 from nabd.salesforce import schema as s
 from nabd.salesforce import seed
@@ -248,7 +249,9 @@ async def verify_data(client: SalesforceClient, dataset: fx.Dataset) -> list[Che
                 or len(row.get("Complaint_Evidence__r") or []) != len(complaint.evidence)):
             bad.append(complaint.issue_id)
     checks.append(Check("cases route to category queues with evidence", not bad, ", ".join(bad)))
-    tasks = await client.query("SELECT NABD_Task_Key__c, WhatId FROM Task WHERE NABD_Task_Key__c != null")
+    # Risk-warning tasks (Phase 6) belong to warnings, not fixtures; verify_risk_and_analytics checks them.
+    tasks = await client.query("SELECT NABD_Task_Key__c, WhatId FROM Task WHERE NABD_Task_Key__c != null "
+                               "AND NABD_Follow_Up_Type__c = 'case_follow_up'")
     case_ids = {row["Id"]: row["NABD_Issue_Id__c"] for row in cases}
     task_cases = {row["NABD_Task_Key__c"]: case_ids.get(row["WhatId"]) for row in tasks}
     checks.append(_compare("follow-up tasks link their cases",
@@ -283,11 +286,17 @@ async def verify_access(client: SalesforceClient, *, org_id: str, staff_username
         checks.append(Check("gateway permission set runs only the case command gateway",
                             [row["SetupEntityId"] for row in gateway] == [row["Id"] for row in classes] != []))
         object_rights = await client.query(
-            "SELECT SobjectType FROM ObjectPermissions WHERE (PermissionsCreate = true OR PermissionsEdit = true "
+            "SELECT SobjectType, PermissionsCreate, PermissionsEdit, PermissionsDelete, PermissionsRead "
+            "FROM ObjectPermissions WHERE (PermissionsCreate = true OR PermissionsEdit = true "
             "OR PermissionsDelete = true) AND Parent.Name IN "
             f"{literal_list([s.INTEGRATION_PERMISSION_SET, s.GATEWAY_PERMISSION_SET])}")
-        checks.append(Check("integration user has no object create/edit/delete rights", not object_rights,
-                            ", ".join(row["SobjectType"] for row in object_rights)))
+        # The one allowed exception (Phase 6): publishing risk-check events, which name a customer to
+        # re-evaluate and are not records. Anything else, or edit/delete on it, fails.
+        publishable = {obj.name for obj in s.OBJECTS if obj.integration_publishable}
+        writes = [row["SobjectType"] for row in object_rights
+                  if row["SobjectType"] not in publishable or row["PermissionsEdit"] or row["PermissionsDelete"]]
+        checks.append(Check("integration user has no record create/edit/delete rights", not writes,
+                            ", ".join(writes) or "publishes " + ", ".join(sorted(publishable))))
         groups = await client.query("SELECT Group.DeveloperName FROM GroupMember WHERE "
                                     f"UserOrGroupId = {literal(user['Id'])}")
         checks.append(_compare("integration user groups", [s.INTEGRATION_GROUP],
@@ -297,4 +306,92 @@ async def verify_access(client: SalesforceClient, *, org_id: str, staff_username
         f"ExternalClientApplication WHERE DeveloperName = {literal(s.EXTERNAL_CLIENT_APP)})")
     checks.append(_compare("client app approved permission sets", [s.INTEGRATION_PERMISSION_SET],
                            sorted(row["Parent"]["Name"] for row in approvals)))
+    return checks
+
+
+# --- Risk engine schedule and Phase 6 checks -------------------------------------------
+
+
+async def execute_anonymous(client: SalesforceClient, apex: str) -> None:
+    """Run anonymous Apex as the developer (Tooling API); raise if it does not compile or fails."""
+    result = await client.request("GET", f"{client.base_path}/tooling/executeAnonymous/",
+                                  params={"anonymousBody": apex})
+    if not result.get("compiled") or not result.get("success"):
+        problem = result.get("compileProblem") or result.get("exceptionMessage") or "unknown error"
+        raise RuntimeError(f"Anonymous Apex failed: {problem}")
+
+
+async def risk_schedule(client: SalesforceClient) -> dict[str, Any] | None:
+    return await _one(client, "SELECT Id, State, NextFireTime, CronExpression FROM CronTrigger "
+                              f"WHERE CronJobDetail.Name = {literal(s.RISK_SCHEDULE_JOB)}")
+
+
+async def ensure_risk_schedule(client: SalesforceClient) -> bool:
+    """Schedule the hourly risk sweep if it is not scheduled. True when it was scheduled now."""
+    if await risk_schedule(client):
+        return False
+    if not await _one(client, "SELECT Id FROM ApexClass WHERE Name = 'NabdRiskSchedule' AND Status = 'Active'"):
+        raise RuntimeError("Deploy the metadata before scheduling the risk engine.")
+    await execute_anonymous(client, "NabdRiskSchedule.ensure();")
+    return True
+
+
+async def pause_risk_schedule(client: SalesforceClient) -> bool:
+    """Abort the hourly job (Salesforce refuses to redeploy scheduled Apex). True if one was running."""
+    job = await risk_schedule(client)
+    if job is None:
+        return False
+    await execute_anonymous(client, f"System.abortJob({literal(job['Id'])});")
+    return True
+
+
+async def verify_risk_and_analytics(client: SalesforceClient, *, org_id: str) -> list[Check]:
+    checks = []
+    triggers = await client.query("SELECT Name, Status FROM ApexTrigger WHERE Name IN "
+                                  f"{literal_list(list(s.RISK_TRIGGERS))}")
+    checks.append(_compare("risk triggers active", sorted(s.RISK_TRIGGERS),
+                           sorted(row["Name"] for row in triggers if row["Status"] == "Active")))
+    job = await risk_schedule(client)
+    checks.append(Check("risk engine scheduled hourly",
+                        bool(job and job["CronExpression"] == s.RISK_SCHEDULE_CRON
+                             and job["State"] in ("WAITING", "ACQUIRED", "EXECUTING")),
+                        f"state {job['State']}, next {job['NextFireTime']}" if job else "not scheduled"))
+    rules = await client.query(f"SELECT Rule_Key__c, Rule_Code__c, Version__c FROM {s.RISK_RULE.name} "
+                               "WHERE Active__c = true")
+    codes = sorted(row["Rule_Code__c"] for row in rules)
+    keys_ok = all(row["Rule_Key__c"] == f"{row['Rule_Code__c']}@{int(row['Version__c'])}" for row in rules)
+    checks.append(Check("one active version of each risk rule", codes == sorted(s.RISK_RULE_CODES) and keys_ok,
+                        ", ".join(sorted(row["Rule_Key__c"] for row in rules))))
+    episodes = await client.query(f"SELECT Id, Name, Follow_Up_Task_Id__c FROM {s.RISK_EPISODE.name}")
+    risk_tasks = await client.query("SELECT Id, WhatId FROM Task WHERE NABD_Follow_Up_Type__c = 'risk_warning'")
+    per_episode = Counter(row["WhatId"] for row in risk_tasks)
+    bad = [row["Name"] for row in episodes
+           if per_episode.get(row["Id"]) != 1
+           or row["Follow_Up_Task_Id__c"] not in {task["Id"] for task in risk_tasks if task["WhatId"] == row["Id"]}]
+    checks.append(Check("each warning owns exactly one follow-up task", not bad and len(risk_tasks) == len(episodes),
+                        ", ".join(bad) or f"{len(episodes)} warnings, {len(risk_tasks)} tasks"))
+    reports = await client.query("SELECT DeveloperName FROM Report WHERE FolderName = "
+                                 f"{literal(a.REPORT_FOLDER_LABEL)}")
+    checks.append(_compare("analytics reports", sorted(report.name for report in a.REPORTS),
+                           sorted(row["DeveloperName"] for row in reports)))
+    dashboards = await client.query("SELECT DeveloperName FROM Dashboard WHERE FolderName = "
+                                    f"{literal(a.DASHBOARD_FOLDER_LABEL)}")
+    checks.append(_compare("analytics dashboards", sorted(item.name for item in a.DASHBOARDS),
+                           sorted(row["DeveloperName"] for row in dashboards)))
+    # Everything the integration user holds, profile included: no risk, task, evidence or sentiment data.
+    user = await _one(client, f"SELECT Id FROM User WHERE Username = {literal(integration_username(org_id))}")
+    if user:
+        assigned = f"(SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = {literal(user['Id'])})"
+        hidden_objects = [s.RISK_RULE.name, s.RISK_EPISODE.name, s.RISK_EVIDENCE.name, s.EVIDENCE.name, "Task"]
+        objects = await client.query(
+            "SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN "
+            f"{literal_list(hidden_objects)} AND ParentId IN {assigned}")
+        internal = [f"Case.{field.name}" for field in s.CASE.fields
+                    if field.custom and not field.integration_readable]
+        fields = await client.query(
+            f"SELECT Field FROM FieldPermissions WHERE PermissionsRead = true AND Field IN {literal_list(internal)} "
+            f"AND ParentId IN {assigned}")
+        leaks = sorted({row["SobjectType"] for row in objects} | {row["Field"] for row in fields})
+        checks.append(Check("integration user cannot read risk, task, evidence or sentiment data", not leaks,
+                            ", ".join(leaks)))
     return checks

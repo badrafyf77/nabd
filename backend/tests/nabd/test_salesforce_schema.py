@@ -15,7 +15,7 @@ NS = {"m": metadata.NS}
 INTERNAL_CASE_FIELDS = {
     "Sentiment__c", "Urgency__c", "Classification_Confidence__c", "Needs_Review__c", "Description",
     "Customer_Language__c", "NABD_Assessed_Priority__c", "NABD_Priority_Reason__c", "NABD_Summary_Hash__c",
-    s.SEED_FINGERPRINT,
+    s.SEED_FINGERPRINT, "Negative_Streak__c", "NABD_Open_Since__c", "NABD_Open_Age_Band__c",  # Phase 6
 }
 BOOKKEEPING_FIELDS = {s.SEED_FINGERPRINT, "NABD_Summary_Hash__c"}  # not shown on layouts
 
@@ -35,7 +35,7 @@ def test_names_and_sizes_respect_salesforce_limits():
             assert re.fullmatch(r"[A-Z][A-Za-z0-9_]{0,39}__c", field.name), field.name
             assert "__" not in field.name[:-3], field.name
             assert len(field.label) <= 40, field.name
-            if field.type == "Text":
+            if field.type == "Text" and not field.formula:
                 assert field.length and field.length <= 255, field.name
             if field.type == "LongTextArea":
                 assert 256 <= field.length <= 131072 and field.visible_lines, field.name
@@ -96,6 +96,37 @@ def test_integration_user_reads_only_customer_safe_data():
                 assert not field.integration_readable, obj.name
 
 
+def test_risk_and_sentiment_data_stay_out_of_the_integration_user_s_reach():
+    # Phase 6: warnings, their evidence, rules, tasks and per-contact sentiment are staff-only.
+    for name in ("Risk_Rule__c", "Risk_Episode__c", "Risk_Evidence__c", "Task", "Complaint_Evidence__c"):
+        obj = s.sobject(name)
+        assert not obj.integration_readable, name
+        assert not any(field.integration_readable for field in obj.fields), name
+
+
+def test_formula_and_engine_fields_are_read_only_for_staff():
+    formulas = [(obj, field) for obj in s.OBJECTS for field in obj.fields if field.formula]
+    assert {field.name for _, field in formulas} == {"NABD_Open_Since__c", "NABD_Open_Age_Band__c"}
+    for obj, field in formulas:
+        assert not field.staff_editable and not field.required and not field.unique, field.name
+    engine_owned = {
+        "Risk_Episode__c": {"Active_Key__c", "Status__c", "Opened_At__c", "Cleared_At__c", "Clear_Reason__c",
+                            "Last_Evaluated_At__c", "Evidence_Count__c", "Explanation__c", "Rule_Code__c",
+                            "Rule_Version__c", "Follow_Up_Task_Id__c"},
+        "Risk_Evidence__c": {"Current__c", "Detail__c", "Observed_At__c", "Case__c", "Complaint_Evidence__c"},
+        "Risk_Rule__c": {"Rule_Key__c", "Last_Evaluated_At__c", "Last_Error__c"},
+        "Case": {"Negative_Streak__c"},
+        "Complaint_Evidence__c": {"Assessed_Sentiment__c"},
+    }
+    for name, fields in engine_owned.items():
+        for field in fields:
+            assert not s.sobject(name).field(field).staff_editable, f"{name}.{field}"
+    # One active warning per customer and rule is enforced by a unique, optional key.
+    active = s.RISK_EPISODE.field("Active_Key__c")
+    assert active.unique and active.case_sensitive and not active.required
+    assert s.CASE.field("NABD_Open_Age_Band__c").formula.count("NABD_Open_Since__c") == 3
+
+
 def test_layouts_only_reference_contract_fields_and_show_every_staff_field():
     for obj in s.OBJECTS:
         shown = {name for section in obj.layout_sections for name in (*section.left, *section.right)}
@@ -135,11 +166,16 @@ def test_rendering_is_deterministic_and_well_formed(rendered):
 
 def test_integration_permission_set_is_read_only(rendered):
     root = _parse(rendered["permissionsets/NABD_Integration_Read.permissionset-meta.xml"])
+    publishing = []
     for permission in root.findall("m:objectPermissions", NS):
         flags = {child.tag.split("}")[1]: child.text for child in permission}
         assert flags["allowRead"] == "true"
-        assert {flags[name] for name in ("allowCreate", "allowEdit", "allowDelete", "modifyAllRecords",
+        if flags["allowCreate"] == "true":
+            # Phase 6: the only create right is publishing the risk-check event, which is not a record.
+            publishing.append(flags["object"])
+        assert {flags[name] for name in ("allowEdit", "allowDelete", "modifyAllRecords",
                                          "viewAllRecords")} == {"false"}
+    assert publishing == ["NABD_Risk_Check__e"] and s.sobject(publishing[0]).is_event
     fields = {item.find("m:field", NS).text for item in root.findall("m:fieldPermissions", NS)}
     assert all(item.find("m:editable", NS).text == "false" for item in root.findall("m:fieldPermissions", NS))
     assert not {f"Case.{name}" for name in INTERNAL_CASE_FIELDS} & fields

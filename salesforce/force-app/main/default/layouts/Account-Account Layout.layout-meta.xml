@@ -446,7 +446,7 @@
     </relatedLists>
     <relatedLists>
         <fields>NAME</fields>
-        <fields>Risk_Rule__c</fields>
+        <fields>Rule_Code__c</fields>
         <fields>Status__c</fields>
         <fields>Opened_At__c</fields>
         <relatedList>Risk_Episode__c.Account__c</relatedList>

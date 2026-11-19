@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Read-only API access for the NABD backend integration user. Covers only the fields the read adapter returns, and subscribing to the NABD case change event. Writes go only through the case command gateway.</description>
+    <description>Read-only API access for the NABD backend integration user. Covers only the fields the read adapter returns, subscribing to the NABD case change event and publishing NABD risk checks. Writes go only through the case command gateway.</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>Account.BillingAddress</field>
@@ -283,6 +283,15 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>ShopEasy_Order__c</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>NABD_Risk_Check__e</object>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
 </PermissionSet>

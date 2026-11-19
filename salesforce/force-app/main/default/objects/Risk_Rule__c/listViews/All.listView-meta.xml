@@ -6,6 +6,7 @@
     <columns>Rule_Code__c</columns>
     <columns>Version__c</columns>
     <columns>Active__c</columns>
+    <columns>Last_Evaluated_At__c</columns>
     <filterScope>Everything</filterScope>
     <label>All</label>
 </ListView>

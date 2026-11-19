@@ -317,6 +317,59 @@ private class NabdCaseCommandsTest {
         System.assertEquals(true, reload((Id) (String) result.get('caseId')).Needs_Review__c);
     }
 
+    static Integer streak(Id caseId) {
+        Decimal value = [SELECT Negative_Streak__c FROM Case WHERE Id = :caseId WITH SYSTEM_MODE].Negative_Streak__c;
+        return value == null ? null : value.intValue();
+    }
+
+    @IsTest
+    static void eachNewCustomerContactRecordsItsSentimentAndTheNegativeStreak() {
+        Id caseId = createCase('op-create-0100', 'nabd-issue-test-0100'); // negative report: streak 1
+        System.assertEquals(1, streak(caseId));
+        Map<String, String> sentiments = new Map<String, String>();
+        for (Complaint_Evidence__c row : [SELECT Source_Message_Id__c, Assessed_Sentiment__c FROM Complaint_Evidence__c
+                                          WHERE Case__c = :caseId WITH SYSTEM_MODE]) {
+            sentiments.put(row.Source_Message_Id__c, row.Assessed_Sentiment__c);
+        }
+        System.assertEquals('negative', sentiments.get('msg-0001'));
+        System.assertEquals(null, sentiments.get('fact:0001')); // facts are not customer contacts
+
+        Map<String, Object> followUp = change('update_case', 'op-update-0100', caseId);
+        followUp.put('sentiment', 'very_negative');
+        String body = JSON.serialize(followUp);
+        System.assertEquals(1, post(body).get('evidenceAdded'));
+        System.assertEquals(2, streak(caseId));
+        System.assertEquals(true, post(body).get('replayed'));
+        System.assertEquals(2, streak(caseId)); // a replay is not another contact
+
+        Map<String, Object> sameMessages = change('update_case', 'op-update-0101', caseId);
+        sameMessages.put('sentiment', 'negative');
+        System.assertEquals(0, post(sameMessages).get('evidenceAdded'));
+        System.assertEquals(2, streak(caseId)); // no new customer evidence: no new contact
+
+        Map<String, Object> calmer = change('update_case', 'op-update-0102', caseId);
+        calmer.put('sentiment', 'neutral');
+        calmer.put('evidence', new List<Object>{evidence('msg-0003', 'customer_report', 'Thanks, that helps.')});
+        post(calmer);
+        System.assertEquals(0, streak(caseId));
+        System.assertEquals('neutral', [SELECT Assessed_Sentiment__c FROM Complaint_Evidence__c
+                                        WHERE Case__c = :caseId AND Source_Message_Id__c = 'msg-0003'
+                                        WITH SYSTEM_MODE].Assessed_Sentiment__c);
+
+        Map<String, Object> worse = change('update_case', 'op-update-0103', caseId);
+        worse.put('sentiment', 'negative');
+        worse.put('evidence', new List<Object>{evidence('msg-0004', 'customer_report', 'It broke again.')});
+        post(worse);
+        System.assertEquals(1, streak(caseId));
+        Case closed = new Case(Id = caseId, Status = 'Closed', Resolution_Outcome__c = 'resolved');
+        update as system closed;
+        Map<String, Object> reopen = change('reopen_case', 'op-reopen-0104', caseId);
+        reopen.put('sentiment', 'negative');
+        reopen.put('evidence', new List<Object>{evidence('msg-0005', 'customer_report', 'Same problem again.')});
+        System.assertEquals('confirmed', post(reopen).get('status'));
+        System.assertEquals(1, streak(caseId)); // a new unresolved period starts a new streak
+    }
+
     @IsTest
     static void malformedAndInvalidCommandsAreRefusedWithoutReceipts() {
         System.assertEquals('malformed', post('not json').get('reason'));

@@ -28,7 +28,8 @@ from nabd_fakes import (
 
 AT = datetime(2026, 11, 18, 10, 0, tzinfo=timezone.utc)
 MID = "11111111-1111-1111-1111-111111111111"
-INTERNAL = ("priority", "sentiment", "urgency", "confidence", "summary", "needs_review", "Medium", "High")
+INTERNAL = ("priority", "sentiment", "urgency", "confidence", "summary", "needs_review", "Medium", "High",
+            "risk", "streak", "episode")  # Phase 6: warnings stay in Salesforce
 
 
 class MemorySink:

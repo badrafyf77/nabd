@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
     <deploymentStatus>Deployed</deploymentStatus>
-    <description>One active warning for a customer and rule; owns at most one follow-up task.</description>
+    <description>One warning for a customer and rule code, opened, updated and cleared by NABD's risk engine. Owns one follow-up task. Never shown to customers.</description>
     <enableActivities>true</enableActivities>
     <enableBulkApi>true</enableBulkApi>
     <enableFeeds>false</enableFeeds>

@@ -120,7 +120,25 @@ def _case(complaint: fx.Complaint) -> SeedRecord:
         "NABD_Summary_Hash__c": summary_hash(complaint.summary),
         "Staff_Action_Required__c": complaint.staff_action,
         "Staff_Action_Completed__c": complaint.staff_action_completed,
+        "Negative_Streak__c": negative_streak(complaint),
     }, references)
+
+
+def assessed_sentiment(complaint: fx.Complaint, evidence: fx.Evidence) -> str | None:
+    """NABD's sentiment at a customer contact; verified facts carry none."""
+    if evidence.kind not in s.CONTACT_EVIDENCE_KINDS:
+        return None
+    return evidence.sentiment or complaint.sentiment
+
+
+def negative_streak(complaint: fx.Complaint) -> int:
+    """The gateway's streak for fixture history: each fixture message is one contact."""
+    streak = 0
+    contacts = sorted((item for item in complaint.evidence if item.kind in s.CONTACT_EVIDENCE_KINDS),
+                      key=lambda item: item.captured_at)
+    for item in contacts:
+        streak = streak + 1 if assessed_sentiment(complaint, item) in s.NEGATIVE_SENTIMENTS else 0
+    return streak
 
 
 def summary_hash(text: str) -> str:
@@ -134,6 +152,7 @@ def _evidence(complaint: fx.Complaint, evidence: fx.Evidence) -> SeedRecord:
         "Original_Text__c": evidence.text, "Original_Language__c": evidence.language,
         "Original_Script__c": evidence.script, "Verified_Source__c": evidence.verified_source,
         "Captured_At__c": evidence.captured_at, "NABD_Conversation_Id__c": complaint.conversation_id,
+        "Assessed_Sentiment__c": assessed_sentiment(complaint, evidence),
     }, {"Case__c": Reference("Case", complaint.issue_id)})
 
 
@@ -215,24 +234,34 @@ def current_values(record: SeedRecord, row: dict[str, Any], reverse: dict[str, d
     return dict(sorted(result.items()))
 
 
-# Fields added to the seed mapping after records were first seeded. Fingerprints
-# written before then do not include them, so a still-empty value is not a staff
-# edit. Append here whenever the mapping of an already-seeded object grows.
-ADDED_FIELDS: dict[str, frozenset[str]] = {
-    s.KNOWLEDGE.name: frozenset({"Policy_Days__c"}),  # Phase 2
-    "Case": frozenset({"NABD_Assessed_Priority__c", "NABD_Priority_Reason__c", "NABD_Summary_Hash__c",
-                       "Staff_Action_Required__c", "Staff_Action_Completed__c"}),  # Phase 3
+# Fields added to the seed mapping after records were first seeded, one set per
+# phase, oldest first. Fingerprints written before a set was added do not include
+# it, so still-empty values of that set and every later one are not a staff edit.
+# Append a new set whenever the mapping of an already-seeded object grows.
+ADDED_FIELDS: dict[str, tuple[frozenset[str], ...]] = {
+    s.KNOWLEDGE.name: (frozenset({"Policy_Days__c"}),),  # Phase 2
+    "Case": (
+        frozenset({"NABD_Assessed_Priority__c", "NABD_Priority_Reason__c", "NABD_Summary_Hash__c",
+                   "Staff_Action_Required__c", "Staff_Action_Completed__c"}),  # Phase 3
+        frozenset({"Negative_Streak__c"}),  # Phase 6
+    ),
+    s.EVIDENCE.name: (frozenset({"Assessed_Sentiment__c"}),),  # Phase 6
 }
 
 
 def _matches_stored(record: SeedRecord, current: dict[str, Any], stored: str) -> bool:
     if fingerprint(current) == stored:
         return True
-    added = ADDED_FIELDS.get(record.sobject, frozenset()) & current.keys()
-    # An unticked checkbox is the empty value of a newly added checkbox field.
-    if not added or any(current[name] not in (None, False) for name in added):
-        return False
-    return fingerprint({name: value for name, value in current.items() if name not in added}) == stored
+    generations = ADDED_FIELDS.get(record.sobject, ())
+    # Try "seeded before the newest set", then before the newest two, and so on. An unticked
+    # checkbox is the empty value of a newly added checkbox field.
+    for start in range(len(generations) - 1, -1, -1):
+        added = frozenset().union(*generations[start:]) & current.keys()
+        if not added or any(current[name] not in (None, False) for name in added):
+            return False
+        if fingerprint({name: value for name, value in current.items() if name not in added}) == stored:
+            return True
+    return False
 
 
 def decide(record: SeedRecord, row: dict[str, Any] | None, reverse: dict[str, dict[str, str]],
