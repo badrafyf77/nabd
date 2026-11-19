@@ -2,8 +2,8 @@
   "date": "2026-11-19",
   "initial_implementation": "6864092",
   "offline": {
-    "macos_postgres": {"passed": 325, "paid_deselected": 142},
-    "linux_postgres": {"passed": 312, "skipped": 13, "paid_deselected": 142}
+    "macos_postgres": {"passed": 326, "paid_deselected": 142},
+    "linux_postgres": {"passed": 313, "skipped": 13, "paid_deselected": 142}
   },
   "salesforce": {
     "apex_passed": 43,

@@ -5,7 +5,7 @@ the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Ph
 is complete at `512e03b`; Phase 1 is complete at `1a04f52`; Phase 2 is complete at
 `02178fa` (plus handoff commits); Phase 3 is complete at 9879593 (plus
 handoff commit); Phase 4 is complete at `b4d5f71`; Phase 5 is complete at `575712a`; Phase 6
-is complete at `45a9445`; Phase 7 is implemented at `6864092` and undergoing release verification. [Accepted decisions](decisions.md)
+is complete at `45a9445`; Phase 7 is implemented on its local branch and the full release gate is pending. [Accepted decisions](decisions.md)
 and [architecture](architecture.md) apply to every phase.
 
 ## Phase 0 — Foundation

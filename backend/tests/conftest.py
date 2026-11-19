@@ -1,4 +1,7 @@
+import asyncio
 import os
+
+import pytest
 
 
 def pytest_configure(config):
@@ -35,3 +38,11 @@ def pytest_runtest_logreport(report):
     import json
     with open(path, "a", encoding="utf-8") as stream:
         stream.write(json.dumps({"kind": "scenario", "node": report.nodeid, "outcome": report.outcome}) + "\n")
+
+
+@pytest.fixture(scope="session")
+def release_loop():
+    # Declare it once for all paid modules. Importing a decorated fixture into
+    # each module registers separate instances even with session scope.
+    with asyncio.Runner() as runner:
+        yield runner

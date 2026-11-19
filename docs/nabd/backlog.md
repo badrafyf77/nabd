@@ -21,9 +21,10 @@
   paid run missed five explicit foreign-order lookups, mislabeled one
   standard Arabic turn and changed one strict French delivery-price boundary.
   The evaluator missed the price issue. The Darija read-through found
-  awkward wording and one incorrect weekday. Keep the holdout frozen during
-  the restarted campaign and use independent examples for later tuning.
-  [Initial campaign evidence](evidence/phase7-campaign.json).
+  awkward wording and one incorrect weekday. The focused recheck recovered
+  the price boundary and two foreign-order lookups. Keep the holdout frozen
+  in future campaign runs and use independent examples for later tuning.
+  [Campaign evidence](evidence/phase7-campaign.json).
 - **Capture earlier tool evidence after crash.** A partial trace marks the
   finishing attempt's evidence boundary. Evaluate keeping short-lived earlier
   attempt tool results if operators routinely need to diagnose partial reviews.

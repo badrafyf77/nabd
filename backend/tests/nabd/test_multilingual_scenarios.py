@@ -3,7 +3,6 @@
 Real models + real Salesforce reads, real MCP, in-memory rule-enforcing case
 write gateway. Never runs in the default suite. Read phase handoff for approval.
 """
-import asyncio
 import re
 from dataclasses import dataclass
 import pytest
@@ -37,12 +36,6 @@ class Scenario:
 
 SCENARIOS = [Scenario(f"{f.name}-{flow}", f, flow) for f in FORMS
              for flow in ("knowledge", "returns", "refund", "switch_case", "ambiguous", "held_out")]
-
-@pytest.fixture(scope="session")
-def loop():
-    # OpenAI's cached async HTTP client outlives each test module.
-    with asyncio.Runner() as runner:
-        yield runner
 
 @pytest.fixture(scope="module")
 def live():
@@ -83,7 +76,7 @@ def check(result, conversation, form, *, operations=None, case=None, language=Tr
     assert not any(e.state == "failed" and (e.code or "").startswith("agent.") for e in result.events)
 
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.name)
-def test_multilingual_scenario(scenario, live, loop, release_evaluator):
+def test_multilingual_scenario(scenario, live, release_loop, release_evaluator):
     models, salesforce = live
     f, flow = scenario.form, scenario.flow
     customer = {"knowledge": "C001", "returns": "C002", "refund": "C002", "switch_case": "C003",
@@ -94,7 +87,7 @@ def test_multilingual_scenario(scenario, live, loop, release_evaluator):
     def say(text, form=f, **expected):
         print(f"\n[{scenario.name}] {c.customer}: {text}")
         nonlocal turn_number
-        result = loop.run(c.say(text))
+        result = release_loop.run(c.say(text))
         turn_number += 1
         operations = expected.get("operations")
         cases = None if operations is None else [(op, None, None, None, expected.get("case")) for op in operations]

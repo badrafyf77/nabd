@@ -5,8 +5,9 @@ needed to resume is in the repository; the previous chat is not required.
 
 ## Current checkpoint
 
-- Branch: `codex/nabd-phase7-quality-release`. Implemented at `6864092`;
-  release verification is in progress. Phases 0–6 are merged into `main`.
+- Branch: `codex/nabd-phase7-quality-release`. Initial implementation
+  `6864092`, followed by harness repairs and the focused recheck handoff.
+  The full release gate is pending. Phases 0–6 are merged into `main`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
@@ -148,7 +149,8 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md, START_HERE and status.
-> Phases 0–6 are complete. Resume the Phase 7 release campaign and handoff
-> on the existing branch. Check completed measurements and any prior
-> approvals. Get separate approval for each remaining paid run, and merge
-> into main and push both branches as badrafyf77 once the phase is finished.
+> Phases 0–6 are complete. Phase 7 is implemented on the existing branch.
+> The owner limited paid verification to a focused recheck after one full
+> attempt. Resume only if asked. Check prior evidence and get separate
+> approval for each further run. Merge into main and push both branches
+> as badrafyf77 once the phase is finished.

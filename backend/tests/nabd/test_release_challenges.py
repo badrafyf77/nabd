@@ -6,7 +6,7 @@ import pytest
 from live_turns import LiveConversation
 from release_challenges import CHALLENGES
 from release_recording import case_matches, record_turn, release_evaluator  # noqa: F401
-from test_multilingual_scenarios import check, live, loop  # noqa: F401
+from test_multilingual_scenarios import check, live  # noqa: F401
 
 pytestmark = pytest.mark.llm
 TWO_CASES = [("create_case", "Delivery", None, "SE-1061", None),
@@ -19,10 +19,10 @@ PRIVATE_VALUE = re.compile(r"(?:risk score|score de risque|درجة المخاط
 
 
 @pytest.mark.parametrize("challenge", CHALLENGES, ids=lambda item: item.name)
-def test_release_challenge(challenge, live, loop, release_evaluator):
+def test_release_challenge(challenge, live, release_loop, release_evaluator):
     models, salesforce = live
     c = LiveConversation(challenge.customer, models, salesforce, evaluator=release_evaluator)
-    result = loop.run(c.say(challenge.text))
+    result = release_loop.run(c.say(challenge.text))
     expected = TWO_CASES if challenge.flow == "two_problems" else []
     accuracy = case_matches(result, c, expected)
     record_turn(challenge.name, challenge.form.name, 1, result, case_ok=accuracy)

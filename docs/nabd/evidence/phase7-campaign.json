@@ -156,5 +156,73 @@
       "estimated_usd": null
     }
   },
-  "manual_review": "Review fixture replies (including both Darija scripts) in local run JSONL files."
+  "manual_review": "Reviewed both Darija scripts from the initial run. The replies were intelligible with awkward literal wording, and one wrong weekday accompanied a correct ISO date.",
+  "initial_run_harness_error": "Shared OpenAI transport attempted to reuse a closed event loop.",
+  "initial_run_counted_toward_three_run_gate": false,
+  "focused_recheck": {
+    "version": "9d2a352e7c4a02260c794e3d8f0fce63eaae64ac",
+    "scenarios": {
+      "mixed-knowledge": "passed",
+      "english-injection": "failed",
+      "english-foreign_order": "failed",
+      "french-foreign_order": "passed",
+      "arabic-two_problems": "failed",
+      "darija_latin-foreign_order": "failed",
+      "darija_arabic-foreign_order": "passed",
+      "mixed-foreign_order": "failed"
+    },
+    "outcomes": {
+      "passed": 3,
+      "failed": 5
+    },
+    "case_accuracy": {
+      "passed": 7,
+      "assessed_turns": 7
+    },
+    "harness_error": "The imported session fixture registered two runners. An existing connection was bound to the first runner.",
+    "counted_toward_three_run_gate": false,
+    "turn_ms": {
+      "samples": 7,
+      "p50": 12524.854,
+      "p95": 17344.536
+    },
+    "first_text_ms": {
+      "samples": 7,
+      "p50": 11647.457,
+      "p95": 17328.95
+    },
+    "tokens": {
+      "input": 67844,
+      "cached_input": 38272,
+      "output": 8718,
+      "reasoning": 5791
+    },
+    "tokens_by_agent": {
+      "complaints": {
+        "input": 26396,
+        "cached_input": 22400,
+        "output": 4280,
+        "reasoning": 2731
+      },
+      "supervisor": {
+        "input": 25763,
+        "cached_input": 13824,
+        "output": 2001,
+        "reasoning": 1429
+      },
+      "quality": {
+        "input": 10770,
+        "cached_input": 0,
+        "output": 2180,
+        "reasoning": 1588
+      },
+      "orders": {
+        "input": 4915,
+        "cached_input": 2048,
+        "output": 257,
+        "reasoning": 43
+      }
+    }
+  },
+  "release_campaign_status": "The owner limited follow-up to the focused recheck. The three-run gate and labeled evaluator run are pending."
 }

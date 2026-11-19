@@ -1,12 +1,12 @@
 # NABD status
 
-Updated: 19 November 2026 (Africa/Casablanca), during Phase 7 verification.
+Updated: 19 November 2026 (Africa/Casablanca), after the Phase 7 focused recheck.
 
 ## Current work
 
-**Phases 0–6 are complete. Phase 7 is implemented and release verification
-is in progress.** The Phase 7 branch is `codex/nabd-phase7-quality-release`
-at implementation checkpoint `6864092`. Phase 5 delivers live public staff
+**Phases 0–6 are complete. Phase 7 is implemented and locally checkpointed.**
+Its release gate is pending. The Phase 7 branch is
+`codex/nabd-phase7-quality-release`, based on implementation checkpoint `6864092`. Phase 5 delivers live public staff
 updates/replies, labeled translations, durable replay/reconciliation and the
 chat UI. Real staff loop 12/12, ten-change p95 2.696 s; see its
 [completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
@@ -24,7 +24,7 @@ real-model run ([Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b
 | 4 — Multilingual behavior | `b4d5f710f2ea5289bbda8762c8f078081d9cac61` (last implementation commit; earlier `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`) | [Phase 4 handoff](phases/04-multilingual.md#handoff) |
 | 5 — Live staff follow-up | `575712a` (completed after Phase 6, rebased onto it) | [Phase 5 completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026) |
 | 6 — Analytics and proactive warnings | `45a9445` (implementation; handoff in the next commit) | [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026) |
-| 7 — Quality review and demonstration release | `6864092` (implementation; campaign in progress) | [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026) |
+| 7 — Quality review and demonstration release | `6864092` (initial implementation; focused verification and harness repairs follow) | [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026) |
 
 Completed phases are merged into `main` on GitHub
 (`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
@@ -129,13 +129,15 @@ available. [Operations runbook](runbook.md).
 
 ## Verification
 
-Phase 7 free verification measured 325 macOS and 312 Linux passes with
+Phase 7 free verification measured 326 macOS and 313 Linux passes with
 PostgreSQL (13 Linux skips), 43 Apex passes and 53 Salesforce verification
 checks. Event-to-browser p95 was 34 ms across 405 events. Staff status
 changes reached the browser within five seconds in 19 of 20 isolated
 samples. The full results are in [Phase 7 evidence](evidence/phase7-free.json).
-The initial paid run returned 52/60 and exposed a harness crash. The
-repaired harness needs a fresh three-run series. [Initial paid run](evidence/phase7-campaign.json).
+The initial paid run returned 52/60. The owner's focused recheck passed
+3/8. A harness bug affected one scenario in both attempts and was fixed
+with a regression check across three pytest modules. The full gate and
+labeled evaluator run remain pending. [Paid evidence](evidence/phase7-campaign.json).
 
 | Check | Actual result |
 | --- | --- |

@@ -1,6 +1,7 @@
 # NABD Phase 7 — quality review and demonstration release
 
-Status: **implemented; release verification in progress** (19 November 2026).
+Status: **implemented and locally checkpointed; full release gate pending**
+(19 November 2026).
 See the [implementation handoff](#implementation-handoff--19-november-2026).
 Branch `codex/nabd-phase7-quality-release`, created from `main` at `0079407`
 (Phases 0–6 merged). Accepted [decisions](../decisions.md) and the
@@ -319,8 +320,9 @@ agent remain later work ([roadmap](../roadmap.md#deferred)).
 ## Implementation handoff — 19 November 2026
 
 The first implementation checkpoint is `6864092` on
-`codex/nabd-phase7-quality-release`. The follow-up checkpoint fixes the paid
-harness event-loop lifetime and isolates malformed quality settings from chat. The local dev database is at
+`codex/nabd-phase7-quality-release`. The focused recheck used `9d2a352`,
+which isolates malformed quality settings from chat. The final local
+checkpoint also centralizes the campaign's async runner across pytest modules. The local dev database is at
 `0005_quality`, and the dedicated Salesforce org is deployed with the
 wording-only gateway and its restricted receipt value. Restore the
 application from [setup](../README.md#fresh-checkout) and use the
@@ -328,7 +330,7 @@ application from [setup](../README.md#fresh-checkout) and use the
 
 | Check | Result |
 | --- | --- |
-| Offline with real PostgreSQL | 325 passed on macOS; Linux image 312 passed, 13 skipped. Both deselected 142 paid tests. |
+| Offline with real PostgreSQL | 326 passed on macOS; Linux image 313 passed, 13 skipped. Both deselected 142 paid tests. |
 | Salesforce deploy and verification | 43 Apex tests passed; verify 53/53. The first deploy exposed the operation receipt's restricted picklist and was corrected through the schema generator. |
 | Salesforce and MCP smokes | 12/12, read MCP 14/14, write MCP 17/17, including a closed-case wording change and receipt replay. Analytics reconciled 15/15. |
 | Fault, authorization and privacy | Quality tests cover stale grade fencing, invalid output, disabled review, scoped quotes and cases, redacted trace, unavailable send/receipt replay, version conflict, staff edit and rejection. The full suite covers existing customer isolation, lifecycle, SSE and replay. |
@@ -366,9 +368,8 @@ the failed operation is unavailable. [Initial run aggregate](../evidence/phase7-
 - One standard Arabic two-issue scenario created the correct cases and
   selected Arabic-script Darija. The expected form was standard Arabic.
 - The first held-out scenario crashed in the harness when the shared OpenAI
-  transport tried to reuse its closed async loop. The repaired harness uses a
-  session runner across multilingual, held-out and labeled evaluator tests.
-  The holdout inputs, assertions and runtime prompts are unchanged.
+  transport tried to reuse its closed async loop. The holdout inputs,
+  assertions and customer-facing prompts were frozen throughout the checks.
 
 Read-through of both Darija forms found intelligible replies and appropriate
 writing systems, with awkward literal wording in certain delivery, return
@@ -377,10 +378,28 @@ weekday to an otherwise correct ISO delivery date. This was a read-through
 of fixture outputs. Native staff assessment and broader grading accuracy
 still need evidence.
 
-The initial run is retained for comparison and does not count toward the
-three-run gate. Its private JSONL and logs are in
-`~/.local/state/nabd/phase7/6864092/` on the development machine. Restart
-with run 1 from the repaired checkpoint and use a fresh private results
-directory. Each of the three full runs and the 12 labeled evaluator calls
-requires separate approval. Document the measured outcomes and compare
-them with the roadmap before merging. [Follow-up backlog](../backlog.md).
+### Focused recheck
+
+The owner authorized one recheck of the eight failed scenarios. Three passed:
+mixed-language knowledge, French foreign-order lookup and Arabic-script Darija
+foreign-order lookup. Three other foreign-order scenarios still skipped the
+explicit lookup, and the Arabic two-issue scenario again selected Darija.
+The English injection scenario hit a cross-loop harness error before completing a turn.
+Pytest had registered the imported session fixture separately in each module.
+The final repair defines the runner once in the shared conftest. A free
+setup-plan regression test verifies one setup and teardown across the
+multilingual, held-out, and evaluator modules. The repaired runner has no paid
+measurement on this checkpoint.
+
+The focused recheck had 7/7 case expectations met for completed turns,
+turn latency 12.525 s p50 and 17.345 s p95, and 67,844 input and 8,718 output
+tokens recorded. The [campaign evidence](../evidence/phase7-campaign.json)
+includes both paid attempts. The private JSONL and logs are stored under
+`~/.local/state/nabd/phase7/6864092/` and `~/.local/state/nabd/phase7/9d2a352/`
+on the development machine.
+
+The authorized paid follow-up ended with the focused recheck. The initial
+run and recheck are excluded from the three-run ≥90% per-form gate. That
+gate and the 12 labeled evaluator calls are pending. The phase is
+checkpointed on its local branch and release merge is pending.
+[Follow-up backlog](../backlog.md).

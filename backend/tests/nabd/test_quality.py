@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
+import subprocess
+import sys
 from contextlib import AsyncExitStack
+from pathlib import Path
 
 import pytest
 
@@ -68,6 +72,18 @@ def test_evaluator_cannot_supply_tool_calls():
     with pytest.raises(ValueError, match="tool call"):
         asyncio.run(evaluate(model, {}))
     assert model.requests[0]["tools"] == [] and model.requests[0]["tool_choice"] == "none"
+
+
+def test_release_campaign_uses_one_async_runner_across_all_paid_modules():
+    selections = [
+        "tests/nabd/test_multilingual_scenarios.py::test_multilingual_scenario[mixed-knowledge]",
+        "tests/nabd/test_release_challenges.py::test_release_challenge[english-injection]",
+        "tests/nabd/test_release_evaluator.py::test_labeled_evaluator[good_clarification]",
+    ]
+    result = subprocess.run([sys.executable, "-m", "pytest", "--setup-plan", "-m", "llm", *selections],
+                            cwd=Path(__file__).resolve().parents[2], text=True, capture_output=True, check=True)
+    assert len(re.findall(r"SETUP\s+S\s+release_loop\b", result.stdout)) == 1, result.stdout
+    assert len(re.findall(r"TEARDOWN\s+S\s+release_loop\b", result.stdout)) == 1, result.stdout
 
 
 def test_invalid_quality_environment_leaves_production_chat_configured(monkeypatch):
