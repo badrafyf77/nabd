@@ -7,21 +7,26 @@ Used for the Phase 7 demonstration and staff follow-up browser check; no real mo
     cd ../frontend && NABD_API_ORIGIN=http://127.0.0.1:8083 npm run dev -- --port 3001
 
 Serves the API on 8083, read MCP on 8093 and write MCP on 8094 with throwaway
-context secrets (stop the Compose `api` first only if you change these ports).
-It migrates the dev database. The scripted Complaint model knows one story:
-customer C006 (Omar) says coffee grinder SE-1091 has not arrived; a first
-message opens a real Delivery case in the org, a follow-up updates it. Close
-that test case in Salesforce afterwards (Phase 3 closed 00001044 as withdrawn).
-Includes the real staff subscriber and a scripted French translation. Staff
-changes/public comments made as the CLI admin appear in the open chat. Adapt
-``complaints()``/``supervisor()`` for other stories. No OpenAI calls.
+context secrets. It migrates the selected database. Use a separate
+NABD_DATABASE_URL alongside the regular API so each can hold a staff subscriber
+lease. The default story is Omar's coffee grinder (C006, SE-1091). The first
+complaint creates a sandbox Delivery case and subsequent turns update it.
+Close demo cases in Salesforce after the walkthrough.
+Pass --recording for Amina's delayed cooking pot (C003, SE-1061). Each
+recording-mode launch sets a fresh case subject, so the first complaint creates
+a separate case and later turns reuse it. Both stories include the real staff
+subscriber and a scripted French translation of the demo comment. No OpenAI
+calls.
 """
+import argparse
 import asyncio
 import json
 import re
 import secrets
 import sys
 
+from dataclasses import dataclass, replace
+from functools import partial
 from pathlib import Path  # noqa: E402
 
 BACKEND = Path(__file__).resolve().parents[1]
@@ -65,49 +70,82 @@ READ = ReadMcpSettings(context_secret=SecretStr(secrets.token_urlsafe(32)), url=
                        port=8093, allowed_hosts="127.0.0.1:8093")
 WRITE = WriteMcpSettings(context_secret=SecretStr(secrets.token_urlsafe(32)), url="http://127.0.0.1:8094/mcp",
                          port=8094, allowed_hosts="127.0.0.1:8094")
-TITLE = "Coffee grinder SE-1091 not delivered (Phase 7 browser verification)"
 
+
+@dataclass(frozen=True)
+class DemoStory:
+    order_number: str
+    item: str
+    title: str
+    complaint_pattern: str
+    forms: dict[str, tuple[str, str]]
+    french_staff_reply: str
+
+
+COFFEE_GRINDER = DemoStory(
+    order_number="SE-1091",
+    item="coffee grinder",
+    title="Coffee grinder SE-1091 not delivered (Phase 7 browser verification)",
+    complaint_pattern=r"grinder|SE-1091|late|still|never|arrive",
+    forms=BROWSER_FORMS,
+    french_staff_reply="L’équipe a traité le remboursement GBP 34.99. Il arrivera dans 3 jours.",
+)
+COOKING_POT = DemoStory(
+    order_number="SE-1061",
+    item="cast iron cooking pot",
+    title="Delayed delivery for cast iron cooking pot SE-1061",
+    complaint_pattern=r"\bSE-1061\b",
+    forms={
+        "La même cocotte n’est toujours pas arrivée. Ajoutez cette information au même dossier.": ("fr", "latin"),
+        "نفس طنجرة الحديد مازال ما وصلاتش، زيد هادشي فنفس الملف عافاك.": ("ary", "arabic"),
+    },
+    french_staff_reply="Nous avons demandé au transporteur de localiser votre colis. Nous vous tiendrons au courant ici.",
+)
 
 CASE_SECTION = "The customer's cases from Salesforce (list_case_history):\n"
 BAD_SUMMARY_SENTENCE = "The carrier paid GBP 999 in compensation."
 
 
-def complaints(messages):
+def complaints(messages, *, story=COFFEE_GRINDER):
+    reported = f"The customer reports that their {story.item} has not arrived."
     if messages[0].content.startswith("Write one concise English case summary"):
-        return say(json.dumps({"language": "en", "summary": "The customer reports that their coffee grinder "
-                               "has not arrived."}))
+        return say(json.dumps({"language": "en", "summary": reported}))
     request = messages[1].content
     current = re.search(r"Current customer message: \[customer ([0-9a-f-]+)\] (.*)", request)
     message_id, text = current.group(1), current.group(2)
-    if text not in BROWSER_FORMS and not re.search(r"grinder|SE-1091|late|still|never|arrive", text, re.I):
+    if text not in story.forms and not re.search(story.complaint_pattern, text, re.I):
         return assessment()
     if not any(isinstance(m, ToolMessage) for m in messages):
-        return call("get_order", order_number="SE-1091")
+        return call("get_order", order_number=story.order_number)
     order = next(json.loads(m.content) for m in reversed(messages) if isinstance(m, ToolMessage))
-    fact = {"statement": f"SE-1091 delivery status is {order['delivery']['status']}; expected "
-                         f"{order['delivery']['expected']}.", "evidence": order["evidence"][:2]}
-    language, script = BROWSER_FORMS.get(text, ("en", "latin"))
-    def result(item):
-        return localized_answer(assessment(item), language, script, message_id)
+    delivery = order["delivery"]
+    status = delivery["status"].replace("_", " ")
+    statement = f"Order {story.order_number} is {status}; expected delivery is {delivery['expected']}."
+    fact = {"statement": statement, "evidence": order["evidence"][:2]}
+    language, script = story.forms.get(text, ("en", "latin"))
+
     history = json.JSONDecoder().raw_decode(request.rsplit(CASE_SECTION, 1)[-1])[0]
     existing = next((case for case in history["cases"]
-                     if case["subject"] == TITLE and case["status"] != "Closed"), None)
+                     if case["subject"] == story.title and case["status"] != "Closed"), None)
+    details = {
+        "title": story.title,
+        "order_numbers": [story.order_number],
+        "customer_message_ids": [message_id],
+        "verified_facts": [fact],
+    }
+    summary = f"{reported} {statement}"
     if existing:
-        return result(issue(title=TITLE, existing_case=existing["case_number"], match="same", action="update",
-                                order_numbers=["SE-1091"], customer_message_ids=[message_id],
-                                verified_facts=[fact], urgency="medium",
-                                english_summary="Customer says the coffee grinder SE-1091 still has not "
-                                                "arrived. The delivery record shows it out for delivery."))
-    return result(issue(title=TITLE, order_numbers=["SE-1091"], customer_message_ids=[message_id],
-                            verified_facts=[fact], urgency="low", sentiment="negative",
-                            english_summary="Customer says the coffee grinder SE-1091 has not arrived. The "
-                                            "delivery record shows it out for delivery, expected today. " + BAD_SUMMARY_SENTENCE))
+        item = issue(**details, existing_case=existing["case_number"], match="same", action="update",
+                     urgency="medium", english_summary=summary)
+    else:
+        item = issue(**details, urgency="low", sentiment="negative",
+                     english_summary=f"{summary} {BAD_SUMMARY_SENTENCE}")
+    return localized_answer(assessment(item), language, script, message_id)
 
 
-def supervisor(messages):
+def supervisor(messages, *, story=COFFEE_GRINDER):
     if messages[0].content.startswith("Translate a ShopEasy staff reply"):
-        return say(json.dumps({"text": "L’équipe a traité le remboursement GBP 34.99. Il arrivera dans 3 jours.",
-                               "source_language": "en"}, ensure_ascii=False))
+        return say(json.dumps({"text": story.french_staff_reply, "source_language": "en"}, ensure_ascii=False))
     current = next((m.text for m in reversed(messages) if m.type == "human"), "")
     if current == "How much does delivery cost?":
         if not isinstance(messages[-1], ToolMessage):
@@ -141,7 +179,7 @@ def quality(messages):
     return say(grade.model_dump_json())
 
 
-async def main():
+async def main(story):
     settings = Settings()
     await migrate(settings)
     salesforce = SalesforceSettings()
@@ -159,7 +197,8 @@ async def main():
             self.requests.append({"messages": list(messages), **kwargs})
             return self.fn(messages)
 
-    models = AgentModels(Callable(fn=supervisor), FakeChatModel(), Callable(fn=complaints))
+    models = AgentModels(Callable(fn=partial(supervisor, story=story)), FakeChatModel(),
+                         Callable(fn=partial(complaints, story=story)))
     deps = ChatDependencies(
         reads=reads, models=models, connect=http_connector(READ.url, 20), read_mcp=READ,
         chat=ChatSettings(allowed_origins="http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"), business=BusinessSettings(), connect_writes=http_connector(WRITE.url, 30),
@@ -175,4 +214,11 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--recording", action="store_true", help="Use Amina's order and a fresh case subject.")
+    args = parser.parse_args()
+    story = COFFEE_GRINDER
+    if args.recording:
+        story = replace(COOKING_POT, title=f"{COOKING_POT.title} (video {secrets.token_hex(4).upper()})")
+        print(f"Recording case subject: {story.title}", flush=True)
+    asyncio.run(main(story))
