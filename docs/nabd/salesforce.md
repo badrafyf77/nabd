@@ -266,3 +266,29 @@ lifecycle state for matching). Case writes go through
 `CaseCommand`s with canonical JSON bodies, `CommandResult`s, and server errors
 or timeouts raised as `SalesforceUnavailable` (outcome unknown: look up the
 receipt before retrying).
+
+
+## Staff change feed (Phase 5)
+
+`NABD_Case_Change__e` publishes identifiers after commit. `NabdCaseChangeTrigger`
+announces relevant Case status/action/ownership/delete/restore changes;
+`NabdCaseCommentTrigger` announces public comments, edits and withdrawals.
+`NabdCaseCommands` suppresses its own transaction's feed, and the backend also
+recognizes its confirmed versions. The integration permission set grants event
+Read (subscription) only, without Create (publish) or record write access.
+`CaseComment` access follows the case; the backend explicitly queries only
+`IsPublished = true` comments and verifies the case's current customer before
+projecting anything to a linked conversation. Private notes are never queried.
+
+Staff use the **Case Comments** related list first on the generated Case layout
+and mark customer replies public. Status and Staff Action fields drive notices;
+no staff portal or live takeover was added. The backend's `staff-sync smoke`
+uses CLI-admin staff edits and the real integration subscriber to verify the
+loop without OpenAI calls. It closes its synthetic C008 case as a duplicate and
+deletes its comments. Stop other subscriber processes using that database first.
+
+The detailed [Phase 5 completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026)
+records recovery/privacy tests, the measured healthy p95 and operating limits.
+Salesforce metadata remains generated from `schema.py`; always use
+`python -m nabd salesforce deploy` so the hourly Phase 6 risk job is paused and
+restored around a deployment.

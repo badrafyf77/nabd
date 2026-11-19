@@ -101,3 +101,42 @@ SSE events carry `id` = per-conversation sequence; `event: ping` heartbeats
 have no id. Use a same-origin browser API path. Backend session context controls all record
 and conversation access. Browser disconnects detach the view from durable work;
 they do not silently abandon an already submitted Salesforce operation.
+
+
+## Staff follow-up (Phase 5, implemented)
+
+Salesforce `NABD_Case_Change__e` is an after-commit notification containing
+case/comment identifiers and change kind only. The backend stores its opaque
+binary replay cursor together with a durable case-sync marker, then re-reads
+current ownership/status/action and public comments. No internal case, risk,
+user identity or private-comment fields enter customer events.
+
+These events share the existing per-conversation sequence/SSE stream, with
+`run_id = null`:
+
+| Type | Public payload |
+| --- | --- |
+| `case.staff_update` | `case_number`, `status`, `previous_status`, `staff_action`, `staff_action_completed`, `changes`, `after_message_id` |
+| `case.removed` | `case_number`, `after_message_id` |
+| `staff.reply` | `reply_id`, `case_number`, `text` (original), `posted_at`, `revision`, `translation`, `after_message_id` |
+| `staff.reply.withdrawn` | `reply_id`, `case_number`, optional `after_message_id` |
+
+`changes` contains `status`, `staff_action_completed`, `staff_action_changed`
+and/or `restored`. Translation status is `none`, `pending`, `done` or `failed`;
+`done` adds `text`, `reply_language`, `reply_script`, `source_language`.
+Translations never replace the original and their model has no tools. A numeric
+reference check and the Latin Darija repair enforce output-format invariants;
+these do not establish semantic equivalence.
+
+Snapshots additionally return `staff_replies` (only current, non-withdrawn
+replies), `staff_notices` (status/action/removal events), and `cases` excludes
+removed links. `after_message_id` places an update after its original message
+anchor through reload/replay. Reply edits/restorations increase revision;
+translation completion keeps that revision. Replayed events do not add a second
+reply. Withdrawals and edits redact superseded reply text from stored events;
+withdrawn reply rows/history contain no text. A case moved to another customer
+is removed with its replies, without forwarding the new customer's content.
+
+Only comments posted after a conversation linked the case can reach it. Current
+public originals enter later turns as `staff` context; evidence and confirmation
+validation continues to accept only stored `customer` message IDs.

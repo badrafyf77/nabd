@@ -5,8 +5,8 @@ needed to resume is in the repository; the previous chat is not required.
 
 ## Current checkpoint
 
-- Branch: `codex/nabd-chat-salesforce`. It equals `main` on GitHub at the end
-  of Phase 6; finished phases are merged into `main`.
+- Branch: `codex/nabd-phase5-staff-follow-up`. Its finished work is merged
+  into `main`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
@@ -21,22 +21,22 @@ needed to resume is in the repository; the previous chat is not required.
   real-model runs: 21/36, rechecks of the failures down to 1/1, then the final
   version **36/36** in one full run; manual review found wording slips only.
   See the [Phase 4 handoff](phases/04-multilingual.md#completion-summary).
-- Paused: **NABD Phase 5 — live staff follow-up**, partly implemented on
-  branch `codex/nabd-phase5-staff-follow-up` (commits `2bb6d02`, `b0cbdfc`,
-  `65b0206`; not merged). Its Salesforce commit is also on `main` (as
-  `7b4157e`, since Phase 6) and deployed. See the
-  [Phase 5 pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026).
+- Completed: **NABD Phase 5 — live staff follow-up** (`575712a`),
+  resumed after Phase 6 and rebased onto it. Durable Pub/Sub synchronization,
+  public replies/withdrawal, labeled translations, SSE/snapshot/UI and recovery.
+  Real staff loop 12/12, ten-change p95 2.696 s; see its
+  [completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
 - Completed: **NABD Phase 6 — analytics and proactive warnings** (`45a9445`
   plus the handoff commit): Salesforce risk engine, warnings with one task
   each, 13 reports and two dashboards. See the
   [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026).
-- Next: the owner's choice between resuming **Phase 5** and **Phase 7**
-  (which depends on both); the roadmap order is Phase 5 first.
-- Last measured suite: **293 passed** (101 paid scenarios deselected) on macOS
-  with real PostgreSQL. Real-org (Phase 6): Apex 41/41, `salesforce verify`
-  51/51, `analytics-reconcile` 15/15, `risk-smoke` 17/17, `salesforce smoke`
-  12/12, `read-mcp smoke` 14/14, `write-mcp smoke` 15/15. See
-  [status](status.md) for limits.
+- Next: **Phase 7 — quality review and demonstration release**. Write
+  `docs/nabd/phases/07-quality-release.md` before implementing it.
+- Last measured suite: **307 passed** (106 paid scenarios deselected) on macOS
+  with real PostgreSQL. Phase 5: Apex 44/44, Salesforce verify 53/53, staff loop
+  12/12; Salesforce/read-MCP/write-MCP smoke 12/12, 14/14, 15/15. The five
+  approved translation examples passed across the initial run and a focused
+  harness-error recheck. See [status](status.md) for limits and Linux results.
 - The root `AGENTS.md` directs new sessions here. Later phase completions must
   update this checkpoint, status, roadmap, and that short pointer together.
 
@@ -46,7 +46,9 @@ needed to resume is in the repository; the previous chat is not required.
    results, current phase, environment snapshot, and next entry criteria.
 2. [Accepted decisions](decisions.md): settled product choices and engineering
    requirements. Do not re-ask questions already answered here.
-3. [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026):
+3. [Phase 5 handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026):
+   live staff synchronization, translations, privacy/recovery and measured limits.
+   [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026):
    the Salesforce risk engine, dashboards, reconciliation and the
    integration-user lessons. [Phase 4 handoff](phases/04-multilingual.md#handoff):
    language/script selection, multilingual prompts, localized RTL activity, the
@@ -56,9 +58,7 @@ needed to resume is in the repository; the previous chat is not required.
    [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) the
    chat underneath, and the [Salesforce reference](salesforce.md) the org.
 4. The next phase's scope and gate in the [roadmap](roadmap.md) and the
-   entry notes in [status](status.md#next-step). To resume Phase 5, read its
-   [pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026)
-   and rebase its branch on `main` first. For Phase 7, write
+   entry notes in [status](status.md#next-step). For Phase 7, write
    `docs/nabd/phases/07-quality-release.md` first.
 5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
    responsibilities, data ownership, agent flow, and future public interfaces.
@@ -73,7 +73,7 @@ From the repository root:
 git status --short --branch
 git fetch origin && git log -1 --oneline origin/main
 git log -5 --oneline
-git show --stat 45a9445
+git show --stat 575712a
 sf org display --target-org nabd-dev
 ```
 
@@ -95,7 +95,7 @@ phase; switch to (or recreate from `main`) the working branch before editing.
   (`NABD_READ_MCP_CONTEXT_SECRET`, `NABD_WRITE_MCP_CONTEXT_SECRET`) and
   `NABD_OPENAI_API_KEY` are set. Complaint analysis and case writes exist
   (Phase 3); risk warnings exist in Salesforce only (Phase 6);
-  staff-to-chat updates (Phase 5, paused) do not.
+  staff-to-chat updates and labeled translations (Phase 5) run in the API.
 - Deploy Salesforce only with `python -m nabd salesforce deploy`: it pauses
   the hourly risk job (Salesforce can refuse to redeploy Apex a scheduled job
   references) and schedules it again. `main` now includes Phase 5's
@@ -114,8 +114,8 @@ phase; switch to (or recreate from `main`) the working branch before editing.
   never fixtures or the legacy SQLite shop database.
 - `backend/code/server.py` and `docs/plans/phase-1-status.md` are legacy voice
   artifacts. Their Phase 1 is not NABD's next Phase 1.
-- The legacy 113 unit tests still pass. The 101 paid scenarios (45 legacy,
-  12 Phase 2, 8 Phase 3, 36 Phase 4) are deselected by default. Every NABD
+- The legacy 113 unit tests still pass. The 106 paid scenarios (45 legacy,
+  12 Phase 2, 8 Phase 3, 36 Phase 4, 5 staff translations) are deselected by default. Every NABD
   paid run so far was approved by the owner one run at a time; ask before any
   further paid run, and say which scenarios and how many times.
 - NABD agents live in `backend/code/nabd/agents/`; the legacy
@@ -146,11 +146,10 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 ## Prompt for the next chat
 
 > Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md,
-> then docs/nabd/status.md. Phases 0–4 and 6 are complete and Phase 5 is paused
-> (read its pause handoff). Resume Phase 5 (live staff follow-up) on its branch:
-> rebase it on main first, then finish it only. Preserve all accepted decisions,
-> ask me before any paid model run, update the phase handoff and verification
-> results, and when Phase 5 is finished merge it into main and push as
-> badrafyf77.
+> then docs/nabd/status.md. Phases 0–6 are complete (Phase 5 resumed after
+> Phase 6); read the Phase 5 and Phase 6 completion handoffs and their limits.
+> Start Phase 7 only: write its detailed plan first. Preserve accepted decisions,
+> ask before any paid model run, update the handoff/status/checkpoint pointers,
+> and merge the finished phase into main and push as badrafyf77.
 
 For a later phase, replace the phase number and follow the then-current status.

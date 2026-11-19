@@ -1,16 +1,18 @@
 # NABD status
 
-Updated: 19 November 2026 (Africa/Casablanca), at the end of Phase 6. Phase 5
-was paused on 18 November and is still paused.
+Updated: 19 November 2026 (Africa/Casablanca), after resuming and completing
+Phase 5 on top of the finished Phase 6.
 
 ## Current work
 
-**Phases 0–4 and 6 are complete; Phase 5 is paused, partly implemented; Phase
-7 is pending.** Working branch: `codex/nabd-chat-salesforce`, merged into
-`main` at the end of Phase 6. Phase 6 added Salesforce dashboards and
-explainable risk warnings, verified in the real org: Apex 41/41, `verify`
-51/51, `analytics-reconcile` 15/15, `risk-smoke` 17/17 twice. See the
-[Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026).
+**Phases 0–6 are complete; Phase 7 is pending.** Latest phase branch:
+`codex/nabd-phase5-staff-follow-up`, rebased onto Phase 6 `main`, completed at
+`575712a`, then merged into `main`. Phase 5 delivers live public staff
+updates/replies, labeled translations, durable replay/reconciliation and the
+chat UI. Real staff loop 12/12, ten-change p95 2.696 s; see its
+[completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
+Phase 6's completed Salesforce analytics and risk engine remain in place
+([handoff](phases/06-analytics-warnings.md#handoff--19-november-2026)).
 Phase 4's final version passed **36/36** multilingual scenarios in one full
 real-model run ([Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b69ab5--all-36-scenarios-once)).
 
@@ -21,12 +23,12 @@ real-model run ([Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b
 | 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; docs and real-model results in later commits) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 | 3 — Complaint intelligence and reliable cases | `987959317beae7339f3bb51958032df0cb427b45` (implementation; handoff in the next commit) | [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026) |
 | 4 — Multilingual behavior | `b4d5f710f2ea5289bbda8762c8f078081d9cac61` (last implementation commit; earlier `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`) | [Phase 4 handoff](phases/04-multilingual.md#handoff) |
-| 5 — Live staff follow-up (**paused**) | branch `codex/nabd-phase5-staff-follow-up`: `2bb6d02` (Salesforce feed, deployed; also on `main` as `7b4157e` since Phase 6), `b0cbdfc` (Pub/Sub client), `65b0206` (unfinished sync pieces); not merged | [Phase 5 pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026) |
+| 5 — Live staff follow-up | `575712a` (completed after Phase 6, rebased onto it) | [Phase 5 completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026) |
 | 6 — Analytics and proactive warnings | `45a9445` (implementation; handoff in the next commit) | [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026) |
 
 Completed phases are merged into `main` on GitHub
 (`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
-on 18 November 2026, Phase 4 later the same day, Phase 6 on 19 November. Inspect a checkpoint with `git show --stat <commit>`.
+on 18 November 2026, Phase 4 later the same day, Phases 6 then 5 on 19 November. Inspect a checkpoint with `git show --stat <commit>`.
 Later documentation commits are handoff updates, not new implementation phases.
 
 ## Delivered so far
@@ -104,8 +106,20 @@ Phase 6 — analytics and proactive warnings, all inside Salesforce:
 - commands `analytics-reconcile` and `risk-smoke`; `deploy` pauses the
   hourly job, `configure` schedules it.
 
-Customers and the backend see none of it. Staff-to-chat updates (Phase 5)
-and quality review (Phase 7) do not exist yet.
+Customers and the backend see none of the internal risk data. Phase 5 now
+adds public staff follow-up; quality review (Phase 7) is pending.
+
+Phase 5 — live staff follow-up:
+
+- an advisory-locked Pub/Sub subscriber with durable replay cursors and a
+  transactional case-sync inbox, generation counters and fenced leases;
+- current authorized case/comment projection, own-command echo suppression,
+  browser/reconnect/periodic reconciliation and privacy withdrawals;
+- public staff replies and status/action notices on existing SSE/snapshots,
+  original plus labeled translation, five template sets/RTL and staff context
+  for later agent turns (never accepted as customer evidence);
+- migration `0004_staff_sync`, API lifespan wiring and `staff-sync smoke`.
+  See the [Phase 5 handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
 
 ## Verification
 
@@ -132,8 +146,16 @@ and quality review (Phase 7) do not exist yet.
 | `salesforce verify` / `analytics-reconcile` / `risk-smoke` (Phase 6) | **51/51** / **15/15** / **17/17** (twice) |
 | `salesforce smoke` / `read-mcp smoke` / `write-mcp smoke` after Phase 6 | **12/12** / **14/14** / **15/15** |
 | Real-model English scenarios (20, `-m llm`, once each) | Phase 3 set **7/8**, Phase 2 set as full turns **9/12** (after two over-strict checks were fixed); after two prompt fixes 3 of the 4 failures **pass** on recheck; `several_orders_needs_info` still fails its expectation |
+| Offline suite, macOS, real PostgreSQL (Phase 5) | **307 passed**, 106 paid scenarios deselected |
+| Offline suite, Linux test image (Phase 5) | **294 passed, 13 skipped**, 106 deselected (Salesforce metadata outside image) |
+| Salesforce Apex / verify (Phase 5) | **44/44** / **53/53** |
+| Real staff-sync smoke | **12/12**, n=10 status changes, **p95 2.696 s**, max 2.696 s to durable customer event |
+| Salesforce / read-MCP / write-MCP smoke after Phase 5 | **12/12** / **14/14** / **15/15** |
+| Approved staff translation checks | First run 3 passed, 2 harness event-loop errors; focused approved recheck **2/2**, all five examples completed |
+| Browser, scripted models on the real stack (Phase 5) | Live staff reply/status/action, labeled French translation, reload without duplicate, private note absent, live withdrawal |
 
-Details are in the [Phase 6 handoff](phases/06-analytics-warnings.md#verification-results),
+Details are in the [Phase 5 handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026),
+the [Phase 6 handoff](phases/06-analytics-warnings.md#verification-results),
 the [Phase 4 handoff](phases/04-multilingual.md#handoff),
 the [Phase 3 handoff](phases/03-complaints.md#verification-results),
 the [Phase 2 handoff](phases/02-support-chat.md#verification-results) and the
@@ -176,6 +198,12 @@ voice work is deferred and they do not block NABD phases.
   warnings of two `risk-smoke` runs; C008 smoke and diagnostic complaints
   00001045–00001049 and later are closed as duplicates. The `api`/MCP
   containers were not rebuilt (Phase 6 did not change them).
+- End of Phase 5: dev database at `0004_staff_sync`; Compose API/read-MCP/
+  write-MCP rebuilt as `nabd-backend:phase5`, healthy. Staff smoke case
+  00001051 and browser case 00001052 are closed as duplicates; all their test
+  comments were deleted. The normal API owns the subscriber; temporary browser
+  stack and UI on 3001 were stopped. The hourly Salesforce risk job remains
+  scheduled. Synthetic staff test conversations remain in the dev database.
 - GitHub: `origin` is `badrafyf77/customer-support-voice-agent` (private).
   Pushes use the GitHub CLI login:
   `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …`
@@ -189,7 +217,7 @@ the CLI session, Docker or containers are still available.
 From the repository root:
 
 ```bash
-git switch codex/nabd-chat-salesforce
+git switch codex/nabd-phase5-staff-follow-up
 cd backend
 docker compose -f docker-compose.nabd.yml --profile test up -d --wait test-db
 NABD_TEST_DATABASE_URL=postgresql://nabd:nabd_test@127.0.0.1:55433/nabd_test \
@@ -210,86 +238,20 @@ run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-Phase 6 is complete. The remaining phases are **Phase 5 — live staff
-follow-up** (paused, resume on its branch) and **Phase 7 — quality review and
-demonstration release**, which depends on both. The owner chooses which comes
-next; resuming Phase 5 first matches the roadmap order. Carry forward the
-[Phase 6 limitations](phases/06-analytics-warnings.md#known-limitations), the
-[Phase 4 limitations](phases/04-multilingual.md#current-limitations-to-carry-forward)
-and the [Phase 3 limitations](phases/03-complaints.md#known-limitations).
+**Phase 7 — quality review and demonstration release** is next. Write
+`docs/nabd/phases/07-quality-release.md` before implementation. Phases 5 and 6
+are both complete; the historical pause does not require any further rebase.
+Carry forward the [Phase 5 limits](phases/05-staff-follow-up.md#practical-limits-and-phase-7-entry)
+and the Phase 3/4/6 limitations. Five-second staff sync was measured to the
+durable event on a healthy connection, not as a browser/load-test percentile.
+Phase 7 still needs its broader multilingual/held-out quality campaign, release
+runbook and event-to-browser latency measurements.
 
-**Salesforce deploys from now on:** `main` contains Phase 5's Salesforce feed
-(cherry-picked as `7b4157e`), so deploying `main` keeps the org whole. Always
-deploy with `python -m nabd salesforce deploy`, which pauses the hourly risk
-job and schedules it again. When Phase 5 resumes, rebase its branch on
-`main`; its migration `0004_staff_sync` keeps its number (Phase 6 added no
-migration). Its staff-sync processor will see Phase 6's case fields but
-needs no change for them.
-
-### Paused Phase 5
-
-Resume on branch `codex/nabd-phase5-staff-follow-up`; its plan and pause
-handoff are in [05-staff-follow-up](phases/05-staff-follow-up.md). Done: the
-Salesforce change feed (deployed, Apex 25/25) and the Pub/Sub client (live
-events about 1 s after commit). Left: store methods and the sync service,
-translation, chat/UI, tests, smoke latency, browser check, docs.
-
-### Already decided for Phase 5 (do not re-ask)
-
-- Staff work only in Salesforce: no NABD staff portal, no live chat takeover.
-- Customer-visible staff case changes and replies appear automatically while
-  the chat is open, with replay/reconciliation after reconnects. Private notes
-  and internal risk assessments never reach customer streams
-  ([decisions](decisions.md#complaints-and-staff-workflow)).
-- Target design: after-commit platform events for Cases and public
-  CaseComments; a Pub/Sub worker that stores replay cursors only after durable
-  processing, re-reads current authorized state, then appends customer events;
-  de-duplication of NABD's own write acknowledgements and echoed events;
-  reconciliation after reconnect and periodically; privacy changes/deletion;
-  healthy-connection p95 at most 5 s
-  ([architecture](architecture.md#activity-streaming-and-staff-synchronization)).
-- Translated staff replies are clearly labeled, with the original kept
-  ([roadmap](roadmap.md#phase-5--live-staff-follow-up)).
-
-### Starting points for Phase 5 (recorded before it began; the pause handoff supersedes the Salesforce and Pub/Sub items)
-
-- **Salesforce has no staff-change feed yet**: no platform event, no Pub/Sub
-  client dependency, no CaseComment handling. The only trigger is
-  `KnowledgeEntryTrigger`; Apex classes are `NabdCaseCommands` and
-  `KnowledgeEntryRevisions`. All metadata is generated from
-  `backend/code/nabd/salesforce/schema.py`.
-- **Case fields to build on**: `Status` (New, Working, Waiting on Customer,
-  Waiting on Staff, Closed), `Staff_Action_Required__c` /
-  `Staff_Action_Completed__c`, `English_Summary__c`, `Customer_Language__c`,
-  and `NABD_Conversation_Id__c` (set by the gateway on create/reopen, not
-  staff-editable): the link from a case back to its chat.
-- **Echo de-duplication**: every NABD case write already has an operation ID
-  and a stored gateway receipt (`NabdCaseCommands`, `nabd.case_commands`).
-- **Integration user**: one licence shared by the read and write MCP servers;
-  read-only objects plus the gateway permission set. Subscribing to an event
-  channel will need its own permission; keep direct object writes refused.
-- **Customer event path**: events live in `nabd.events` with a per-conversation
-  sequence (`Store.emit`, `events_after`, `snapshot` in
-  `backend/code/nabd/runtime/store.py`). SSE is
-  `GET /api/conversations/{id}/events` with `after` or `Last-Event-ID`; the
-  snapshot is `GET /api/conversations/{id}`. A staff update should be one more
-  event type on this path, not a new stream.
-- **Background loop pattern**: `backend/code/nabd/runtime/worker.py` already
-  runs the periodic command reconciliation loop; a subscriber/reconciler can
-  follow it. The latest migration is `0003_case_commands`, so a cursor table
-  would be `0004`.
-- **Frontend**: `frontend/src/chat/reducer.ts` keeps confirmed cases by number
-  (the case strip); templates are in `frontend/src/chat/i18n.ts` with five
-  language sets, so every new staff-update code needs all five. RTL and
-  per-run language already work.
-- **Tests to reuse**: `backend/tests/nabd_fakes.py` (`FakeGateway` applies the
-  gateway rules), scripted flows in `tests/nabd/test_complaints.py`, the paid
-  harness `tests/nabd/live_turns.py`, and `backend/scripts/browser_stack.py`
-  for the real stack with scripted models.
+Deploy Salesforce only with `python -m nabd salesforce deploy`, which pauses
+and restores the hourly risk job. Staff synchronization is enabled by default
+in the API; no extra Salesforce metadata was needed when Phase 5 resumed.
 
 When a phase is finished: update its handoff, this status, START_HERE, the
 roadmap and the AGENTS pointer, commit as `badrafyf77`, then merge into `main`
-and push both branches.
-
-Model costs: the user pays for OpenAI. Use the free fake-model tests for most
-checks, and ask the user before any paid `pytest -m llm` or other real-model run.
+and push both branches. Model runs cost the owner money; get explicit approval
+for each paid test run (including rechecks).

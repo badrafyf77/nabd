@@ -345,3 +345,41 @@ from `backend/code/nabd/salesforce/analytics.py`; the risk engine's Apex is
 hand-written under `salesforce/force-app/main/default/classes/NabdRisk*`.
 Details: [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026)
 and [NABD Salesforce](salesforce.md#risk-engine-phase-6).
+
+
+## Phase 5: live staff follow-up
+
+The API now runs the Salesforce Pub/Sub subscriber, durable case projection,
+reconciliation and staff-reply translation worker. No separate staff service or
+portal is needed. Salesforce metadata is already part of `main`. Migration
+`0004_staff_sync` is applied by the normal explicit migration/Compose step.
+See the [Phase 5 handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026)
+for demonstration, measured results and limits.
+
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `NABD_STAFF_SYNC_ENABLED` | Start the staff worker with the API | true |
+| `NABD_STAFF_SYNC_POLL_SECONDS` | Durable inbox/translation poll interval | 0.25 s |
+| `NABD_STAFF_SYNC_RECONCILE_SECONDS` | Reconcile current state of linked cases | 60 s |
+| `NABD_STAFF_SYNC_RECONNECT_MAX_SECONDS` | Maximum Pub/Sub reconnect backoff | 30 s |
+| `NABD_STAFF_SYNC_TRANSLATION_TIMEOUT_SECONDS` | Per-reply translation deadline | 25 s |
+
+Staff enter English public Case Comments in Salesforce; private notes stay
+restricted. Non-English conversations receive the original first, then a
+labeled translation. Updates use the same authorized SSE stream and snapshot.
+Withdrawn replies are removed from replay/history too. Staff replies do not
+count as customer evidence or confirmation. The integration user retains no
+record write rights and can subscribe to, but not publish, the staff event.
+
+```bash
+# From backend/, with the normal API stopped so the smoke owns the subscriber:
+PYTHONPATH=code .venv-text/bin/python -m nabd staff-sync smoke --target-org nabd-dev --samples 10
+# No model calls. Creates one C008 test case and closes it as a duplicate.
+# From frontend/:
+npm run test:chat
+```
+
+The five paid staff-translation examples are opt-in:
+`pytest -m llm tests/nabd/test_staff_translation_scenarios.py -s`. Get approval
+before each run or recheck. They cover references/script and a quoted
+instruction; broader language-quality evaluation remains Phase 7.

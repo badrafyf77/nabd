@@ -239,6 +239,25 @@ and periodically; handle privacy changes/deletion. Staff synchronization has a
 five-second healthy-connection p95 target; execution events have a one-second
 server-to-browser p95 target. Dashboards show data freshness.
 
+Phase 5 implements this in `runtime/staff_sync.py`, `staff_store.py` and
+`staff_projection.py`. The cursor and case-sync inbox commit atomically;
+projection compares current state against per-conversation state. Generation
+counters and lease tokens fence stale reads/workers. A database advisory lock
+selects one subscriber; a per-customer lock serializes projection with case
+commands and their reconciliation. Confirmed links queue their baseline;
+pending/ambiguous commands defer projection. Reads query public comments with
+pagination, not a truncated child relationship.
+
+Reconciliation runs at startup/reconnect, every 60 seconds, and on authorized
+snapshot/SSE opens. Comment edits/withdrawals and ownership loss redact previous
+reply events as well as updating the current view. Restoring authorization can
+restore a public reply with a new revision. A translation is a separate durable
+job: English originals go first, non-English conversations receive labeled
+Supervisor translations, and failures preserve only the original. Targets use
+the conversation language at delivery. English conversations require no model
+translation. Later agent turns receive only current public staff originals in
+quoted staff context, never as customer evidence.
+
 ## Risk and quality
 
 Starting risk rules are versioned, configurable defaults: three distinct

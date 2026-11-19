@@ -1,10 +1,10 @@
 # Phase 5 — Live staff follow-up
 
-**Status: paused, partly implemented (18 November 2026).** The owner paused
-Phase 5 to start Phase 6 first. The work so far is saved on branch
-`codex/nabd-phase5-staff-follow-up` (not merged into `main`); see
-[Pause handoff](#pause-handoff--18-november-2026). Depends on completed
-[Phase 4](04-multilingual.md), checkpoint `b4d5f71` and its handoff commits.
+**Status: complete (19 November 2026).** Resumed on
+`codex/nabd-phase5-staff-follow-up` after rebasing onto the completed Phase 6
+`main`. See [Completion handoff](#completion-handoff--19-november-2026) for
+implementation, verification, operations and limitations. The original plan
+and pause handoff below are retained as history.
 
 ## Outcome
 
@@ -200,3 +200,144 @@ was merged into `main`. Resume on branch `codex/nabd-phase5-staff-follow-up`.
   branch only. Docker images were not rebuilt.
 - If another phase adds a migration first, renumber `0004_staff_sync` (its
   `down_revision`) when Phase 5 resumes.
+
+## Completion handoff — 19 November 2026
+
+Implementation checkpoint: `575712ac9b2b86efe4bf50f1024ae5da6be934f1`.
+Phase 5 is complete on `codex/nabd-phase5-staff-follow-up`, rebased onto the
+finished Phase 6 `main` (`dc4b042`). The rebase skipped the Salesforce feed
+commit already cherry-picked into `main`; Phase 6's risk engine, reports and
+privacy boundaries remain in place. The pause handoff above is historical.
+
+### What now runs
+
+- Migration `0004_staff_sync` and `runtime/staff_store.py`: an atomic
+  Pub/Sub cursor/inbox, generation counters and fenced leases, per-conversation
+  public case projections, durable staff replies and translation claims.
+- `runtime/staff_sync.py`: one advisory-locked subscriber per database;
+  reconnect/backoff and token refresh; expired-cursor reset under the leader
+  lock; durable processing, periodic reconciliation (60 s), and reconciliation
+  on snapshot/SSE opens and stream reconnects. New confirmed case links queue
+  their initial state too. Processing and command reconciliation share the
+  existing per-customer mutation lock; unresolved commands defer projection.
+- Projection re-reads current case ownership and public comments, rather than
+  forwarding event contents. Comments use a separate paginated public-only
+  query, with no silent history cutoff. Versions returned by NABD commands
+  suppress echoed status notices. Repeated/reordered events produce no repeats.
+- Customer-visible status/action changes and replies use the existing SSE
+  stream with no run ID. Replies have stable IDs/revisions and an anchor after
+  the message current when first delivered. Snapshot restores current replies
+  and notices; historical activity cannot resurrect a removed case.
+- Unpublished/deleted comments are withdrawn; deleted/re-parented cases and
+  their replies are removed. Withdrawal/edit also redacts prior staff-reply
+  event bodies, so historical SSE replay does not re-disclose withdrawn text.
+  Local withdrawn reply rows retain identities but no body/translation.
+- The Supervisor translates English staff replies for non-English conversations
+  with tool-free structured output, checks numeric references and repairs Latin
+  Darija using the Phase 4 writing-system policy. The original appears first;
+  a labeled translation follows. Failure/timeout leaves the original and a
+  localized unavailable label. Translation leases survive process crashes and
+  stale translations cannot overwrite edits or resurrect withdrawn replies.
+- Later turns include current public staff replies in the Supervisor prompt
+  and Complaint history with a `staff` role. Only real customer message IDs
+  are accepted as customer evidence/confirmation. Staff text is quoted data,
+  never instructions. Five template sets and RTL rendering cover the new UI.
+- Production starts the sync worker in the API process. The Compose runtime
+  image is `nabd-backend:phase5`; `.env.nabd.example` documents the settings.
+  Salesforce metadata has not changed since the already-deployed Phase 6
+  checkpoint. `salesforce verify` now checks both change triggers and the
+  integration user's subscribe-only event permission.
+
+### Verification results
+
+- macOS, real PostgreSQL: **307 passed**, 106 paid scenarios deselected
+  in the final run. Linux test image: **294 passed, 13 skipped**, 106
+  deselected (the skipped tests require repository Salesforce metadata outside
+  the image). The pre-change baseline was
+  293/293; the additions cover protobuf/Avro, an in-process gRPC server, token
+  refresh/reconnect/replay rejection, atomic inbox/cursor rollback, generation
+  races, lease expiry/fencing, command echoes/in-flight work, public edit/privacy
+  changes, deletion/re-parenting/restoration, translations, history and snapshot.
+- Frontend: `tsc --noEmit` and `npm run test:chat` pass, including staff event
+  replay, current snapshot restoration, withdrawal/removal, all templates and
+  rendered Arabic translation/RTL.
+- Existing Salesforce metadata: **Apex 44/44**, `salesforce verify` **53/53**;
+  `salesforce smoke` **12/12**, `read-mcp smoke` **14/14**, `write-mcp smoke`
+  **15/15** (all gateway receipts replayed).
+- Real `staff-sync smoke`: **12/12**. Ten sequential staff status writes gave
+  **p95 2.696 s**, max 2.696 s, from immediately before the admin REST write
+  to PostgreSQL customer-event creation (therefore includes write request
+  time). It also checked action completion, correct-customer delivery, private
+  notes absent, public edit, unpublish/redacted replay, subscriber restart,
+  missed reply recovery, no duplicates and public reply deletion. A first
+  attempt failed at `GetTopic` with transient gRPC `UNAVAILABLE`, before any
+  writes; a second stopped at smoke input validation; the completed run passed.
+- Browser: real API, both MCP servers, Salesforce, Pub/Sub and PostgreSQL with
+  scripted free models (`backend/scripts/browser_stack.py`, UI on 3001).
+  C006's French complaint created case **00001052**. An admin status/action
+  change and public reply appeared automatically with the original and labeled
+  French translation; private note stayed absent; reload restored exactly one
+  reply; unpublishing removed original and translation live. Case closed as
+  duplicate and both test comments deleted afterwards.
+- Paid translation checks: the owner approved five examples once each (French,
+  Arabic, both Darija scripts, quoted instruction attack). The first run passed
+  French, Arabic-script Darija and the attack; Arabic and Latin Darija failed
+  in the new test harness because separate `asyncio.run` loops shared a cached
+  HTTP client. The harness now uses one module-scoped runner, matching earlier
+  live scenarios. The owner approved a focused recheck of those two once each;
+  **both passed (2/2)**. All five examples therefore passed across the initial
+  run and focused recheck, rather than one uninterrupted five-example run.
+  Completed translations took 1.99–5.60 s. Manual inspection found preserved
+  meaning/references, with somewhat literal Darija wording (for example
+  “Sme7 3 dyal l-iyam”); this is not a broad language-quality score. No broader
+  paid scenario suite was rerun.
+- `pip check`, generated metadata comparison, diff whitespace and the push
+  secret scan are clean. The dev database is migrated to `0004_staff_sync`;
+  the Compose API and both MCP services were rebuilt and checked healthy.
+
+### Operate and demonstrate
+
+From `backend/`:
+
+```bash
+docker compose -f docker-compose.nabd.yml up -d --build --wait api
+curl --fail http://localhost:8081/readyz
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
+# Stop other API/subscriber processes first so this smoke owns the subscriber.
+# No OpenAI calls. Creates one C008 test case, then closes it as a duplicate.
+PYTHONPATH=code .venv-text/bin/python -m nabd staff-sync smoke --target-org nabd-dev --samples 10
+```
+
+Start the frontend with `npm run dev`. Sign in, open/change a case through a
+customer complaint, then open that case in Salesforce. Change its Status or
+Staff Action fields, or create a **public Case Comment** in the first related
+list. The open chat shows the update. Private comments and risk fields are
+never customer updates. Reload/reconnect restores the projection. Use the
+scripted browser stack for a free demo; it occupies ports 8083/8093/8094 and
+proxies the frontend on 3001, with its own temporary MCP secrets. Stop it before
+returning to the normal Compose API.
+
+`NABD_STAFF_SYNC_ENABLED` defaults true. Polling defaults to 0.25 s,
+reconciliation to 60 s, reconnect backoff caps at 30 s, and each translation
+has a 25 s timeout. Do not run a smoke subscriber against a database whose
+normal subscriber is still running: the leader lock intentionally permits one.
+
+### Practical limits and Phase 7 entry
+
+- The measured 2.696 s p95 is a small healthy-connection sample for durable
+  customer events, not a load test or a browser p95 measurement. Browser
+  delivery was observed functionally; Phase 7 retains the browser latency gate.
+- Reconciliation reconstructs **current** authorized state. Changes made and
+  undone entirely during an outage are not an audit-history replay. Five-second
+  latency is a healthy-stream target; periodic outage recovery defaults to 60 s.
+- Staff write replies in English, as planned. English conversations show the
+  original without a model call; non-English conversations use the language
+  current at original delivery. Later language switches do not retranslate
+  already delivered replies. Translation preserves checked references/script;
+  broader semantic quality and held-out evaluation remain Phase 7 work.
+- Pub/Sub retention is finite (Salesforce documents 72 hours); an expired
+  cursor triggers current-state reconciliation. Keepalive replay IDs are saved
+  too. See [Salesforce Subscribe](https://developer.salesforce.com/docs/platform/pub-sub-api/references/methods/subscribe-rpc.html).
+- The existing Phase 3/4/6 limitations still apply. Phase 7 is the next phase;
+  write its plan before implementing it. No evaluator or release campaign was
+  added during Phase 5.
