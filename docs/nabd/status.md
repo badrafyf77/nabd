@@ -1,19 +1,14 @@
 # NABD status
 
-Updated: 19 November 2026 (Africa/Casablanca), after the Phase 7 focused recheck.
+Updated 19 November 2026 (Africa/Casablanca) after checking the Phase 7 handoff and local services.
 
 ## Current work
 
-**Phases 0–6 are complete. Phase 7 is implemented and locally checkpointed.**
-Its release gate is pending. The Phase 7 branch is
-`codex/nabd-phase7-quality-release`, based on implementation checkpoint `6864092`. Phase 5 delivers live public staff
-updates/replies, labeled translations, durable replay/reconciliation and the
-chat UI. Real staff loop 12/12, ten-change p95 2.696 s; see its
-[completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
-Phase 6's completed Salesforce analytics and risk engine remain in place
-([handoff](phases/06-analytics-warnings.md#handoff--19-november-2026)).
-Phase 4's final version passed **36/36** multilingual scenarios in one full
-real-model run ([Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b69ab5--all-36-scenarios-once)).
+**Phases 0–6 are complete. Phase 7 is implemented and locally checkpointed at
+`2fabd9f` on `codex/nabd-phase7-quality-release`.** Local `main` and
+`origin/main` are at `0079407`. The current Phase 7 branch is local, with
+release gates and merge pending.
+[Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026).
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
@@ -24,7 +19,7 @@ real-model run ([Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b
 | 4 — Multilingual behavior | `b4d5f710f2ea5289bbda8762c8f078081d9cac61` (last implementation commit; earlier `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`) | [Phase 4 handoff](phases/04-multilingual.md#handoff) |
 | 5 — Live staff follow-up | `575712a` (completed after Phase 6, rebased onto it) | [Phase 5 completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026) |
 | 6 — Analytics and proactive warnings | `45a9445` (implementation; handoff in the next commit) | [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026) |
-| 7 — Quality review and demonstration release | `6864092` (initial implementation; focused verification and harness repairs follow) | [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026) |
+| 7 — Quality review and demonstration release | `6864092` implementation, `9d2a352` paid recheck, `2fabd9f` final harness and verification | [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026) |
 
 Completed phases are merged into `main` on GitHub
 (`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
@@ -175,90 +170,61 @@ the [Phase 6 handoff](phases/06-analytics-warnings.md#verification-results),
 the [Phase 4 handoff](phases/04-multilingual.md#handoff),
 the [Phase 3 handoff](phases/03-complaints.md#verification-results),
 the [Phase 2 handoff](phases/02-support-chat.md#verification-results) and the
-[Phase 1 handoff](phases/01-salesforce.md#verification-results). Paid LLM
-calls were made only in the approved scenario runs of Phases 2, 3 and 4.
+[Phase 1 handoff](phases/01-salesforce.md#verification-results).
+Each paid scenario run requires separate owner approval.
 
 Open legacy voice issues remain documented in `docs/plans/phase-1-status.md`;
 voice work is deferred and they do not block NABD phases.
 
-## Last observed runtime — 18 November 2026
+## Last observed runtime — 19 November 2026
 
-- Salesforce: `nabd-dev` connected to `sf` CLI 2.158.7; integration user active
-  with `NABD_Integration_Read` and `NABD_Integration_Gateway`.
-- `backend/.env.nabd` (Git-ignored) has database, Salesforce,
-  `NABD_OPENAI_API_KEY`, `NABD_READ_MCP_CONTEXT_SECRET` and
-  `NABD_WRITE_MCP_CONTEXT_SECRET` (both secrets generated locally in Phase 3;
-  values never recorded). The chat is enabled.
-- Docker: dev `db` (55432) and `test-db` (55433) running; the Phase 3 stack
-  (`read-mcp` 8091, `write-mcp` 8092, `api` 8081, image
-  `nabd-backend:phase3`) was started and healthy. The dev database is at
-  migration 0003.
-- Phase 4 observation: `nabd-backend:phase4` is healthy on the same ports with
-  migration 0003. The standard registry-backed build timed out; cached Phase 3
-  images plus current source verified the unchanged dependencies locally.
-  The free scripted browser stack is stopped; the frontend on 3000 now points
-  to the real API on 8081. The C006 browser case 00001044 was closed as withdrawn
-  after the multilingual checks (directly verified in Salesforce).
-- End of Phase 4 (this session): `test-db` on 55433 was up and used for the
-  final 275-test suite; the paid runs read the real org through the
-  integration user's client credentials. The `sf` CLI session and the
-  `api`/MCP containers were not rechecked. Paid runs use the in-memory case
-  gateway, so they added no org cases.
-- Test data in the org from Phase 3 checks: smoke case 00001043 (C008,
-  closed), probe 00001042 (C008, closed as withdrawn) and browser case
-  00001044 (C006, closed as withdrawn).
-- End of Phase 6 (19 November 2026): `nabd-dev` holds the Phase 6 metadata
-  (Apex 41/41); the hourly job `NABD risk evaluation (hourly)` is scheduled
-  (minute 5); `test-db` on 55433 ran the 293-test suite. One active warning
-  from fixture data (C004, persistent negative sentiment) and the cleared
-  warnings of two `risk-smoke` runs; C008 smoke and diagnostic complaints
-  00001045–00001049 and later are closed as duplicates. The `api`/MCP
-  containers were not rebuilt (Phase 6 did not change them).
-- End of Phase 5: dev database at `0004_staff_sync`; Compose API/read-MCP/
-  write-MCP rebuilt as `nabd-backend:phase5`, healthy. Staff smoke case
-  00001051 and browser case 00001052 are closed as duplicates; all their test
-  comments were deleted. The normal API owns the subscriber; temporary browser
-  stack and UI on 3001 were stopped. The hourly Salesforce risk job remains
-  scheduled. Synthetic staff test conversations remain in the dev database.
-- GitHub: `origin` is `badrafyf77/customer-support-voice-agent` (private).
-  Pushes use the GitHub CLI login:
-  `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …`
-  after checking `gh api user -q .login` prints `badrafyf77`.
+- Compose `api` (8081), `read-mcp` (8091), and `write-mcp` (8092) are
+  healthy on `nabd-backend:phase7`. `/readyz` returned `ready`. PostgreSQL
+  dev (55432) is at Alembic revision `0005_quality`. Test DB (55433) is healthy.
+- The standard frontend on 3000 and the scripted frontend on 3001 were
+  stopped when checked. See [demo](demo.md) to start either walkthrough.
+- The `nabd-dev` Salesforce CLI session returned API limits. Phase 7's
+  wording-only gateway and restricted receipt value were deployed and previously
+  verified. The Phase 7 browser case 00001054 was closed as a duplicate and its
+  temporary comment was removed. [Deployment and cleanup evidence](phases/07-quality-release.md#implementation-handoff--19-november-2026).
+- `backend/.env.nabd` is present and Git-ignored. Keep Salesforce, OpenAI
+  and MCP credentials local. See [setup](README.md#fresh-checkout) for a new
+  environment.
+- `origin/main` was checked at `0079407`. The private GitHub repository is
+  `badrafyf77/customer-support-voice-agent`. For a future authorized push,
+  check `gh api user -q .login` for `badrafyf77` and use the GitHub CLI
+  credential helper as needed.
 
-Recheck these in every new session; a recorded healthy state does not imply
-the CLI session, Docker or containers are still available.
+Recheck services and credentials when starting a new session.
 
 ## Exact resume commands
 
 From the repository root:
 
 ```bash
-git switch codex/nabd-phase5-staff-follow-up
+git switch codex/nabd-phase7-quality-release
+git status --short --branch
+git log -4 --oneline
 cd backend
-docker compose -f docker-compose.nabd.yml --profile test up -d --wait test-db
-NABD_TEST_DATABASE_URL=postgresql://nabd:nabd_test@127.0.0.1:55433/nabd_test \
-  .venv-text/bin/python -m pytest -q
-sf org display --target-org nabd-dev
-PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
-PYTHONPATH=code .venv-text/bin/python -m nabd read-mcp smoke
-PYTHONPATH=code .venv-text/bin/python -m nabd write-mcp smoke
-PYTHONPATH=code .venv-text/bin/python -m nabd salesforce analytics-reconcile --target-org nabd-dev
-PYTHONPATH=code .venv-text/bin/python -m nabd salesforce risk-smoke --target-org nabd-dev
+docker compose -f docker-compose.nabd.yml ps -a
+curl --fail http://127.0.0.1:8081/readyz
+sf org list limits --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd quality report --since 2026-11-19
 ```
 
-To run the chat: `docker compose -f docker-compose.nabd.yml up -d --build --wait api`
-and `npm run dev` in `frontend/` (http://localhost:3000). A fresh checkout
-needs both MCP secrets (32+ random characters each) and `NABD_OPENAI_API_KEY`
-in `backend/.env.nabd` first. If `sf org display` reports an expired session,
-run `sf org login web --alias nabd-dev`.
+For startup, migrations, and optional verification, follow the
+[development guide](README.md#fresh-checkout) and [operator runbook](runbook.md).
+Use the [scripted demo](demo.md#free-scripted-walkthrough) for a walkthrough
+without paid model calls.
 
 ## Next step
 
-Finish [Phase 7 release verification](phases/07-quality-release.md#implementation-handoff--19-november-2026).
-The frozen paid campaign uses 60 multilingual scenarios per run and a separate
-12-call labeled evaluator run. Each requires explicit approval. Record
-per-form success, case accuracy, latency, token use and Darija review.
-Compare them with the [roadmap gates](roadmap.md#phase-7--quality-review-and-demonstration-release).
-Update the plan, status, START_HERE, roadmap and AGENTS together. When
-verification is finished, merge into `main` and push both branches as
+Resume only if the owner requests more Phase 7 release work. The authorized
+paid work ended with the eight-scenario recheck. Any future campaign uses
+the repaired runner on a frozen revision and requires explicit approval for
+each 60-scenario run and the separate 12-call labeled evaluator check.
+The strict staff update target also remains open after one of 20 isolated
+updates exceeded five seconds. See the [roadmap gates](roadmap.md#phase-7--quality-review-and-demonstration-release)
+and [follow-up backlog](backlog.md). Once release verification is complete,
+update the handoff, merge into `main`, and push both branches as
 `badrafyf77` after scanning the push range for secrets.

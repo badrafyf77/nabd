@@ -5,9 +5,9 @@ needed to resume is in the repository; the previous chat is not required.
 
 ## Current checkpoint
 
-- Branch: `codex/nabd-phase7-quality-release`. Initial implementation
-  `6864092`, followed by harness repairs and the focused recheck handoff.
-  The full release gate is pending. Phases 0–6 are merged into `main`.
+- Branch `codex/nabd-phase7-quality-release`, local implementation and
+  verification checkpoint `2fabd9f`. `origin/main` is at `0079407` and
+  contains Phases 0–6. The Phase 7 release gates and merge are pending.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
@@ -31,15 +31,20 @@ needed to resume is in the repository; the previous chat is not required.
   plus the handoff commit): Salesforce risk engine, warnings with one task
   each, 13 reports and two dashboards. See the
   [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026).
-- Current: **Phase 7 — quality review and demonstration release**.
-  The [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026)
-  records the evaluator, distinct summary revision, free measurements and
-  campaign status.
-- Phase 5 baseline: **307 passed** (106 paid scenarios deselected) on macOS
-  with real PostgreSQL. Phase 5: Apex 44/44, Salesforce verify 53/53, staff loop
-  12/12; Salesforce/read-MCP/write-MCP smoke 12/12, 14/14, 15/15. The five
-  approved translation examples passed across the initial run and a focused
-  harness-error recheck. See [status](status.md) for limits and Linux results.
+- **Phase 7 — quality review and demonstration release** adds the
+  private evaluator, operator reports, and one wording-only Salesforce summary
+  correction. The backend is healthy and the database is at `0005_quality`.
+  [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026).
+- Latest offline results with PostgreSQL were **326 passes on macOS** and
+  **313 passes on Linux** (13 skips), with 142 paid tests deselected in each
+  suite. Salesforce passed 43 Apex tests and 53 verification checks.
+  Browser event delivery was 34 ms p95, and 19 of 20 staff updates arrived
+  within five seconds. [Free evidence](evidence/phase7-free.json).
+- The approved paid attempts passed **52/60 initially** and **3/8 on the
+  focused recheck**. The final harness repair passed a free regression check.
+  The owner limited paid follow-up to the focused recheck. The three-run
+  multilingual gate and the labeled evaluator check are pending.
+  [Campaign evidence](evidence/phase7-campaign.json).
 - The root `AGENTS.md` directs new sessions here. Later phase completions must
   update this checkpoint, status, roadmap, and that short pointer together.
 
@@ -49,7 +54,10 @@ needed to resume is in the repository; the previous chat is not required.
    results, current phase, environment snapshot, and next entry criteria.
 2. [Accepted decisions](decisions.md): settled product choices and engineering
    requirements. Do not re-ask questions already answered here.
-3. [Phase 5 handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026):
+3. [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026):
+   implementation checkpoints, test results and open release gates. See the
+   [runbook](runbook.md) and [demo](demo.md) for local operation.
+4. [Phase 5 handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026):
    live staff synchronization, translations, privacy/recovery and measured limits.
    [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026):
    the Salesforce risk engine, dashboards, reconciliation and the
@@ -60,13 +68,10 @@ needed to resume is in the repository; the previous chat is not required.
    the complaint stage, case gateway and write MCP server, the
    [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) the
    chat underneath, and the [Salesforce reference](salesforce.md) the org.
-4. The next phase's scope and gate in the [roadmap](roadmap.md) and the
-   entry notes in [status](status.md#next-step). Phase 7's plan and handoff
-   are in [07-quality-release.md](phases/07-quality-release.md).
-5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
-   responsibilities, data ownership, agent flow, and future public interfaces.
-6. [Roadmap](roadmap.md) and [development commands](README.md): later sequence,
-   local setup, test opt-in, migration commands, and operating instructions.
+5. [Roadmap](roadmap.md) and [status](status.md#next-step) for the release
+   gates, plus [development commands](README.md) for setup and verification.
+6. [Architecture](architecture.md) and [interface contracts](contracts.md)
+   for agent responsibilities, data ownership, and interfaces.
 
 ## Inspect before changing anything
 
@@ -76,16 +81,14 @@ From the repository root:
 git status --short --branch
 git fetch origin && git log -1 --oneline origin/main
 git log -5 --oneline
-git show --stat 575712a
-sf org display --target-org nabd-dev
+git show --stat 2fabd9f
+sf org list limits --target-org nabd-dev
 ```
 
-Use the resume commands in status to recheck service health. Runtime state in
-notes is an observation, not a guarantee that Docker, containers or the `sf`
-CLI session are still available in the next session. If later commits exist,
-inspect and preserve them; do not reset to the checkpoint or overwrite other
-work. A session that opens on `main` or in a fresh worktree has every finished
-phase; switch to (or recreate from `main`) the working branch before editing.
+Use the [resume commands](status.md#exact-resume-commands) to recheck
+service health and the Salesforce session. If later commits exist, inspect
+and preserve them. For Phase 7 work, switch to the existing local phase branch.
+A checkout of `main` contains Phases 0–6.
 
 ## Avoid these context mistakes
 
@@ -117,10 +120,9 @@ phase; switch to (or recreate from `main`) the working branch before editing.
   never fixtures or the legacy SQLite shop database.
 - `backend/code/server.py` and `docs/plans/phase-1-status.md` are legacy voice
   artifacts. Their Phase 1 is not NABD's next Phase 1.
-- The legacy 113 unit tests still pass. The 106 paid scenarios (45 legacy,
-  12 Phase 2, 8 Phase 3, 36 Phase 4, 5 staff translations) are deselected by default. Every NABD
-  paid run so far was approved by the owner one run at a time; ask before any
-  further paid run, and say which scenarios and how many times.
+- The offline suite deselects 142 paid tests, including the Phase 7
+  challenges and labeled evaluator examples. Every further paid run requires
+  separate owner approval with the exact scenarios and number of runs.
 - NABD agents live in `backend/code/nabd/agents/`; the legacy
   `agents/support` and `agents/orders` graphs are voice-era code kept for
   their tests, not the NABD runtime.

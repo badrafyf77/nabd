@@ -5,8 +5,10 @@ the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Ph
 is complete at `512e03b`; Phase 1 is complete at `1a04f52`; Phase 2 is complete at
 `02178fa` (plus handoff commits); Phase 3 is complete at 9879593 (plus
 handoff commit); Phase 4 is complete at `b4d5f71`; Phase 5 is complete at `575712a`; Phase 6
-is complete at `45a9445`; Phase 7 is implemented on its local branch and the full release gate is pending. [Accepted decisions](decisions.md)
-and [architecture](architecture.md) apply to every phase.
+is complete at `45a9445`. Phase 7 is implemented on its local branch at
+`2fabd9f`, with release gates and merge pending.
+[Accepted decisions](decisions.md) and [architecture](architecture.md) apply
+to every phase.
 
 ## Phase 0 — Foundation
 
@@ -142,7 +144,14 @@ Testing accompanies every phase.
 - Gates: deterministic authorization/lifecycle/replay/idempotency tests all pass;
   no disclosure or repeated side effects in fault tests; >=90% scenario success
   per language/form across three runs; p95 event-to-browser <=1s and healthy
-  staff updates <=5s. These are targets to measure, not current claims.
+  staff updates <=5s.
+
+**Latest verification.** Deterministic checks passed. Browser event delivery
+was 34 ms p95 against the 1 s target. Nineteen of 20 staff updates met the
+five-second target, with one taking 6.597 s. The approved paid work ended at
+52/60 on the initial attempt and 3/8 on a focused recheck. The three-run
+per-form gate, labeled evaluator check, and release merge are pending.
+[Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026).
 
 ## Phase completion and resumption
 

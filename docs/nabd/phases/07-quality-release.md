@@ -30,15 +30,15 @@ At the end of this phase NABD is a release you can demonstrate and operate:
 - Release documents: an operations runbook, reproducible setup, a scripted
   demo and a follow-up backlog.
 
-## Starting facts (checked 19 November 2026)
+## Baseline before Phase 7 implementation — 19 November 2026
 
-- `main` = `origin/main` = `0079407`, clean. The Phase 7 branch has no commits
-  yet. Git identity `badrafyf77`.
-- Docker: `db` (55432), `test-db` (55433) and the Phase 5 Compose stack
-  (`api` 8081, `read-mcp` 8091, `write-mcp` 8092) are up and healthy.
-- Salesforce `nabd-dev` is connected (API 68.0).
-- Last full suite: 307 passed, 106 paid scenarios deselected (status page).
-- What already exists that Phase 7 builds on:
+- The Phase 7 branch started at `0079407`, then the tip of local and remote
+  `main`. Git identity was `badrafyf77`.
+- Docker dev DB (55432), test DB (55433), and the Phase 5 Compose API (8081),
+  read MCP (8091), and write MCP (8092) were healthy.
+- The `nabd-dev` CLI session was connected (API 68.0).
+- The Phase 5 suite passed 307 tests with 106 paid scenarios deselected.
+- Phase 7 built on the following behavior.
   - Every turn writes customer **events** (`nabd.events`), but these hold only
     the public summary of each tool result, not the data the model saw. There
     is no restricted engineering trace yet, and model token usage is not
@@ -283,19 +283,20 @@ reported as missed, with its cause, not hidden.
   engineering view; the evaluator grades from the trace without tools; summary
   correction through a dedicated gateway operation instead of `update_case`.
 
-## Paid runs needing approval
+## Paid release verification
 
-Every NABD paid run so far was approved one run at a time; this continues.
-Expected requests, each asked separately with the exact scenarios and count:
+The owner approved one full attempt and one focused recheck of its eight
+failures. See the [handoff](#implementation-handoff--19-november-2026) for
+outcomes and token counts. USD rates were unset for those attempts.
 
-- Campaign run 1: 60 scenarios (73 base turns, up to 75 with the optional
-  Darija clarifications, plus one evaluator call per completed turn). Report
-  its measured tokens before requesting runs 2 and 3.
-- Campaign runs 2 and 3 on the same version.
-- Evaluator labeled set: 12 evaluator calls, once.
-- Any recheck after a fix (which restarts the three-run count).
+Further paid work requires a new request and separate approval for each run.
 
-No token or price figures exist yet; the first run measures them.
+- Each of three full campaign runs on one frozen revision covers 60 scenarios,
+  with 73 base turns, up to 75 with optional Darija clarification, and one
+  evaluator call per completed turn. Report token usage after each run.
+- The labeled evaluator set uses 12 calls in one run.
+- A focused recheck has its own exact scenario list and approval. A fix to the
+  frozen revision restarts the full campaign count.
 
 ## Risks and open points
 
@@ -319,14 +320,18 @@ agent remain later work ([roadmap](../roadmap.md#deferred)).
 
 ## Implementation handoff — 19 November 2026
 
-The first implementation checkpoint is `6864092` on
-`codex/nabd-phase7-quality-release`. The focused recheck used `9d2a352`,
-which isolates malformed quality settings from chat. The final local
-checkpoint also centralizes the campaign's async runner across pytest modules. The local dev database is at
-`0005_quality`, and the dedicated Salesforce org is deployed with the
-wording-only gateway and its restricted receipt value. Restore the
-application from [setup](../README.md#fresh-checkout) and use the
-[runbook](../runbook.md) and [demo](../demo.md).
+The local Phase 7 implementation and verification checkpoint is `2fabd9f`
+on `codex/nabd-phase7-quality-release`. The initial implementation was
+`6864092`. The focused recheck used `9d2a352`, which isolates malformed
+quality settings from chat. At `2fabd9f`, the paid test modules share one
+async runner and the free regression check passes. `origin/main` is
+`0079407`, with Phase 7 merge pending.
+
+The dev database is at `0005_quality` and the Phase 7 Compose backend
+responds to readiness checks. The dedicated Salesforce org has the
+wording-only gateway and its restricted receipt value. See the
+[runtime snapshot](../status.md#last-observed-runtime--19-november-2026),
+[setup](../README.md#fresh-checkout), [runbook](../runbook.md), and [demo](../demo.md).
 
 | Check | Result |
 | --- | --- |

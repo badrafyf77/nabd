@@ -382,9 +382,14 @@ npm run test:chat
 The five paid staff-translation examples are opt-in:
 `pytest -m llm tests/nabd/test_staff_translation_scenarios.py -s`. Get approval
 before each run or recheck. They cover references/script and a quoted
-instruction; broader language-quality evaluation remains Phase 7.
+instruction. See the [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026)
+for the latest language-quality evidence.
 
 ## Fresh checkout
+
+For Phase 7 work, use the local `codex/nabd-phase7-quality-release` branch
+described in [current status](status.md#current-work). GitHub `main` contains
+Phases 0–6.
 
 1. Install Python 3.14, Node.js compatible with the frontend lockfile,
    Docker with Compose, and the Salesforce CLI. Clone the repository.
@@ -421,15 +426,17 @@ PYTHONPATH=code .venv-text/bin/python -m nabd salesforce risk-review --target-or
 
 See [operations](runbook.md) for role, retention and recovery guidance. The
 [Phase 7 plan](phases/07-quality-release.md) lists the release gates and
-[the demo](demo.md) shows the walkthrough. For each separately approved paid
-run, use the committed phase version and a private results directory outside
-the repository:
+[the demo](demo.md) shows the walkthrough. The approved paid work ended with
+the focused recheck. See the existing [campaign aggregate](evidence/phase7-campaign.json)
+before resuming. With explicit approval for a new full run, use one committed
+revision and a fresh private results directory outside the repository.
 
 ```bash
 .venv-text/bin/python scripts/release_campaign.py --results-dir /private/path/to/results run --number 1
-.venv-text/bin/python scripts/release_campaign.py --results-dir /private/path/to/results report
+.venv-text/bin/python scripts/release_campaign.py --results-dir /private/path/to/results report --output /private/path/to/results/aggregate.json
 ```
 
-Use `run --number 2`, `run --number 3`, and `labels` only after their
-individual approvals. Review raw fixture replies in the private directory.
-Commit the aggregate report from `docs/nabd/evidence`.
+The `run --number 2`, `run --number 3`, and `labels` commands each require
+separate approval. Review raw fixture replies in the private directory
+and add the new aggregate to the release evidence. The explicit output path
+preserves the existing aggregate and focused recheck.

@@ -19,9 +19,10 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
   6 (analytics and risk warnings, `45a9445`) are complete.
   Phase 5 was resumed after Phase 6, rebased onto `main`, and finished; see its
   [completion handoff](docs/nabd/phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
-  [Phase 7](docs/nabd/phases/07-quality-release.md) (quality review/release)
-  is implemented on its phase branch. See status for release verification and
-  the paid campaign before merging.
+  [Phase 7](docs/nabd/phases/07-quality-release.md) is implemented on
+  `codex/nabd-phase7-quality-release` at `2fabd9f`. The authorized paid
+  work ended with a focused recheck. The release gates and merge are pending.
+  See [current status](docs/nabd/status.md#current-work) before resuming.
   Deploy Salesforce only with `python -m nabd salesforce deploy` (it pauses
   the hourly risk job). Later phase completions must update status and this
   pointer.
