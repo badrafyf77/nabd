@@ -223,3 +223,14 @@ class ChatSettings(BaseSettings):
     @property
     def allowed_origin_list(self) -> tuple[str, ...]:
         return _csv(self.allowed_origins)
+
+
+class StaffSyncSettings(BaseSettings):
+    """Staff follow-up workers; disabled explicitly only for offline development."""
+
+    model_config = _env("NABD_STAFF_SYNC_")
+    enabled: bool = True
+    poll_seconds: float = Field(default=0.25, ge=0.05, le=5)
+    reconcile_seconds: float = Field(default=60, ge=5, le=3600)
+    reconnect_max_seconds: float = Field(default=30, ge=1, le=120)
+    translation_timeout_seconds: float = Field(default=25, ge=1, le=45)

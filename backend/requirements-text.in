@@ -18,3 +18,5 @@ pyyaml>=6,<7
 # Phase 2: read MCP server/client (official SDK) and IANA zones for the business calendar.
 mcp==2.3.0
 tzdata
+# Phase 5: Salesforce Pub/Sub API (gRPC). Messages are decoded in nabd/salesforce/pubsub.py.
+grpcio==1.85.1

@@ -101,6 +101,10 @@ class TurnExecutor:
                     self.connect_writes(write) as writes:
                 index = (await tools.read_json("nabd://knowledge/index"))["entries"]
                 lines = await store.recent_messages(run.conversation_id, run.message_id, self.chat.history_messages)
+                staff = await store.staff_history(run.conversation_id)
+                lines += [{"role": "staff", "id": line["id"],
+                           "text": f"Case {line['case_number']}: {line['text']}", "at": line["at"]} for line in staff]
+                lines.sort(key=lambda line: line["at"])
                 history = tuple(ChatLine(line["role"], line["id"], line["text"], line["at"]) for line in lines)
                 at = next((line.at for line in history if line.message_id == run.message_id), None)
                 turn = Turn(run.message_id, run.text, run.customer_name, self.business.today(), index, history, at)
@@ -117,7 +121,7 @@ class TurnExecutor:
         """Settle one case command whose run ended before Salesforce gave a definite answer."""
         _, _, write = self._tokens(row.customer_id, row.conversation_id, row.run_id)
         context = RunContext(row.conversation_id, row.run_id, 0, row.customer_id, store, TurnBudget(0))
-        async with self.connect_writes(write) as writes:
+        async with store.case_lock(row.customer_id), self.connect_writes(write) as writes:
             await self.complaints.reconcile(context, row, writes)
 
     async def give_up(self, store: Store, row: CommandRow) -> None:

@@ -279,3 +279,11 @@
 .bubble, .conversation-list bdi { unicode-bidi: plaintext; text-align: start; }
 .activity-panel, .case-strip { text-align: start; overflow-wrap: anywhere; }
 .activity-time, .revision { unicode-bidi: isolate; }
+
+.staff-updates:empty { display: none; }
+.staff-updates { display: grid; gap: .75rem; margin-block: .75rem; }
+.staff-reply { border: 1px solid #9bb7a8; background: #f1f8f4; white-space: pre-wrap; }
+.staff-reply p { margin: .4rem 0; }
+.staff-reply .staff-label { font-size: .75rem; margin-block-start: .8rem; }
+.staff-translation { border-block-start: 1px solid #c6dbcf; margin-block-start: .75rem; }
+.staff-notice { color: #355d47; font-size: .85rem; padding-inline: .75rem; }

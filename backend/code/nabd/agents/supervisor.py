@@ -165,6 +165,9 @@ class Supervisor:
                 .replace("{today}", human_date(turn.today))
                 .replace("{customer_name}", turn.customer_name)
                 .replace("{case_work}", case_work_text(case_notes))
+                .replace("{staff_updates}", json.dumps(
+                    [{"text": line.text, "at": line.at.isoformat() if line.at else None}
+                     for line in turn.history if line.role == "staff"], ensure_ascii=False))
                 .replace("{language}", json.dumps((case_notes or {}).get("language")))
                 .replace("{order_options}", json.dumps((case_notes or {}).get("order_options", []), ensure_ascii=False))
                 .replace("{knowledge_index}", _index_lines(turn.knowledge_index)))

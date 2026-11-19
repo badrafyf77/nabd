@@ -3,10 +3,10 @@
 // and the page then reloads the snapshot instead of guessing what was missed.
 
 import { DEFAULT_LANGUAGE } from "./i18n";
-import type { Activity, ConversationState, RunView, ServerEvent, Snapshot } from "./types";
+import type { StaffReply, Activity, ConversationState, RunView, ServerEvent, Snapshot } from "./types";
 
 export function emptyState(): ConversationState {
-  return { language: DEFAULT_LANGUAGE, lastSequence: 0, messages: [], runs: {}, runOrder: [], activities: {}, partial: {}, cases: {}, gap: false };
+  return { language: DEFAULT_LANGUAGE, lastSequence: 0, messages: [], runs: {}, runOrder: [], activities: {}, partial: {}, cases: {}, staffReplies: {}, staffNotices: [], gap: false };
 }
 
 function upsertRun(state: ConversationState, id: string, patch: Partial<RunView>): void {
@@ -22,6 +22,32 @@ function applyOne(state: ConversationState, event: ServerEvent): void {
   const run = event.run_id;
   const p = event.payload || {};
   switch (event.type) {
+    case "staff.reply": {
+      const previous = state.staffReplies[p.reply_id];
+      if (!previous || previous.revision <= p.revision) {
+        state.staffReplies = { ...state.staffReplies, [p.reply_id]: p as StaffReply };
+      }
+      break;
+    }
+    case "staff.reply.withdrawn": {
+      const { [p.reply_id]: _removed, ...rest } = state.staffReplies;
+      state.staffReplies = rest;
+      break;
+    }
+    case "case.removed": {
+      const { [p.case_number]: _removed, ...rest } = state.cases;
+      state.cases = rest;
+      state.staffReplies = Object.fromEntries(Object.entries(state.staffReplies).filter(([, r]) => r.case_number !== p.case_number));
+      state.staffNotices = [...state.staffNotices, event];
+      break;
+    }
+    case "case.staff_update": {
+      state.cases = { ...state.cases, [p.case_number]: { ...state.cases[p.case_number],
+        case_number: p.case_number, department: state.cases[p.case_number]?.department ?? null,
+        status: p.status, last_operation: "staff" } };
+      state.staffNotices = [...state.staffNotices, event];
+      break;
+    }
     case "conversation.language": {
       if (!["en", "fr", "ar", "ary"].includes(p.reply_language) || !["latin", "arabic"].includes(p.reply_script)) break;
       const language = { input_language: p.input_language, reply_language: p.reply_language, reply_script: p.reply_script };
@@ -142,9 +168,12 @@ export function fromSnapshot(snapshot: Snapshot): ConversationState {
     state.partial = { ...state.partial, [item.run_id]: { messageId, attempt: state.runs[item.run_id]?.attempt ?? 1,
                                                          text: item.text } };
   }
+  state.cases = {}; // The current projection supersedes historical case activity.
   for (const item of snapshot.cases || []) {
     state.cases = { ...state.cases, [item.case_number]: item };
   }
+  state.staffReplies = Object.fromEntries((snapshot.staff_replies || []).map((r) => [r.reply_id, r]));
+  state.staffNotices = snapshot.staff_notices || [];
   state.lastSequence = snapshot.last_sequence;
   if (snapshot.language) state.language = snapshot.language;
   return state;

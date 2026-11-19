@@ -15,11 +15,11 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
   describe the target; status identifies what actually exists.
 - Phases 0 (`512e03b`), 1 (Salesforce business system, `1a04f52`), 2
   (support chat, `02178fa`), 3 (complaint cases, `9879593`), 4
-  (multilingual, `b4d5f71`) and 6 (analytics and risk warnings, `45a9445`)
-  are complete. Phase 5 (live staff follow-up) is **paused**, partly done on
-  branch `codex/nabd-phase5-staff-follow-up`; read its
-  [pause handoff](docs/nabd/phases/05-staff-follow-up.md#pause-handoff--18-november-2026)
-  and rebase it on `main` before resuming. Phase 7 depends on Phases 5 and 6.
+  (multilingual, `b4d5f71`), 5 (live staff follow-up, `575712a`), and
+  6 (analytics and risk warnings, `45a9445`) are complete.
+  Phase 5 was resumed after Phase 6, rebased onto `main`, and finished; see its
+  [completion handoff](docs/nabd/phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
+  Phase 7 (quality review/release) is next and depends on both Phases 5 and 6.
   Deploy Salesforce only with `python -m nabd salesforce deploy` (it pauses
   the hourly risk job). Later phase completions must update status and this
   pointer.

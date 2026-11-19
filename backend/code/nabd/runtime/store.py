@@ -413,6 +413,10 @@ class Store:
         return [{"id": str(row["id"]), "role": row["role"], "text": row["text"], "at": row["created_at"]}
                 for row in reversed(rows)]
 
+    async def staff_history(self, conversation_id: str) -> list[dict[str, Any]]:
+        from nabd.runtime.staff_store import StaffStore
+        return await StaffStore(self).history(conversation_id)
+
     async def case_plan(self, run_id: str) -> tuple[dict[str, Any] | None, list[CommandRow]]:
         """A run's stored complaint assessment and commands, if an earlier attempt saved them."""
         async with self.pool.connection() as conn:
@@ -462,15 +466,19 @@ class Store:
 
     async def record_case(self, conversation_id: str, customer_id: str, run_id: str, *, case_id: str,
                           case_number: str, department: str | None, status: str | None, operation: str) -> None:
-        async with self.pool.connection() as conn:
+        async with self.pool.connection() as conn, conn.transaction():
+            # Same lock order as staff projection, translation and event append.
+            await conn.execute("SELECT 1 FROM nabd.conversations WHERE id = %s FOR UPDATE", (conversation_id,))
             await conn.execute(
                 "INSERT INTO nabd.issue_links (conversation_id, case_id, customer_id, case_number, department, "
                 "status, last_operation, run_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
                 "ON CONFLICT (conversation_id, case_id) DO UPDATE SET case_number = excluded.case_number, "
                 "department = coalesce(excluded.department, nabd.issue_links.department), "
                 "status = excluded.status, last_operation = excluded.last_operation, run_id = excluded.run_id, "
-                "updated_at = now()",
+                "removed_at = NULL, updated_at = now()",
                 (conversation_id, case_id, customer_id, case_number, department, status, operation, run_id))
+            from nabd.runtime.staff_store import StaffStore
+            await StaffStore._queue(conn, case_id, "command")
 
     async def claim_reconcile(self, *, older_than_seconds: float, lease_seconds: float, max_attempts: int,
                               limit: int = 10) -> tuple[list[CommandRow], list[CommandRow]]:
@@ -503,7 +511,7 @@ class Store:
         """Current state for a (re)loading browser: messages, runs, their activity and partial replies."""
         async with self.pool.connection() as conn, conn.transaction():
             conversation = await (await conn.execute(
-                "SELECT last_sequence FROM nabd.conversations WHERE id = %s", (conversation_id,))).fetchone()
+                "SELECT last_sequence FROM nabd.conversations WHERE id = %s FOR UPDATE", (conversation_id,))).fetchone()
             messages = await (await conn.execute(
                 "SELECT m.id, m.role, m.run_id, m.text, m.created_at FROM nabd.messages m "
                 "JOIN nabd.runs r ON r.id = m.run_id WHERE m.conversation_id = %s "
@@ -529,7 +537,21 @@ class Store:
                 (conversation_id, active, conversation["last_sequence"]))).fetchall()
             cases = await (await conn.execute(
                 "SELECT case_number, department, status, last_operation, updated_at FROM nabd.issue_links "
-                "WHERE conversation_id = %s ORDER BY created_at", (conversation_id,))).fetchall()
+                "WHERE conversation_id = %s AND removed_at IS NULL ORDER BY created_at", (conversation_id,))).fetchall()
+            replies = await (await conn.execute(
+                "SELECT * FROM nabd.staff_replies WHERE conversation_id = %s AND withdrawn_at IS NULL "
+                "ORDER BY created_at", (conversation_id,))).fetchall()
+            notices = await (await conn.execute(
+                "SELECT * FROM nabd.events WHERE conversation_id = %s "
+                "AND type IN ('case.staff_update', 'case.removed') AND sequence <= %s ORDER BY sequence",
+                (conversation_id, conversation["last_sequence"]))).fetchall()
+        from nabd.runtime.staff_projection import reply_payload
+        staff_replies = []
+        for r in replies:
+            item = reply_payload(str(r["id"]), r["case_number"], r["body"], r["posted_at"], r["revision"],
+                                 r["translation_status"], r["translation"])
+            item["after_message_id"] = str(r["after_message_id"]) if r["after_message_id"] else None
+            staff_replies.append(item)
         attempts = {str(row["id"]): row["attempt"] for row in runs}
         partial: dict[str, dict[str, Any]] = {}
         for row in deltas:
@@ -539,6 +561,8 @@ class Store:
             item = partial.setdefault(payload["message_id"], {"run_id": str(row["run_id"]), "text": ""})
             item["text"] += payload["text"]
         return {
+            "staff_replies": staff_replies,
+            "staff_notices": [_event_dict(row) for row in notices],
             "language": language["payload"] if language else None,
             "last_sequence": conversation["last_sequence"],
             "messages": [{"id": str(m["id"]), "role": m["role"], "run_id": _id(m["run_id"]), "text": m["text"],

@@ -17,12 +17,13 @@ from pydantic import BaseModel, ConfigDict
 from nabd.salesforce import schema as s
 from nabd.salesforce.rest import SalesforceClient
 from nabd.salesforce.soql import (
-    CUSTOMER_ID, KNOWLEDGE_KEY, ORDER_NUMBER, literal, require, select,
+    CUSTOMER_ID, KNOWLEDGE_KEY, ORDER_NUMBER, SALESFORCE_ID, literal, literal_list, require, select,
 )
 
 MAX_ORDERS = 50
 MAX_CASES = 50
 MAX_DEMO_CUSTOMERS = 50
+MAX_SYNC_CASES = 100
 
 
 class Model(BaseModel):
@@ -126,6 +127,34 @@ class CaseHistoryEntry(Model):
     record: RecordRef
 
 
+class PublicReply(Model):
+    """A public case comment: a staff reply the customer may see. Private notes are never read."""
+
+    comment_id: str
+    body: str
+    posted_at: datetime
+    edited_at: datetime | None
+
+
+class CaseState(Model):
+    """The customer-visible state of one case, for staff follow-up (Phase 5).
+
+    ``customer_id`` is the case's current owner; the caller shows the state only
+    to that customer. No internal assessment fields are read.
+    """
+
+    case_id: str
+    case_number: str
+    customer_id: str | None
+    status: str
+    is_closed: bool
+    resolution: str | None
+    staff_action: str | None
+    staff_action_completed: bool
+    replies: tuple[PublicReply, ...]
+    record: RecordRef
+
+
 class KnowledgeRevision(Model):
     entry_key: str
     revision: int
@@ -187,6 +216,11 @@ _CASE_HISTORY_FIELDS = select(
     "Reopen_Count__c", "Last_Reopened_At__c", "Resolution_Outcome__c", "Staff_Action_Required__c",
     "Staff_Action_Completed__c",
 )
+_SYNC_CASE_FIELDS = select(
+    s.CASE.name, "Id", "SystemModstamp", "CaseNumber", "Status", "IsClosed", "Account.ShopEasy_Customer_Id__c",
+    "Resolution_Outcome__c", "Staff_Action_Required__c", "Staff_Action_Completed__c",
+)
+_REPLY_FIELDS = select(s.CASE_COMMENT.name, "Id", "CommentBody", "CreatedDate", "LastModifiedDate")
 _KNOWLEDGE_FIELDS = select(
     s.KNOWLEDGE.name, "Id", "SystemModstamp", "Name", "Entry_Key__c", "Revision__c", "Revision_Key__c",
     "Entry_Type__c", "Question__c", "Body__c", "Topic__c", "Language__c", "Published_At__c",
@@ -338,6 +372,40 @@ class SalesforceReads:
             )
             for row in rows
         ]
+
+    async def case_states(self, case_ids: list[str]) -> dict[str, CaseState]:
+        """Current customer-visible state of these cases, by case ID; deleted cases are absent.
+
+        Used by staff follow-up, which is not a customer request: the caller
+        must show a state only to the customer in ``CaseState.customer_id``.
+        Only public comments are queried (``IsPublished = true`` is part of the
+        query), so private staff notes never leave Salesforce.
+        """
+        ids = sorted({require(SALESFORCE_ID, case_id, "case ID") for case_id in case_ids})
+        states: dict[str, CaseState] = {}
+        for start in range(0, len(ids), MAX_SYNC_CASES):
+            selected = literal_list(ids[start:start + MAX_SYNC_CASES])
+            rows = await self.client.query(f"SELECT {_SYNC_CASE_FIELDS} FROM Case WHERE Id IN {selected}")
+            # A separate paginated query avoids silently truncating a long comment history.
+            comments = await self.client.query(
+                f"SELECT ParentId, {_REPLY_FIELDS} FROM CaseComment "
+                f"WHERE ParentId IN {selected} AND IsPublished = true ORDER BY CreatedDate")
+            for row in rows:
+                replies = tuple(
+                    PublicReply(comment_id=item["Id"], body=item["CommentBody"] or "",
+                                posted_at=_datetime(item["CreatedDate"]),
+                                edited_at=_datetime(item.get("LastModifiedDate")))
+                    for item in comments if item["ParentId"] == row["Id"] and (item.get("CommentBody") or "").strip()
+                )
+                states[row["Id"]] = CaseState(
+                    case_id=row["Id"], case_number=row["CaseNumber"],
+                    customer_id=(row.get("Account") or {}).get("ShopEasy_Customer_Id__c"),
+                    status=row["Status"], is_closed=bool(row["IsClosed"]), resolution=row["Resolution_Outcome__c"],
+                    staff_action=row["Staff_Action_Required__c"],
+                    staff_action_completed=bool(row["Staff_Action_Completed__c"]), replies=replies,
+                    record=_ref(s.CASE.name, row),
+                )
+        return states
 
     async def list_published_knowledge(
         self, entry_type: Literal["faq", "policy"] | None = None,

@@ -92,7 +92,7 @@ class ComplaintAssessment(BaseModel):
 class ChatLine:
     """One stored conversation message, as the specialist sees it."""
 
-    role: Literal["customer", "assistant"]
+    role: Literal["customer", "assistant", "staff"]
     message_id: str
     text: str
     at: datetime | None = None
@@ -285,7 +285,7 @@ class ComplaintSpecialist:
         lines = ["Conversation so far (oldest first):"]
         earlier = [line for line in history if line.message_id != current.message_id]
         for line in earlier or []:
-            label = f"customer {line.message_id}" if line.role == "customer" else "assistant"
+            label = f"customer {line.message_id}" if line.role == "customer" else line.role
             lines.append(f"[{label}] {line.text}")
         if not earlier:
             lines.append("(no earlier messages)")
