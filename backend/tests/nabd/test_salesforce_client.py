@@ -264,3 +264,24 @@ def test_salesforce_settings_validate_the_domain_and_redact_credentials():
 def test_access_token_repr_hides_the_value():
     token = AccessToken(SecretStr("00Dabc!secret"), DOMAIN)
     assert "secret" not in repr(token) and "secret" not in str(token)
+
+
+def test_staff_reads_query_only_public_comments_and_current_owner_without_a_history_limit():
+    org = FakeOrg()
+    case_id = '500000000000001AAA'
+    org.responses = [_records({
+        'Id':case_id, 'SystemModstamp':STAMP, 'CaseNumber':'00002001', 'Status':'Working', 'IsClosed':False,
+        'Account':{'ShopEasy_Customer_Id__c':'C003'}, 'Resolution_Outcome__c':None,
+        'Staff_Action_Required__c':'refund', 'Staff_Action_Completed__c':True}),
+        _records({'Id':'00a000000000001AAA','ParentId':case_id,'CommentBody':'Public reply',
+                  'CreatedDate':STAMP,'LastModifiedDate':STAMP})]
+    async def run():
+        http, _, client = _client(org)
+        async with http:
+            return await SalesforceReads(client).case_states([case_id])
+    states = asyncio.run(run())
+    assert states[case_id].customer_id == 'C003'
+    assert states[case_id].replies[0].body == 'Public reply'
+    assert 'FROM CaseComment' in org.queries[1] and 'IsPublished = true' in org.queries[1]
+    assert 'LIMIT' not in org.queries[1]
+    assert not any(word in ' '.join(org.queries) for word in ('Sentiment', 'Risk', 'Negative_Streak', 'CreatedBy'))

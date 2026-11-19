@@ -8,6 +8,15 @@ export function localeOf(language?: TurnLanguage): Locale {
 }
 export function direction(locale: Locale): "rtl" | "ltr" { return locale === "ar" || locale === "ary-arab" ? "rtl" : "ltr"; }
 const CATALOG = {
+  staffReply: ["Support team · case {number}", "Équipe support · dossier {number}", "فريق الدعم · الشكوى {number}", "Équipe support · dossier {number}", "فريق الدعم · الملف {number}"],
+  staffUpdate: ["Team update · case {number}: {status}", "Mise à jour de l’équipe · dossier {number} : {status}", "تحديث الفريق · الشكوى {number}: {status}", "Jdid mn l’équipe · dossier {number}: {status}", "جديد من الفريق · الملف {number}: {status}"],
+  staffActionDone: ["The team completed the required action.", "L’équipe a effectué l’action requise.", "أكمل الفريق الإجراء المطلوب.", "L’équipe kmmelat l’action li khassa.", "الفريق كمّل الإجراء اللي خاص."],
+  staffActionChanged: ["The team updated the required action.", "L’équipe a mis à jour l’action requise.", "حدّث الفريق الإجراء المطلوب.", "L’équipe beddlat l’action li khassa.", "الفريق بدّل الإجراء اللي خاص."],
+  caseRemoved: ["Case {number} is no longer available in this conversation.", "Le dossier {number} n’est plus disponible dans cette conversation.", "لم تعد الشكوى {number} متاحة في هذه المحادثة.", "Dossier {number} ma bqach kayban f had lmohadata.", "الملف {number} ما بقاش كيبان فهاد المحادثة."],
+  staffOriginal: ["Original staff reply", "Réponse originale de l’équipe", "رد الفريق الأصلي", "Jawab l’équipe l’asli", "جواب الفريق الأصلي"],
+  staffTranslation: ["Translation", "Traduction", "ترجمة", "Tarjama", "ترجمة"],
+  translationPending: ["Translation in progress…", "Traduction en cours…", "جارٍ الترجمة…", "Kantarjmo…", "كنترجمو…"],
+  translationFailed: ["Translation unavailable. Original reply shown above.", "Traduction indisponible. Réponse originale ci-dessus.", "الترجمة غير متاحة. الرد الأصلي أعلاه.", "Tarjama ma kaynach. Ljawab l’asli lfoq.", "الترجمة ما كايناش. الجواب الأصلي الفوق."],
   working: ["Working", "En cours", "جارٍ العمل", "Khddamin", "خدامين"],
   support: ["Support", "Assistance", "الدعم", "Mosa3ada", "المساعدة"],
   newChat: ["New conversation", "Nouvelle conversation", "محادثة جديدة", "Mohadata jdida", "محادثة جديدة"],

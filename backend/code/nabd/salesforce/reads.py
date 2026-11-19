@@ -24,7 +24,6 @@ MAX_ORDERS = 50
 MAX_CASES = 50
 MAX_DEMO_CUSTOMERS = 50
 MAX_SYNC_CASES = 100
-MAX_PUBLIC_REPLIES = 100
 
 
 class Model(BaseModel):
@@ -385,17 +384,18 @@ class SalesforceReads:
         ids = sorted({require(SALESFORCE_ID, case_id, "case ID") for case_id in case_ids})
         states: dict[str, CaseState] = {}
         for start in range(0, len(ids), MAX_SYNC_CASES):
-            rows = await self.client.query(
-                f"SELECT {_SYNC_CASE_FIELDS}, (SELECT {_REPLY_FIELDS} FROM CaseComments "
-                f"WHERE IsPublished = true ORDER BY CreatedDate LIMIT {MAX_PUBLIC_REPLIES}) "
-                f"FROM Case WHERE Id IN {literal_list(ids[start:start + MAX_SYNC_CASES])}"
-            )
+            selected = literal_list(ids[start:start + MAX_SYNC_CASES])
+            rows = await self.client.query(f"SELECT {_SYNC_CASE_FIELDS} FROM Case WHERE Id IN {selected}")
+            # A separate paginated query avoids silently truncating a long comment history.
+            comments = await self.client.query(
+                f"SELECT ParentId, {_REPLY_FIELDS} FROM CaseComment "
+                f"WHERE ParentId IN {selected} AND IsPublished = true ORDER BY CreatedDate")
             for row in rows:
                 replies = tuple(
                     PublicReply(comment_id=item["Id"], body=item["CommentBody"] or "",
                                 posted_at=_datetime(item["CreatedDate"]),
                                 edited_at=_datetime(item.get("LastModifiedDate")))
-                    for item in row.get("CaseComments") or [] if (item.get("CommentBody") or "").strip()
+                    for item in comments if item["ParentId"] == row["Id"] and (item.get("CommentBody") or "").strip()
                 )
                 states[row["Id"]] = CaseState(
                     case_id=row["Id"], case_number=row["CaseNumber"],

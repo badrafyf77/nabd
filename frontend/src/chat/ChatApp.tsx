@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import ActivityPanel from "./ActivityPanel";
+import StaffUpdates from "./StaffUpdates";
 import { ApiError, EVENT_TYPES, api } from "./api";
 import { direction, localeOf, ref, statusText, t, teamText } from "./i18n";
 import { applyEvents, emptyState, fromSnapshot } from "./reducer";
@@ -260,6 +261,10 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
     return map;
   }, [state.activities]);
 
+  const staffAfter = (messageIds: (string | null)[]) => <StaffUpdates locale={locale}
+    replies={Object.values(state.staffReplies).filter((r) => messageIds.includes(r.after_message_id))}
+    notices={state.staffNotices.filter((e) => messageIds.includes(e.payload.after_message_id))} />;
+
   return (
     <div className="chat-shell" lang={state.language.reply_language} dir={direction(locale)}>
       <aside className="sidebar">
@@ -319,6 +324,7 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
           {!loading && state.runOrder.length === 0 && pending.length === 0 && (
             <p className="empty">{t(locale, "empty")}</p>
           )}
+          {staffAfter([null])}
           {state.runOrder.map((runId) => {
             const run = state.runs[runId];
             const texts = messagesByRun.get(runId) || {};
@@ -328,9 +334,11 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
             return (
               <div key={runId} className="turn">
                 {texts.customer && <div className="bubble customer" dir="auto">{texts.customer}</div>}
+                {staffAfter([run.messageId])}
                 <ActivityPanel run={run} activities={activitiesByRun.get(runId) || []} now={now} expanded={expanded}
                                onToggle={() => setToggled((t) => ({ ...t, [runId]: !expanded }))} />
                 {texts.assistant && <div className="bubble assistant" dir="auto">{texts.assistant}</div>}
+                {staffAfter(state.messages.filter((m) => m.runId === runId && m.role === "assistant").map((m) => m.id))}
                 {!texts.assistant && partial && (
                   <div className="bubble assistant streaming" dir="auto">{partial.text}<span className="caret" /></div>
                 )}

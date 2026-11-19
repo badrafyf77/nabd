@@ -49,6 +49,8 @@ export type Snapshot = {
   events: ServerEvent[];
   partial: Record<string, { run_id: string; text: string }>;
   cases: CaseLink[];
+  staff_replies?: StaffReply[];
+  staff_notices?: ServerEvent[];
 };
 
 // A case this conversation opened or changed, as Salesforce last confirmed it.
@@ -108,5 +110,18 @@ export type ConversationState = {
   activities: Record<string, Activity>;
   partial: Record<string, PartialReply>; // by run ID
   cases: Record<string, CaseLink>; // by case number, confirmed only
+  staffReplies: Record<string, StaffReply>;
+  staffNotices: ServerEvent[];
   gap: boolean;
+};
+
+export type StaffReply = {
+  reply_id: string;
+  case_number: string;
+  text: string;
+  posted_at: string;
+  revision: number;
+  after_message_id: string | null;
+  translation: { status: "none" | "pending" | "done" | "failed"; text?: string;
+                 reply_language?: string; reply_script?: string; source_language?: string };
 };

@@ -28,6 +28,7 @@ def upgrade() -> None:
             not_before timestamptz NOT NULL DEFAULT now(),
             attempts integer NOT NULL DEFAULT 0,
             lease_until timestamptz,
+            lease_token uuid,
             last_error text
         );
         CREATE INDEX case_syncs_due ON nabd.case_syncs (not_before);
@@ -56,6 +57,8 @@ def upgrade() -> None:
             translation jsonb,
             translation_attempts integer NOT NULL DEFAULT 0,
             translation_lease_until timestamptz,
+            translation_token uuid,
+            after_message_id uuid,
             withdrawn_at timestamptz,
             source_at timestamptz,
             created_at timestamptz NOT NULL DEFAULT now(),

@@ -39,6 +39,7 @@ class ChatRuntime:
     reads: Any  # SalesforceReads (only list_demo_customers/get_customer are used here)
     settings: ChatSettings
     tasks: list[asyncio.Task] = field(default_factory=list)
+    staff: Any = None
 
 
 class SignIn(BaseModel):
@@ -146,6 +147,8 @@ async def create_conversation(session: DemoSession = Depends(signed_in),
 @router.get("/conversations/{conversation_id}")
 async def conversation(conversation: dict[str, Any] = Depends(owned),
                        runtime: ChatRuntime = Depends(chat_runtime)) -> dict[str, Any]:
+    if runtime.staff is not None:
+        await runtime.staff.inbox.reconcile(conversation["id"])
     return {"conversation": conversation, **await runtime.store.snapshot(conversation["id"])}
 
 
@@ -180,6 +183,8 @@ async def events(request: Request, after: int | None = None, conversation: dict[
         raise HTTPException(400, detail="invalid_last_event_id") from None
     conversation_id = conversation["id"]
     cookie = request.cookies.get(COOKIE)
+    if runtime.staff is not None:
+        await runtime.staff.inbox.reconcile(conversation_id)
 
     async def stream() -> AsyncIterator[str]:
         nonlocal last

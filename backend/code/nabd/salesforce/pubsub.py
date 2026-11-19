@@ -284,6 +284,8 @@ class AvroReader:
         if kind == "boolean":
             if pos >= len(data):
                 raise PubSubDecodeError("truncated Avro boolean")
+            if data[pos] not in (0, 1):
+                raise PubSubDecodeError("invalid Avro boolean")
             return data[pos] == 1, pos + 1
         if kind in ("int", "long"):
             return self._long(data, pos)
@@ -304,9 +306,13 @@ class AvroReader:
             return record, pos
         if kind == "enum":
             index, pos = self._long(data, pos)
+            if not 0 <= index < len(schema["symbols"]):
+                raise PubSubDecodeError("invalid Avro enum index")
             return schema["symbols"][index], pos
         if kind == "fixed":
             size = schema["size"]
+            if size < 0 or pos + size > len(data):
+                raise PubSubDecodeError("truncated Avro fixed")
             return data[pos:pos + size], pos + size
         if kind in ("array", "map"):
             items: list[Any] = []

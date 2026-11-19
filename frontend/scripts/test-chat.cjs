@@ -8,7 +8,7 @@ const out = mkdtempSync(join(tmpdir(), 'nabd-chat-'));
 try {
   execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '--target', 'es2020', '--module', 'commonjs',
     '--jsx', 'react-jsx', '--esModuleInterop', '--skipLibCheck', '--outDir', out,
-    'src/chat/reducer.ts', 'src/chat/messages.ts', 'src/chat/ActivityPanel.tsx'], { stdio: 'inherit' });
+    'src/chat/reducer.ts', 'src/chat/messages.ts', 'src/chat/ActivityPanel.tsx', 'src/chat/StaffUpdates.tsx'], { stdio: 'inherit' });
   // Compiled React module resolves dependencies from this project's node_modules.
   require('node:module').Module._initPaths();
   const { emptyState, applyEvents, fromSnapshot } = require(join(out, 'reducer.js'));
@@ -54,5 +54,34 @@ try {
   const html = renderToStaticMarkup(React.createElement(Panel, { run: { id: 'r', status: 'queued', attempt: 1, language },
     activities: [], now: 0, expanded: true, onToggle() {} }));
   assert.ok(html.includes('dir="rtl"') && html.includes('lang="ary"') && html.includes('النوبة'));
+  const Staff = require(join(out, 'StaffUpdates.js')).default;
+  const staffReply = { reply_id: 'sr', case_number: '00002001', text: 'Refund GBP 34.99 in 3 days.',
+    revision: 1, after_message_id: 'm', translation: { status: 'pending' } };
+  let staffState = applyEvents(emptyState(), [event(1, 'staff.reply', staffReply, null),
+    event(2, 'case.staff_update', { case_number: '00002001', status: 'Working', changes: ['status'] }, null)]);
+  assert.equal(staffState.staffReplies.sr.text, staffReply.text);
+  assert.equal(staffState.cases['00002001'].status, 'Working');
+  staffState = applyEvents(staffState, [event(3, 'staff.reply', { ...staffReply, translation: {
+    status: 'done', text: 'الاسترداد GBP 34.99 خلال 3 أيام.', reply_language: 'ar', reply_script: 'arabic' } }, null)]);
+  assert.equal(Object.keys(staffState.staffReplies).length, 1);
+  const staffHtml = renderToStaticMarkup(React.createElement(Staff, { replies: Object.values(staffState.staffReplies),
+    notices: staffState.staffNotices, locale: 'ar' }));
+  assert.ok(staffHtml.includes('dir="rtl"') && staffHtml.includes('ترجمة') && staffHtml.includes('GBP 34.99'));
+  staffState = applyEvents(staffState, [event(4, 'staff.reply.withdrawn', { reply_id: 'sr' }, null)]);
+  assert.deepEqual(staffState.staffReplies, {});
+  staffState = applyEvents(staffState, [event(5, 'staff.reply', { ...staffReply, revision: 2 }, null),
+    event(6, 'case.removed', { case_number: '00002001' }, null)]);
+  assert.deepEqual(staffState.staffReplies, {});
+  assert.deepEqual(staffState.cases, {});
+  const removed = fromSnapshot({ conversation: {}, last_sequence: 6, messages: [], runs: [], partial: {}, cases: [],
+    events: [{ ...event(2, 'activity', { result: { case_number: '00002001' } }), activity_id: 'a', code: 'case.create', state: 'completed' }],
+    staff_replies: [], staff_notices: staffState.staffNotices });
+  assert.deepEqual(removed.cases, {}); // Historical cards cannot resurrect removed cases on reload.
+  for (const locale of ['en', 'fr', 'ar', 'ary-latn', 'ary-arab']) {
+    for (const key of ['staffReply', 'staffOriginal', 'staffTranslation', 'translationPending', 'translationFailed',
+      'staffUpdate', 'staffActionDone', 'staffActionChanged', 'caseRemoved']) {
+      assert.ok(t(locale, key, { number: ref('00002001'), status: 'Working' }));
+    }
+  }
   console.log('Chat checks passed: language switching, replay, snapshot, templates and RTL rendering.');
 } finally { rmSync(out, { recursive: true, force: true }); }

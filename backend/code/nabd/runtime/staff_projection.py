@@ -137,8 +137,8 @@ def plan_case_view(link: ShownLink, replies: list[ShownReply], state: CaseState 
     if state.staff_action != link.staff_action or state.staff_action_completed != link.staff_action_completed:
         plan.link.update(staff_action=state.staff_action, staff_action_completed=state.staff_action_completed)
         completed_now = state.staff_action_completed and link.staff_action_completed is False
-        if completed_now and not own and state.staff_action:
-            changes.append("staff_action_completed")
+        if not own and (link.synced or completed_now):
+            changes.append("staff_action_completed" if completed_now else "staff_action_changed")
     if changes:
         plan.events.append(NewEvent(type=CASE_STAFF_UPDATE, code=CASE_STAFF_UPDATE, payload={
             "case_number": state.case_number, "status": state.status,

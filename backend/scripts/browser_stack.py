@@ -1,10 +1,10 @@
 """Browser-check stack: the real API, read and write MCP servers, Salesforce and the dev
 PostgreSQL database, with scripted (free) models instead of OpenAI.
 
-Used for the Phase 4 multilingual browser check; no real model calls. From backend/:
+Used for the Phase 5 staff follow-up browser check; no real model calls. From backend/:
 
     .venv-text/bin/python scripts/browser_stack.py
-    cd ../frontend && NABD_API_ORIGIN=http://127.0.0.1:8083 npm run dev
+    cd ../frontend && NABD_API_ORIGIN=http://127.0.0.1:8083 npm run dev -- --port 3001
 
 Serves the API on 8083, read MCP on 8093 and write MCP on 8094 with throwaway
 context secrets (stop the Compose `api` first only if you change these ports).
@@ -12,7 +12,9 @@ It migrates the dev database. The scripted Complaint model knows one story:
 customer C006 (Omar) says coffee grinder SE-1091 has not arrived; a first
 message opens a real Delivery case in the org, a follow-up updates it. Close
 that test case in Salesforce afterwards (Phase 3 closed 00001044 as withdrawn).
-Adapt ``complaints()``/``supervisor()`` for other stories. No OpenAI calls.
+Includes the real staff subscriber and a scripted French translation. Staff
+changes/public comments made as the CLI admin appear in the open chat. Adapt
+``complaints()``/``supervisor()`` for other stories. No OpenAI calls.
 """
 import asyncio
 import json
@@ -35,6 +37,7 @@ from nabd.agents.models import AgentModels  # noqa: E402
 from nabd.app import ChatDependencies, create_app  # noqa: E402
 from nabd.migrations import migrate  # noqa: E402
 from nabd.read_mcp.server import create_app as read_app  # noqa: E402
+from nabd.salesforce.pubsub import PubSubClient
 from nabd.salesforce.reads import SalesforceReads  # noqa: E402
 from nabd.salesforce.rest import ClientCredentialsAuth, SalesforceClient  # noqa: E402
 from nabd.settings import (  # noqa: E402
@@ -61,7 +64,7 @@ READ = ReadMcpSettings(context_secret=SecretStr(secrets.token_urlsafe(32)), url=
                        port=8093, allowed_hosts="127.0.0.1:8093")
 WRITE = WriteMcpSettings(context_secret=SecretStr(secrets.token_urlsafe(32)), url="http://127.0.0.1:8094/mcp",
                          port=8094, allowed_hosts="127.0.0.1:8094")
-TITLE = "Coffee grinder SE-1091 not delivered"
+TITLE = "Coffee grinder SE-1091 not delivered (Phase 5 browser verification)"
 
 
 def complaints(messages):
@@ -92,6 +95,9 @@ def complaints(messages):
 
 
 def supervisor(messages):
+    if messages[0].content.startswith("Translate a ShopEasy staff reply"):
+        return say(json.dumps({"text": "L’équipe a traité le remboursement GBP 34.99. Il arrivera dans 3 jours.",
+                               "source_language": "en"}, ensure_ascii=False))
     section = messages[0].content.split("## Case work for this message", 1)[1].split("- When a case", 1)[0]
     number = re.search(r"case (\d+)", section)
     number = number.group(1) if number else ""
@@ -126,13 +132,13 @@ async def main():
     models = AgentModels(Callable(fn=supervisor), FakeChatModel(), Callable(fn=complaints))
     deps = ChatDependencies(
         reads=reads, models=models, connect=http_connector(READ.url, 20), read_mcp=READ,
-        chat=ChatSettings(), business=BusinessSettings(), connect_writes=http_connector(WRITE.url, 30),
-        write_mcp=WRITE)
+        chat=ChatSettings(allowed_origins="http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"), business=BusinessSettings(), connect_writes=http_connector(WRITE.url, 30),
+        write_mcp=WRITE, subscriber=PubSubClient(auth))
     servers = [
-        uvicorn.Server(uvicorn.Config(read_app(READ), host="127.0.0.1", port=8093, log_level="warning")),
-        uvicorn.Server(uvicorn.Config(write_app(WRITE), host="127.0.0.1", port=8094, log_level="warning")),
+        uvicorn.Server(uvicorn.Config(read_app(READ), host="127.0.0.1", port=8093, log_level="warning", timeout_graceful_shutdown=3)),
+        uvicorn.Server(uvicorn.Config(write_app(WRITE), host="127.0.0.1", port=8094, log_level="warning", timeout_graceful_shutdown=3)),
         uvicorn.Server(uvicorn.Config(create_app(settings, chat=deps), host="127.0.0.1", port=8083,
-                                      log_level="info")),
+                                      log_level="info", timeout_graceful_shutdown=3)),
     ]
     await asyncio.gather(*(server.serve() for server in servers))
 

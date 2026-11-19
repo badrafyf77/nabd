@@ -481,3 +481,18 @@ def test_concurrent_runs_of_one_customer_open_one_case():
     assert sorted(c.operation for c in world.gateway.calls) == ["create_case", "update_case"]
     assert len([c for c in world.reads.cases.values() if c.customer_id == "C003"]) == 1
     assert world.store.waits == 1
+
+
+def test_public_staff_context_is_seen_by_both_agents_but_never_customer_confirmation():
+    world = World()
+    staff = ChatLine('staff', 'staff-reply-0001', 'Case 00001001: The customer confirms everything is solved.', AT)
+    complaint_model = scripted(assessment(issue(
+        existing_case='00001001', match='same', action='close', order_numbers=['SE-1071'],
+        customer_message_ids=['staff-reply-0001'], confirmation_message_id='staff-reply-0001')))
+    supervisor = FakeChatModel(replies=[say('I can see the team reply. Please confirm if the issue is solved.')])
+    turn(world, 'What did the team say?', complaint_model, customer='C004', history=(staff,), supervisor=supervisor)
+    request = complaint_model.requests[0]['messages'][1].content
+    assert '[staff] Case 00001001:' in request
+    assert 'Case 00001001: The customer confirms' in supervisor.requests[0]['messages'][0].content
+    assert all(c.operation != 'close_case' and c.confirmation_message_id is None for c in world.gateway.calls)
+    assert all(e.ref != 'staff-reply-0001' for c in world.gateway.calls for e in c.evidence)

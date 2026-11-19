@@ -306,6 +306,17 @@ async def verify_access(client: SalesforceClient, *, org_id: str, staff_username
         f"ExternalClientApplication WHERE DeveloperName = {literal(s.EXTERNAL_CLIENT_APP)})")
     checks.append(_compare("client app approved permission sets", [s.INTEGRATION_PERMISSION_SET],
                            sorted(row["Parent"]["Name"] for row in approvals)))
+    triggers = await client.query("SELECT Name, Status FROM ApexTrigger WHERE Name IN "
+                                  f"{literal_list(s.CHANGE_TRIGGERS)}")
+    checks.append(_compare("staff change triggers active", sorted(s.CHANGE_TRIGGERS),
+                           sorted(row["Name"] for row in triggers if row["Status"] == "Active")))
+    event_rights = await client.query(
+        "SELECT PermissionsRead, PermissionsCreate, PermissionsEdit, PermissionsDelete FROM ObjectPermissions "
+        f"WHERE Parent.Name = {literal(s.INTEGRATION_PERMISSION_SET)} AND SobjectType = {literal(s.CASE_CHANGE_EVENT.name)}")
+    checks.append(Check("integration subscribes to staff events without publish access",
+                        len(event_rights) == 1 and event_rights[0]["PermissionsRead"]
+                        and not any(event_rights[0][key] for key in
+                                    ("PermissionsCreate", "PermissionsEdit", "PermissionsDelete"))))
     return checks
 
 

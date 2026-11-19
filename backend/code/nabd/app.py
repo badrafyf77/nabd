@@ -28,12 +28,15 @@ from nabd.agents.supervisor import Supervisor
 from nabd.api import ChatRuntime, router
 from nabd.database import open_database
 from nabd.migrations import current_revision
+from nabd.runtime.staff_sync import StaffSync
+from nabd.agents.staff_translation import StaffTranslator
+from nabd.salesforce.pubsub import PubSubClient
 from nabd.runtime.store import Store
 from nabd.runtime.worker import EventNotifier, RunWorker, TurnExecutor
 from nabd.salesforce.reads import SalesforceReads
 from nabd.salesforce.rest import ClientCredentialsAuth, SalesforceClient
 from nabd.settings import (
-    BusinessSettings, ChatSettings, ModelSettings, ReadMcpSettings, SalesforceSettings, Settings, WriteMcpSettings,
+    BusinessSettings, ChatSettings, StaffSyncSettings, ModelSettings, ReadMcpSettings, SalesforceSettings, Settings, WriteMcpSettings,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,6 +54,8 @@ class ChatDependencies:
     business: BusinessSettings
     connect_writes: McpConnector
     write_mcp: WriteMcpSettings
+    subscriber: Any = None
+    staff_sync: StaffSyncSettings | None = None
 
 
 async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
@@ -69,6 +74,7 @@ async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
         connect=http_connector(read_mcp.url, read_mcp.timeout_seconds),
         read_mcp=read_mcp, chat=chat, business=business,
         connect_writes=http_connector(write_mcp.url, write_mcp.timeout_seconds), write_mcp=write_mcp,
+        subscriber=PubSubClient(auth), staff_sync=StaffSyncSettings(),
     )
 
 
@@ -96,6 +102,11 @@ def create_app(settings: Settings | None = None, *, chat: ChatDependencies | Non
                 runtime.tasks.append(asyncio.create_task(notifier.listen(), name="nabd-event-listener"))
                 if start_worker:
                     runtime.tasks.append(asyncio.create_task(worker.run_forever(), name="nabd-run-worker"))
+                if start_worker and deps.subscriber is not None and (deps.staff_sync or StaffSyncSettings()).enabled:
+                    runtime.staff = StaffSync(store, deps.reads, deps.subscriber,
+                                              StaffTranslator(deps.models.supervisor),
+                                              deps.staff_sync or StaffSyncSettings())
+                    runtime.tasks.append(asyncio.create_task(runtime.staff.run_forever(), name="nabd-staff-sync"))
                 app.state.chat = runtime
             try:
                 yield
