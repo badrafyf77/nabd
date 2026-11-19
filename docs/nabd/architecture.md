@@ -28,6 +28,26 @@ flowchart TD
     SF --> STAFF[Salesforce staff workspace and dashboards]
 ```
 
+## Phase 6 risk and analytics boundary
+
+Risk evaluation runs in Salesforce, beside the records it reads and writes
+([decisions](decisions.md#recorded-implementation-adjustments)). The case
+gateway records each customer contact's sentiment on the new evidence and a
+negative-contact streak on the case. A Case trigger publishes an after-commit
+`NABD_Risk_Check__e` per changed customer; its trigger runs `NabdRiskEngine` as
+the Automated Process user, because asynchronous work started by the
+integration user runs as that user, which cannot create warnings or tasks. An
+hourly scheduled sweep catches time-based changes. The engine locks the
+customer's account (as the gateway does), keeps one warning per customer and
+rule code through a unique active key, and writes evidence, one task and an
+English explanation. Generated reports and dynamic dashboards read the same
+records; `analytics-reconcile` compares them with SOQL. The backend, MCP
+servers, prompts and customer streams are unchanged: the integration user
+cannot read warnings, tasks, evidence or sentiment, and its only create right
+is publishing the risk-check event. This replaces the "Durable background jobs
+→ risk evaluation" path of the diagram; summary refinement and quality review
+remain open.
+
 ## Phase 4 language boundary
 
 The Complaint specialist selects input/reply language and reply script on every

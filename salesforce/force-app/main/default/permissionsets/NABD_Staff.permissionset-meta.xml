@@ -66,6 +66,16 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>Case.NABD_Open_Age_Band__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Case.NABD_Open_Since__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Case.NABD_Priority_Reason__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -82,6 +92,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Case.Needs_Review__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Case.Negative_Streak__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -127,6 +142,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Case.Urgency__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Complaint_Evidence__c.Assessed_Sentiment__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -275,12 +295,27 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
+        <field>Risk_Episode__c.Active_Key__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Risk_Episode__c.Clear_Reason__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Risk_Episode__c.Cleared_At__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
+        <field>Risk_Episode__c.Evidence_Count__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Risk_Episode__c.Explanation__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -290,32 +325,52 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
         <field>Risk_Episode__c.Last_Evaluated_At__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
         <field>Risk_Episode__c.Opened_At__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
+        <field>Risk_Episode__c.Rule_Code__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Risk_Episode__c.Rule_Version__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Risk_Episode__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Risk_Evidence__c.Case__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
         <field>Risk_Evidence__c.Complaint_Evidence__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
+        <field>Risk_Evidence__c.Current__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Risk_Evidence__c.Detail__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
         <field>Risk_Evidence__c.Observed_At__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -331,12 +386,27 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
+        <field>Risk_Rule__c.Last_Error__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Risk_Rule__c.Last_Evaluated_At__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
         <field>Risk_Rule__c.NABD_Seed_Fingerprint__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Risk_Rule__c.Parameters_JSON__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Risk_Rule__c.Rule_Key__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

@@ -61,6 +61,8 @@ class Field:
     integration_readable: bool = False
     # Address parts are permissioned through their compound field (BillingAddress).
     permission_field: str | None = None
+    # A formula field: Salesforce calculates the value (``type`` is the result type). Read-only.
+    formula: str | None = None
 
     @property
     def is_relationship(self) -> bool:
@@ -130,6 +132,17 @@ class SObject:
     related_lists: tuple[RelatedList, ...] = ()
     # Standard objects keep their existing layout and gain these additions.
     standard_layout: str | None = None
+    # "event" is a platform event: published after commit, read by subscribing.
+    kind: Literal["object", "event"] = "object"
+    # False when the platform derives access from a parent (CaseComment follows its Case).
+    object_permissions: bool = True
+    # An event the integration user may publish (Create on the event only). Apex publishing still
+    # needs it: without it the integration user's own transactions cannot hand work to Salesforce.
+    integration_publishable: bool = False
+
+    @property
+    def is_event(self) -> bool:
+        return self.kind == "event"
 
     @property
     def folder(self) -> str:
@@ -226,7 +239,25 @@ EVIDENCE_KINDS = _values(
     ("customer_confirmation", "Customer confirmation"),
 )
 
+# Sentiments that count as negative for the persistent-sentiment risk rule (Phase 6).
+NEGATIVE_SENTIMENTS = ("negative", "very_negative")
+# Evidence kinds written from the customer's own messages: one command adding them is one contact.
+CONTACT_EVIDENCE_KINDS = ("customer_report", "customer_confirmation")
+
 SEED_FINGERPRINT = "NABD_Seed_Fingerprint__c"
+
+# Phase 6 formulas. Open since: creation, or the last reopening if later. The age band of open cases
+# is derived from it, so dashboards and the High-priority rule use the same start of the open period.
+OPEN_SINCE_FORMULA = (
+    "IF(OR(ISBLANK(Last_Reopened_At__c), Last_Reopened_At__c < CreatedDate), CreatedDate, Last_Reopened_At__c)"
+)
+AGE_BANDS = ("1. Under 1 day", "2. 1 to 3 days", "3. 3 to 7 days", "4. 7 days or more")
+AGE_BAND_FORMULA = (
+    'IF(IsClosed, "Closed", '
+    f'IF(NOW() - NABD_Open_Since__c < 1, "{AGE_BANDS[0]}", '
+    f'IF(NOW() - NABD_Open_Since__c < 3, "{AGE_BANDS[1]}", '
+    f'IF(NOW() - NABD_Open_Since__c < 7, "{AGE_BANDS[2]}", "{AGE_BANDS[3]}"))))'
+)
 
 
 def _fingerprint() -> Field:
@@ -270,7 +301,7 @@ ACCOUNT = SObject(
     ),
     related_lists=(
         RelatedList("ShopEasy_Order__c", "Account__c", ("NAME", "Order_Date__c", "Status__c", "Total_GBP__c")),
-        RelatedList("Risk_Episode__c", "Account__c", ("NAME", "Risk_Rule__c", "Status__c", "Opened_At__c")),
+        RelatedList("Risk_Episode__c", "Account__c", ("NAME", "Rule_Code__c", "Status__c", "Opened_At__c")),
     ),
 )
 
@@ -465,15 +496,26 @@ CASE = SObject(
               integration_readable=True,
               description="Staff tick this when the required action is done. NABD cannot close the case "
                           "before that."),
+        # Phase 6: risk and analytics inputs. Internal; the integration user cannot read them.
+        Field("Negative_Streak__c", "Negative Contact Streak", "Number", precision=4, scale=0, default_value="0",
+              staff_editable=False,
+              description="Consecutive customer contacts on this case that NABD assessed as negative or very "
+                          "negative. The case command gateway adds 1 at a negative contact, resets it at any "
+                          "other contact and restarts it on reopening. Never shown to customers."),
+        Field("NABD_Open_Since__c", "Open Since", "DateTime", staff_editable=False, formula=OPEN_SINCE_FORMULA,
+              description="When the current unresolved period began: creation, or the last reopening if later."),
+        Field("NABD_Open_Age_Band__c", "Open Age Band", "Text", staff_editable=False, formula=AGE_BAND_FORMULA,
+              description="How long an open case has been open since Open Since, in dashboard bands; Closed "
+                          "for closed cases."),
         _fingerprint(),
     ),
     layout_sections=(
         LayoutSection(
             "NABD Complaint Analysis",
             ("NABD_Issue_Id__c", "ShopEasy_Order__c", "Complaint_Category__c", "Customer_Language__c",
-             "Needs_Review__c", "Classification_Confidence__c"),
-            ("Sentiment__c", "Urgency__c", "NABD_Assessed_Priority__c", "NABD_Priority_Reason__c",
-             "Reopen_Count__c", "Last_Reopened_At__c", "NABD_Conversation_Id__c"),
+             "Needs_Review__c", "Classification_Confidence__c", "NABD_Open_Since__c", "NABD_Open_Age_Band__c"),
+            ("Sentiment__c", "Negative_Streak__c", "Urgency__c", "NABD_Assessed_Priority__c",
+             "NABD_Priority_Reason__c", "Reopen_Count__c", "Last_Reopened_At__c", "NABD_Conversation_Id__c"),
         ),
         LayoutSection("NABD Summary", ("English_Summary__c",)),
         LayoutSection("NABD Staff Action", ("Staff_Action_Required__c",), ("Staff_Action_Completed__c",)),
@@ -515,13 +557,16 @@ EVIDENCE = SObject(
               description="Salesforce record/version or tool receipt behind a verified fact."),
         Field("Captured_At__c", "Captured At", "DateTime"),
         Field("NABD_Conversation_Id__c", "NABD Conversation ID", "Text", length=64, staff_editable=False),
+        Field("Assessed_Sentiment__c", "Assessed Sentiment", "Picklist", values=SENTIMENTS, staff_editable=False,
+              description="NABD's sentiment assessment for this issue at the customer contact this message "
+                          "belongs to (Phase 6). Internal; never shown to customers."),
         _fingerprint(),
     ),
     layout_sections=(
         LayoutSection("Evidence", ("Name", "Case__c", "Evidence_Kind__c", "Evidence_Key__c",
                                    "Source_Message_Id__c"),
                       ("Original_Language__c", "Original_Script__c", "Captured_At__c", "Verified_Source__c",
-                       "NABD_Conversation_Id__c")),
+                       "NABD_Conversation_Id__c", "Assessed_Sentiment__c")),
         LayoutSection("Original Wording", ("Original_Text__c",)),
     ),
 )
@@ -544,6 +589,59 @@ TASK = SObject(
         Field("NABD_Follow_Up_Type__c", "NABD Follow-up Type", "Picklist",
               values=_values(("case_follow_up", "Case follow-up"), ("risk_warning", "Risk warning"))),
         _fingerprint(),
+    ),
+)
+
+CASE_COMMENT = SObject(
+    name="CaseComment", label="Case Comment", plural_label="Case Comments", custom=False,
+    description="Staff comments on a case. Public comments (IsPublished) are replies the customer sees in "
+                "the NABD chat; all other comments are private staff notes.",
+    integration_readable=True,
+    # CaseComment has no object or field permissions of its own: access follows the parent case. The
+    # read adapter therefore enforces IsPublished = true in every query, so private notes are never read.
+    object_permissions=False,
+    fields=(
+        _std("ParentId", "Case", "Lookup", permissionable=False, reference_to="Case", integration=True,
+             staff_editable=False),
+        _std("CommentBody", "Body", "LongTextArea", permissionable=False, integration=True),
+        _std("IsPublished", "Public", "Checkbox", permissionable=False, integration=True),
+        _std("CreatedDate", "Created Date", "DateTime", permissionable=False, integration=True,
+             staff_editable=False),
+        _std("LastModifiedDate", "Last Modified Date", "DateTime", permissionable=False, integration=True,
+             staff_editable=False),
+    ),
+)
+
+# --- Staff change feed (Phase 5) ------------------------------------------------
+
+CASE_CHANGE_EVENT = SObject(
+    name="NABD_Case_Change__e", label="NABD Case Change", plural_label="NABD Case Changes",
+    description="Published after commit when staff change a customer-visible part of a NABD case or its "
+                "public comments. Carries identifiers only; the backend re-reads the case's current state.",
+    kind="event", integration_readable=True, staff_access="read",
+    fields=(
+        Field("Case_Id__c", "Case ID", "Text", length=18, required=True, permissionable=False,
+              integration_readable=True, description="The changed case."),
+        Field("Comment_Id__c", "Comment ID", "Text", length=18, permissionable=False, integration_readable=True,
+              description="The case comment involved, if the change was a comment."),
+        Field("Change__c", "Change", "Text", length=20, required=True, permissionable=False,
+              integration_readable=True,
+              description="case, comment, case_deleted or case_restored. Diagnostic only; every change means "
+                          "re-read the case."),
+    ),
+)
+
+# --- Risk evaluation requests (Phase 6) ---------------------------------------------
+
+RISK_CHECK_EVENT = SObject(
+    name="NABD_Risk_Check__e", label="NABD Risk Check", plural_label="NABD Risk Checks",
+    description="Published after commit when a NABD case changes in a way the risk rules read. Carries the "
+                "customer's account ID only. Its trigger evaluates that customer's rules as the Automated "
+                "Process user, so evaluation never runs as the restricted integration user.",
+    kind="event", staff_access="read", integration_publishable=True,
+    fields=(
+        Field("Account_Id__c", "Account ID", "Text", length=18, required=True, permissionable=False,
+              description="The customer account to evaluate."),
     ),
 )
 
@@ -606,81 +704,119 @@ KNOWLEDGE = SObject(
     ),
 )
 
-# --- Risk warnings (data structure only; the rule engine is Phase 6) --------------
+# --- Risk warnings (Phase 1 structure; Phase 6 engine: Apex NabdRiskEngine) ----------
 
 RISK_RULE = SObject(
     name="Risk_Rule__c", label="Risk Rule", plural_label="Risk Rules",
-    description="Versioned, explainable early-warning rule definition.",
+    description="Versioned, explainable early-warning rule. The risk engine uses the highest active version "
+                "of each rule code; follow-up tasks are assigned to the rule's owner.",
     name_label="Rule Name", seed_key="Rule_Key__c", sharing_model="Read", tab_motif="Custom90: Radar",
-    list_columns=("NAME", "Rule_Key__c", "Rule_Code__c", "Version__c", "Active__c"),
+    list_columns=("NAME", "Rule_Key__c", "Rule_Code__c", "Version__c", "Active__c", "Last_Evaluated_At__c"),
     fields=(
-        _ext_id("Rule_Key__c", "Rule Key", 80, "Rule code and version, such as repeat_complaints@1.",
-                required=True),
-        Field("Rule_Code__c", "Rule Code", "Text", length=60, required=True),
-        Field("Version__c", "Version", "Number", precision=4, scale=0, required=True),
+        _ext_id("Rule_Key__c", "Rule Key", 80,
+                "Rule code and version, such as repeat_complaints@1. Set automatically when the rule is saved."),
+        Field("Rule_Code__c", "Rule Code", "Text", length=60, required=True,
+              description="repeat_complaints, high_priority_unresolved or persistent_negative_sentiment. "
+                          "Other codes are refused: the engine has no evaluator for them."),
+        Field("Version__c", "Version", "Number", precision=4, scale=0, required=True,
+              description="Create version N+1 and activate it to change a rule; the highest active version "
+                          "is used."),
         Field("Active__c", "Active", "Checkbox", default_value="false"),
         Field("Description__c", "Description", "LongTextArea", length=4000, visible_lines=4),
-        Field("Parameters_JSON__c", "Parameters (JSON)", "LongTextArea", length=4000, visible_lines=4),
+        Field("Parameters_JSON__c", "Parameters (JSON)", "LongTextArea", length=4000, visible_lines=4,
+              description="Rule thresholds as JSON, checked when the rule is saved."),
+        Field("Last_Evaluated_At__c", "Last Full Evaluation", "DateTime", staff_editable=False,
+              description="When the hourly sweep last evaluated every relevant customer with this version."),
+        Field("Last_Error__c", "Last Error", "Text", length=255, staff_editable=False,
+              description="Why the engine did not use this version at its last evaluation, if it did not."),
         _fingerprint(),
     ),
+    validation_rules=(
+        ValidationRule(
+            "Rule_Version_Must_Be_Positive",
+            "Version__c < 1",
+            "Rule versions start at 1.",
+            "Keeps rule keys stable and ordered.",
+            error_field="Version__c",
+        ),
+    ),
     layout_sections=(
-        LayoutSection("Rule", ("Name", "Rule_Key__c", "Rule_Code__c", "Version__c", "Active__c"),),
+        LayoutSection("Rule", ("Name", "Rule_Key__c", "Rule_Code__c", "Version__c", "Active__c"),
+                      ("Last_Evaluated_At__c", "Last_Error__c")),
         LayoutSection("Definition", ("Description__c", "Parameters_JSON__c")),
     ),
 )
 
 RISK_EPISODE = SObject(
     name="Risk_Episode__c", label="Risk Episode", plural_label="Risk Episodes",
-    description="One active warning for a customer and rule; owns at most one follow-up task.",
+    description="One warning for a customer and rule code, opened, updated and cleared by NABD's risk engine. "
+                "Owns one follow-up task. Never shown to customers.",
     name_label="Episode", name_type="AutoNumber", name_format="RE-{00000}", seed_key="Episode_Key__c",
     sharing_model="Private", enable_activities=True, enable_history=True, tab_motif="Custom90: Radar",
-    list_columns=("NAME", "Episode_Key__c", "Account__c", "Risk_Rule__c", "Status__c"),
+    list_columns=("NAME", "Account__c", "Rule_Code__c", "Status__c", "Opened_At__c", "Evidence_Count__c"),
     fields=(
-        _ext_id("Episode_Key__c", "Episode Key", 140, "Customer, rule key and episode start.",
+        _ext_id("Episode_Key__c", "Episode Key", 140,
+                "Customer, rule code and UTC start, such as C013:repeat_complaints:20261119T040500123Z.",
                 case_sensitive=True, required=True),
+        _ext_id("Active_Key__c", "Active Key", 100,
+                "Customer and rule code while the warning is active; empty once cleared. Its uniqueness "
+                "keeps one active warning per customer and rule.", case_sensitive=True),
         Field("Account__c", "Customer Account", "Lookup", reference_to="Account", required=True,
               relationship_name="Risk_Episodes", relationship_label="Risk Episodes",
-              delete_constraint="Restrict"),
+              delete_constraint="Restrict", staff_editable=False),
         Field("Risk_Rule__c", "Risk Rule", "Lookup", reference_to="Risk_Rule__c", required=True,
-              relationship_name="Episodes", relationship_label="Episodes", delete_constraint="Restrict"),
+              relationship_name="Episodes", relationship_label="Episodes", delete_constraint="Restrict",
+              staff_editable=False, description="The rule version that last evaluated this warning."),
+        Field("Rule_Code__c", "Rule Code", "Text", length=60, staff_editable=False),
+        Field("Rule_Version__c", "Rule Version", "Number", precision=4, scale=0, staff_editable=False),
         Field("Status__c", "Status", "Picklist", values=_values(("active", "Active"), ("cleared", "Cleared"),
-                                                               default="active"), required=True),
-        Field("Opened_At__c", "Opened At", "DateTime"),
-        Field("Cleared_At__c", "Cleared At", "DateTime"),
-        Field("Last_Evaluated_At__c", "Last Evaluated At", "DateTime"),
-        Field("Explanation__c", "Explanation", "LongTextArea", length=4000, visible_lines=4),
+                                                               default="active"), staff_editable=False),
+        Field("Opened_At__c", "Opened At", "DateTime", staff_editable=False),
+        Field("Cleared_At__c", "Cleared At", "DateTime", staff_editable=False),
+        Field("Clear_Reason__c", "Clear Reason", "Text", length=255, staff_editable=False),
+        Field("Last_Evaluated_At__c", "Last Evaluated At", "DateTime", staff_editable=False),
+        Field("Evidence_Count__c", "Supporting Records", "Number", precision=4, scale=0, staff_editable=False,
+              description="Cases and evidence records supporting the warning at the last evaluation."),
+        Field("Explanation__c", "Explanation", "LongTextArea", length=4000, visible_lines=6, staff_editable=False,
+              description="Why the warning holds, in English for staff: rule, threshold and supporting cases."),
         Field("Follow_Up_Task_Id__c", "Follow-up Task ID", "Text", length=18, staff_editable=False,
               description="The one Task linked to this episode (tasks cannot be lookup targets)."),
     ),
     layout_sections=(
-        LayoutSection("Episode", ("Name", "Episode_Key__c", "Account__c", "Risk_Rule__c", "Status__c"),
-                      ("Opened_At__c", "Cleared_At__c", "Last_Evaluated_At__c", "Follow_Up_Task_Id__c")),
+        LayoutSection("Episode", ("Name", "Episode_Key__c", "Account__c", "Risk_Rule__c", "Rule_Code__c",
+                                  "Rule_Version__c", "Status__c", "Active_Key__c"),
+                      ("Opened_At__c", "Cleared_At__c", "Clear_Reason__c", "Last_Evaluated_At__c",
+                       "Evidence_Count__c", "Follow_Up_Task_Id__c")),
         LayoutSection("Explanation", ("Explanation__c",)),
     ),
     related_lists=(
-        RelatedList("Risk_Evidence__c", "Risk_Episode__c", ("NAME", "Case__c", "Detail__c", "Observed_At__c")),
+        RelatedList("Risk_Evidence__c", "Risk_Episode__c",
+                    ("NAME", "Case__c", "Detail__c", "Current__c", "Observed_At__c")),
     ),
 )
 
 RISK_EVIDENCE = SObject(
     name="Risk_Evidence__c", label="Risk Evidence", plural_label="Risk Evidence",
-    description="A case or complaint evidence item that supports a risk episode.",
+    description="A case or complaint evidence record that supports, or supported, a risk episode.",
     name_label="Risk Evidence", name_type="AutoNumber", name_format="RV-{000000}", seed_key="Evidence_Key__c",
     sharing_model="ControlledByParent",
     fields=(
         Field("Risk_Episode__c", "Risk Episode", "MasterDetail", reference_to="Risk_Episode__c", required=True,
               relationship_name="Risk_Evidence", relationship_label="Risk Evidence"),
-        _ext_id("Evidence_Key__c", "Evidence Key", 160, "Episode key plus supporting record.",
+        _ext_id("Evidence_Key__c", "Evidence Key", 160, "Episode key plus the supporting case or evidence ID.",
                 case_sensitive=True, required=True),
         Field("Case__c", "Case", "Lookup", reference_to="Case", relationship_name="Risk_Evidence",
-              relationship_label="Risk Evidence", delete_constraint="SetNull"),
+              relationship_label="Risk Evidence", delete_constraint="SetNull", staff_editable=False),
         Field("Complaint_Evidence__c", "Complaint Evidence", "Lookup", reference_to="Complaint_Evidence__c",
-              relationship_name="Risk_Evidence", relationship_label="Risk Evidence", delete_constraint="SetNull"),
-        Field("Detail__c", "Detail", "Text", length=255),
-        Field("Observed_At__c", "Observed At", "DateTime"),
+              relationship_name="Risk_Evidence", relationship_label="Risk Evidence", delete_constraint="SetNull",
+              staff_editable=False),
+        Field("Detail__c", "Detail", "Text", length=255, staff_editable=False),
+        Field("Observed_At__c", "Observed At", "DateTime", staff_editable=False),
+        Field("Current__c", "Currently Supports", "Checkbox", default_value="true", staff_editable=False,
+              description="Supported the warning at its last evaluation. Earlier evidence is kept for history."),
     ),
     layout_sections=(
-        LayoutSection("Evidence", ("Name", "Risk_Episode__c", "Evidence_Key__c"),
+        LayoutSection("Evidence", ("Name", "Risk_Episode__c", "Evidence_Key__c", "Current__c"),
                       ("Case__c", "Complaint_Evidence__c", "Observed_At__c")),
         LayoutSection("Detail", ("Detail__c",)),
     ),
@@ -723,8 +859,8 @@ OPERATION_RECEIPT = SObject(
 )
 
 OBJECTS: tuple[SObject, ...] = (
-    ACCOUNT, CONTACT, ORDER, ORDER_ITEM, DELIVERY, CASE, EVIDENCE, TASK, KNOWLEDGE,
-    RISK_RULE, RISK_EPISODE, RISK_EVIDENCE, OPERATION_RECEIPT,
+    ACCOUNT, CONTACT, ORDER, ORDER_ITEM, DELIVERY, CASE, CASE_COMMENT, EVIDENCE, TASK, KNOWLEDGE,
+    RISK_RULE, RISK_EPISODE, RISK_EVIDENCE, OPERATION_RECEIPT, CASE_CHANGE_EVENT, RISK_CHECK_EVENT,
 )
 OBJECTS_BY_NAME = {item.name: item for item in OBJECTS}
 
@@ -765,6 +901,16 @@ INTEGRATION_PERMISSION_SET = "NABD_Integration_Read"
 # Execute-only access to the typed case command gateway; no object create/edit rights.
 GATEWAY_PERMISSION_SET = "NABD_Integration_Gateway"
 GATEWAY_CLASS = "NabdCaseCommands"
+# Hand-written Apex triggers that publish CASE_CHANGE_EVENT (Phase 5); verify checks they are active.
+CHANGE_TRIGGERS = ("NabdCaseChangeTrigger", "NabdCaseCommentTrigger")
+CHANGE_TOPIC = f"/event/{CASE_CHANGE_EVENT.name}"
+# Phase 6 risk engine (hand-written Apex). The hourly job is scheduled by ``configure`` and paused by
+# ``deploy`` around deployments, because Salesforce refuses to redeploy classes with scheduled jobs.
+RISK_CLASSES = ("NabdRiskEngine", "NabdRiskEvaluation", "NabdRiskSchedule")
+RISK_TRIGGERS = ("NabdRiskCaseTrigger", "NabdRiskCheckTrigger", "NabdRiskRuleTrigger")
+RISK_SCHEDULE_JOB = "NABD risk evaluation (hourly)"
+RISK_SCHEDULE_CRON = "0 5 * * * ?"  # minute 5 of every hour; must match NabdRiskSchedule.CRON
+RISK_RULE_CODES = ("repeat_complaints", "high_priority_unresolved", "persistent_negative_sentiment")
 INTEGRATION_PERMISSION_SET_LICENSE = "SalesforceAPIIntegrationPsl"
 INTEGRATION_PROFILE = "Minimum Access - API Only Integrations"
 

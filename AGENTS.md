@@ -14,14 +14,15 @@ sequence is in [the roadmap](docs/nabd/roadmap.md).
 - [Architecture](docs/nabd/architecture.md) and [contracts](docs/nabd/contracts.md)
   describe the target; status identifies what actually exists.
 - Phases 0 (`512e03b`), 1 (Salesforce business system, `1a04f52`), 2
-  (support chat, `02178fa`), 3 (complaint cases, `9879593`) and 4
-  (multilingual, `b4d5f71`) are complete. Phase 5 (live staff follow-up) is
-  **paused**, partly done on branch `codex/nabd-phase5-staff-follow-up`; by
-  the owner's choice Phase 6 is next. Read the
-  [Phase 5 pause handoff](docs/nabd/phases/05-staff-follow-up.md#pause-handoff--18-november-2026)
-  before any Salesforce deploy: the org already has Phase 5 metadata.
-  Later phase completions must
-  update status and this pointer.
+  (support chat, `02178fa`), 3 (complaint cases, `9879593`), 4
+  (multilingual, `b4d5f71`) and 6 (analytics and risk warnings, `45a9445`)
+  are complete. Phase 5 (live staff follow-up) is **paused**, partly done on
+  branch `codex/nabd-phase5-staff-follow-up`; read its
+  [pause handoff](docs/nabd/phases/05-staff-follow-up.md#pause-handoff--18-november-2026)
+  and rebase it on `main` before resuming. Phase 7 depends on Phases 5 and 6.
+  Deploy Salesforce only with `python -m nabd salesforce deploy` (it pauses
+  the hourly risk job). Later phase completions must update status and this
+  pointer.
 - Implement only the phase the user requests. Update its plan/status/handoff,
   verify it, and create a local checkpoint before declaring it complete. Then
   merge the finished phase into `main` and push `main` and the phase branch

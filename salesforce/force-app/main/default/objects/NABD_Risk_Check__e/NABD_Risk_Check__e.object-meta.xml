@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Published after commit when a NABD case changes in a way the risk rules read. Carries the customer's account ID only. Its trigger evaluates that customer's rules as the Automated Process user, so evaluation never runs as the restricted integration user.</description>
+    <eventType>HighVolume</eventType>
+    <label>NABD Risk Check</label>
+    <pluralLabel>NABD Risk Checks</pluralLabel>
+    <publishBehavior>PublishAfterCommit</publishBehavior>
+</CustomObject>

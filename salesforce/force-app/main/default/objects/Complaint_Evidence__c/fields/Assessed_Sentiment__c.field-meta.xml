@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Assessed_Sentiment__c</fullName>
+    <description>NABD's sentiment assessment for this issue at the customer contact this message belongs to (Phase 6). Internal; never shown to customers.</description>
+    <label>Assessed Sentiment</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>positive</fullName>
+                <default>false</default>
+                <label>Positive</label>
+            </value>
+            <value>
+                <fullName>neutral</fullName>
+                <default>false</default>
+                <label>Neutral</label>
+            </value>
+            <value>
+                <fullName>negative</fullName>
+                <default>false</default>
+                <label>Negative</label>
+            </value>
+            <value>
+                <fullName>very_negative</fullName>
+                <default>false</default>
+                <label>Very negative</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

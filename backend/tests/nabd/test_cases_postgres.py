@@ -26,7 +26,8 @@ from test_complaints import World, _turn
 from test_postgres import empty_database  # noqa: F401  (fixture)
 
 pytestmark = pytest.mark.postgres
-INTERNAL = ("priority", "sentiment", "urgency", "confidence", "summary", "needs_review")
+# Phase 6 adds risk warnings and the negative-contact streak: Salesforce-only, never customer activity.
+INTERNAL = ("priority", "sentiment", "urgency", "confidence", "summary", "needs_review", "risk", "streak", "episode")
 
 
 @pytest.fixture

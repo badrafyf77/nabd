@@ -157,3 +157,25 @@ they do not require repeating the product interview.
   if every number survives, then mechanical Arabizi conversion of any remaining
   Arabic letters in code. A customer gets a Latin reply instead of a failed turn;
   the conversion is a writing-system transform and never decides meaning.
+- **Phase 6 risk engine location (19 November 2026).** The rules run in
+  Salesforce Apex (`NabdRiskEngine`, an asynchronous job after case changes
+  and an hourly scheduled sweep), not in a PostgreSQL background job. Every
+  rule input and output is a Salesforce record; staff edits must trigger
+  evaluation too and the paused staff feed cannot bring them to the backend;
+  the customer's account row lock serializes evaluation with case commands;
+  and the integration user stays unable to read risk, task and sentiment
+  data, so the customer path cannot leak them. The architecture's turn step 6
+  ("enqueue risk evaluation") is met by the after-change trigger.
+- **Phase 6 counting (19 November 2026).** A complaint is a NABD case
+  (`NABD_Issue_Id__c`); cases staff close as duplicates are not distinct
+  complaints. A *contact* is one gateway command that adds new customer
+  evidence: the gateway stamps its sentiment on that evidence and keeps a
+  per-case negative-contact streak (+1 negative, reset otherwise, restarted
+  by a reopening). "Unresolved for 24 hours" counts from creation or the last
+  reopening (`NABD_Open_Since__c`). Warnings are identified per customer and
+  rule code across rule versions; tasks go to the rule's owner; a
+  configuration error never clears a warning.
+- **Phase 6 brings Phase 5's Salesforce feed into `main` (19 November 2026).**
+  The org already had it, and deploying without it fails, so commit `2bb6d02`
+  was cherry-picked (`7b4157e`). Its event and triggers stay dormant until
+  Phase 5 resumes; rebase the Phase 5 branch on `main` then.

@@ -4,7 +4,8 @@ Implementation order: phases 0–7. Complete and verify one phase before startin
 the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Phase 0
 is complete at `512e03b`; Phase 1 is complete at `1a04f52`; Phase 2 is complete at
 `02178fa` (plus handoff commits); Phase 3 is complete at 9879593 (plus
-handoff commit); Phase 4 is complete at `b4d5f71`; phases 5–7 are pending. [Accepted decisions](decisions.md)
+handoff commit); Phase 4 is complete at `b4d5f71`; Phase 5 is paused; Phase 6
+is complete at `45a9445`; Phase 7 is pending. [Accepted decisions](decisions.md)
 and [architecture](architecture.md) apply to every phase.
 
 ## Phase 0 — Foundation
@@ -112,6 +113,10 @@ staff sync service, chat and verification still to do.
 
 Depends on Phase 5. The owner chose to start it while Phase 5 is paused
 (18 November 2026); staff-to-chat sync arrives when Phase 5 resumes.
+
+Plan and handoff: [06-analytics-warnings](phases/06-analytics-warnings.md) —
+**complete** (19 November 2026); real org Apex 41/41, reports reconciled
+15/15, warning lifecycle smoke 17/17 twice.
 
 - Build Salesforce dashboards: volume/category/language/sentiment/priority,
   recurring problems, age, and resolution outcomes; display data freshness.

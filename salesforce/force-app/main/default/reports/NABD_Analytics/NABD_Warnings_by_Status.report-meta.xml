@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <field>CUST_NAME</field>
+    </columns>
+    <columns>
+        <field>Risk_Episode__c.Account__c</field>
+    </columns>
+    <columns>
+        <field>Risk_Episode__c.Rule_Code__c</field>
+    </columns>
+    <columns>
+        <field>Risk_Episode__c.Opened_At__c</field>
+    </columns>
+    <description>Every NABD risk warning, active and cleared: the warning history.</description>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Risk_Episode__c.Status__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>Warnings by status</name>
+    <reportType>CustomEntity$Risk_Episode__c</reportType>
+    <scope>organization</scope>
+    <showDetails>false</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>true</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>CUST_CREATED_DATE</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

@@ -1,17 +1,18 @@
 # NABD status
 
-Updated: 18 November 2026 (Africa/Casablanca), at the end of Phase 4; Phase 5
-paused the same day.
+Updated: 19 November 2026 (Africa/Casablanca), at the end of Phase 6. Phase 5
+was paused on 18 November and is still paused.
 
 ## Current work
 
-**Phases 0–4 are complete; Phase 5 is paused, partly implemented; Phases 6–7
-are pending, and the owner chose Phase 6 next.** Working branch:
-`codex/nabd-chat-salesforce`, merged into `main` at the end of Phase 4.
+**Phases 0–4 and 6 are complete; Phase 5 is paused, partly implemented; Phase
+7 is pending.** Working branch: `codex/nabd-chat-salesforce`, merged into
+`main` at the end of Phase 6. Phase 6 added Salesforce dashboards and
+explainable risk warnings, verified in the real org: Apex 41/41, `verify`
+51/51, `analytics-reconcile` 15/15, `risk-smoke` 17/17 twice. See the
+[Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026).
 Phase 4's final version passed **36/36** multilingual scenarios in one full
-real-model run, after earlier runs and rechecks (21/36 down to 1/1). Manual
-review found wording slips but no blocking failure. See the
-[Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b69ab5--all-36-scenarios-once).
+real-model run ([Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b69ab5--all-36-scenarios-once)).
 
 | Phase | Checkpoint | Handoff |
 | --- | --- | --- |
@@ -20,11 +21,12 @@ review found wording slips but no blocking failure. See the
 | 2 — Support chat and live activity | `02178faa969f4747d58de98c0f1b1a043f9a9ad9` (implementation; docs and real-model results in later commits) | [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) |
 | 3 — Complaint intelligence and reliable cases | `987959317beae7339f3bb51958032df0cb427b45` (implementation; handoff in the next commit) | [Phase 3 handoff](phases/03-complaints.md#handoff--18-november-2026) |
 | 4 — Multilingual behavior | `b4d5f710f2ea5289bbda8762c8f078081d9cac61` (last implementation commit; earlier `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`) | [Phase 4 handoff](phases/04-multilingual.md#handoff) |
-| 5 — Live staff follow-up (**paused**) | branch `codex/nabd-phase5-staff-follow-up`: `2bb6d02` (Salesforce feed, deployed), `b0cbdfc` (Pub/Sub client), `65b0206` (unfinished sync pieces); not merged | [Phase 5 pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026) |
+| 5 — Live staff follow-up (**paused**) | branch `codex/nabd-phase5-staff-follow-up`: `2bb6d02` (Salesforce feed, deployed; also on `main` as `7b4157e` since Phase 6), `b0cbdfc` (Pub/Sub client), `65b0206` (unfinished sync pieces); not merged | [Phase 5 pause handoff](phases/05-staff-follow-up.md#pause-handoff--18-november-2026) |
+| 6 — Analytics and proactive warnings | `45a9445` (implementation; handoff in the next commit) | [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026) |
 
 Completed phases are merged into `main` on GitHub
 (`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
-on 18 November 2026, Phase 4 later the same day. Inspect a checkpoint with `git show --stat <commit>`.
+on 18 November 2026, Phase 4 later the same day, Phase 6 on 19 November. Inspect a checkpoint with `git show --stat <commit>`.
 Later documentation commits are handoff updates, not new implementation phases.
 
 ## Delivered so far
@@ -86,8 +88,24 @@ Phase 4 implements language/script selection in the complaint assessment,
 durable language events/snapshots, original evidence scripts, multilingual
 agent prompts, localized chat/activity templates and RTL, plus a fresh
 customer-scoped order index before classification and a Latin Darija script
-repair (focused rewrite, then code Arabizi conversion). Staff-to-chat updates,
-risk warnings and quality review do not exist yet.
+repair (focused rewrite, then code Arabizi conversion).
+
+Phase 6 — analytics and proactive warnings, all inside Salesforce:
+
+- an Apex **risk engine** for three versioned rules (repeat complaints, High
+  priority unresolved for 24 hours, negative sentiment at the next follow-up),
+  run after case changes (an after-commit risk check event, evaluated as the
+  Automated Process user) and hourly; one warning per customer and rule with
+  its evidence and one follow-up task; clearing with history, recurrence;
+- the case gateway records each customer contact's sentiment and a
+  negative-contact streak; formula fields give open-since and age band;
+- 13 generated reports and two dynamic **dashboards** (NABD Complaints, NABD
+  Risk Warnings) with data freshness, reconciled against SOQL;
+- commands `analytics-reconcile` and `risk-smoke`; `deploy` pauses the
+  hourly job, `configure` schedules it.
+
+Customers and the backend see none of it. Staff-to-chat updates (Phase 5)
+and quality review (Phase 7) do not exist yet.
 
 ## Verification
 
@@ -109,9 +127,14 @@ risk warnings and quality review do not exist yet.
 | `pip check`, `git diff --check`, secret scan | Clean |
 | Offline suite, macOS, real PostgreSQL (Phase 4 final) | **275 passed**; 101 paid scenarios deselected |
 | Real-model multilingual scenarios (Phase 4, approved runs) | 21/36, recheck 13/19, focused 3/6, then 0/3, 2/3, 1/1; final version **36/36** in one full run (manual review: wording slips only) |
+| Offline suite, macOS, real PostgreSQL (Phase 6) | **293 passed**; 101 paid scenarios deselected |
+| Salesforce deploy with local Apex tests (Phase 6) | Succeeded; **Apex 41/41** |
+| `salesforce verify` / `analytics-reconcile` / `risk-smoke` (Phase 6) | **51/51** / **15/15** / **17/17** (twice) |
+| `salesforce smoke` / `read-mcp smoke` / `write-mcp smoke` after Phase 6 | **12/12** / **14/14** / **15/15** |
 | Real-model English scenarios (20, `-m llm`, once each) | Phase 3 set **7/8**, Phase 2 set as full turns **9/12** (after two over-strict checks were fixed); after two prompt fixes 3 of the 4 failures **pass** on recheck; `several_orders_needs_info` still fails its expectation |
 
-Details are in the [Phase 4 handoff](phases/04-multilingual.md#handoff),
+Details are in the [Phase 6 handoff](phases/06-analytics-warnings.md#verification-results),
+the [Phase 4 handoff](phases/04-multilingual.md#handoff),
 the [Phase 3 handoff](phases/03-complaints.md#verification-results),
 the [Phase 2 handoff](phases/02-support-chat.md#verification-results) and the
 [Phase 1 handoff](phases/01-salesforce.md#verification-results). Paid LLM
@@ -146,6 +169,13 @@ voice work is deferred and they do not block NABD phases.
 - Test data in the org from Phase 3 checks: smoke case 00001043 (C008,
   closed), probe 00001042 (C008, closed as withdrawn) and browser case
   00001044 (C006, closed as withdrawn).
+- End of Phase 6 (19 November 2026): `nabd-dev` holds the Phase 6 metadata
+  (Apex 41/41); the hourly job `NABD risk evaluation (hourly)` is scheduled
+  (minute 5); `test-db` on 55433 ran the 293-test suite. One active warning
+  from fixture data (C004, persistent negative sentiment) and the cleared
+  warnings of two `risk-smoke` runs; C008 smoke and diagnostic complaints
+  00001045–00001049 and later are closed as duplicates. The `api`/MCP
+  containers were not rebuilt (Phase 6 did not change them).
 - GitHub: `origin` is `badrafyf77/customer-support-voice-agent` (private).
   Pushes use the GitHub CLI login:
   `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push …`
@@ -168,6 +198,8 @@ sf org display --target-org nabd-dev
 PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
 PYTHONPATH=code .venv-text/bin/python -m nabd read-mcp smoke
 PYTHONPATH=code .venv-text/bin/python -m nabd write-mcp smoke
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce analytics-reconcile --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce risk-smoke --target-org nabd-dev
 ```
 
 To run the chat: `docker compose -f docker-compose.nabd.yml up -d --build --wait api`
@@ -178,26 +210,21 @@ run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-**Phase 6 — analytics and proactive warnings**, chosen by the owner while
-Phase 5 is paused. Scope and gate are in the
-[roadmap](roadmap.md#phase-6--analytics-and-proactive-warnings). Entry
-criteria: the resume commands above pass, and the
+Phase 6 is complete. The remaining phases are **Phase 5 — live staff
+follow-up** (paused, resume on its branch) and **Phase 7 — quality review and
+demonstration release**, which depends on both. The owner chooses which comes
+next; resuming Phase 5 first matches the roadmap order. Carry forward the
+[Phase 6 limitations](phases/06-analytics-warnings.md#known-limitations), the
 [Phase 4 limitations](phases/04-multilingual.md#current-limitations-to-carry-forward)
-and [Phase 3 limitations](phases/03-complaints.md#known-limitations) are
-carried forward. Write `docs/nabd/phases/06-analytics-warnings.md` first, in
-the same form as the Phase 4 plan. Phase 6 must not assume staff-to-chat sync
-exists ([decisions](decisions.md#recorded-implementation-adjustments)).
+and the [Phase 3 limitations](phases/03-complaints.md#known-limitations).
 
-**Before any Salesforce deploy in Phase 6:** the org already contains Phase 5's
-`NABD_Case_Change__e`, `NabdCaseChanges` (+ test), the two change triggers,
-the gateway's echo suppression and the event read access. `main`'s
-`force-app` lacks them, so deploying it as it is fails under `RunLocalTests`
-and would drop the event access. Bring commit `2bb6d02` (Salesforce feed only,
-complete and tested) from the Phase 5 branch into the working branch first,
-or remove those components from the org. See the
-[Phase 5 pause handoff](phases/05-staff-follow-up.md#facts-that-matter-while-phase-5-is-paused).
-If Phase 6 adds a database migration, Phase 5's unapplied `0004_staff_sync`
-must be renumbered when Phase 5 resumes.
+**Salesforce deploys from now on:** `main` contains Phase 5's Salesforce feed
+(cherry-picked as `7b4157e`), so deploying `main` keeps the org whole. Always
+deploy with `python -m nabd salesforce deploy`, which pauses the hourly risk
+job and schedules it again. When Phase 5 resumes, rebase its branch on
+`main`; its migration `0004_staff_sync` keeps its number (Phase 6 added no
+migration). Its staff-sync processor will see Phase 6's case fields but
+needs no change for them.
 
 ### Paused Phase 5
 

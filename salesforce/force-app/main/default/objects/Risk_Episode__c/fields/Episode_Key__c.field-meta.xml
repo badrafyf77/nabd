@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Episode_Key__c</fullName>
     <caseSensitive>true</caseSensitive>
-    <description>Customer, rule key and episode start.</description>
+    <description>Customer, rule code and UTC start, such as C013:repeat_complaints:20261119T040500123Z.</description>
     <externalId>true</externalId>
     <label>Episode Key</label>
     <length>140</length>

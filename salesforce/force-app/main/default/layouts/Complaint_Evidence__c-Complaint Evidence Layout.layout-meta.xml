@@ -48,6 +48,10 @@
                 <behavior>Readonly</behavior>
                 <field>NABD_Conversation_Id__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Assessed_Sentiment__c</field>
+            </layoutItems>
         </layoutColumns>
         <style>TwoColumnsTopToBottom</style>
     </layoutSections>

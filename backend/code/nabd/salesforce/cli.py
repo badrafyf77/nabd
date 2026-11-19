@@ -2,7 +2,9 @@
 
 Deployment, configuration and seeding use the developer's ``sf`` CLI session
 (``--target-org``). ``smoke`` uses only the backend's own integration
-credentials from ``backend/.env.nabd``.
+credentials from ``backend/.env.nabd``. Phase 6 adds ``analytics-reconcile``
+(every dashboard report against SOQL, as the developer) and ``risk-smoke``
+(the warning lifecycle through the real gateway; both credentials).
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from datetime import date
 
 import httpx
 
-from nabd.salesforce import fixtures, metadata, org, seed, smoke
+from nabd.salesforce import analytics, fixtures, metadata, org, risk_smoke, seed, smoke
 from nabd.salesforce import schema as s
 from nabd.salesforce.rest import CliOrgAuth, SalesforceClient
 from nabd.salesforce.soql import literal
@@ -33,7 +35,9 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
                        ("configure", "configure staff access, the integration user and its client app"),
                        ("seed", "upsert fixtures, preserving records staff edited"),
                        ("reset", "restore fixture values, overwriting staff edits to fixture records"),
-                       ("verify", "compare the org with the schema contract and fixtures")):
+                       ("verify", "compare the org with the schema contract and fixtures"),
+                       ("analytics-reconcile", "check every dashboard report against SOQL counts"),
+                       ("risk-smoke", "run the risk warning lifecycle in the org through the real gateway")):
         command = commands.add_parser(name, help=text)
         command.add_argument("--target-org", default=DEFAULT_ORG)
         if name in ("seed", "reset", "verify"):
@@ -64,6 +68,8 @@ def run(args: argparse.Namespace) -> int:
         return _deploy(args.target_org)
     if command == "smoke":
         return asyncio.run(_smoke())
+    if command == "risk-smoke":
+        return asyncio.run(_risk_smoke(args.target_org))
     if command == "reset" and args.confirm != args.target_org:
         print("Reset not confirmed: --confirm must repeat the --target-org alias.")
         return 2
@@ -78,13 +84,32 @@ def _sf(*arguments: str, env: dict[str, str] | None = None) -> int:
     return subprocess.run([executable, *arguments], cwd=metadata.SALESFORCE_ROOT, env=env, check=False).returncode
 
 
+async def _schedule(target_org: str, action: str) -> bool:
+    auth = CliOrgAuth(target_org)
+    async with httpx.AsyncClient(timeout=60) as http:
+        client = SalesforceClient(auth, http, s.API_VERSION)
+        if action == "pause":
+            return await org.pause_risk_schedule(client)
+        return await org.ensure_risk_schedule(client)
+
+
 def _deploy(target_org: str) -> int:
     problems = metadata.check()
     if problems:
         print("Generated metadata is out of date; run: python -m nabd salesforce generate")
         return 1
-    return _sf("project", "deploy", "start", "--target-org", target_org, "--source-dir", "force-app",
-               "--test-level", "RunLocalTests", "--wait", "30")
+    # Salesforce refuses to redeploy Apex that a scheduled job references: pause the hourly risk
+    # sweep for the deployment and schedule it again afterwards, even if the deployment fails.
+    paused = asyncio.run(_schedule(target_org, "pause"))
+    if paused:
+        print(f"Paused '{s.RISK_SCHEDULE_JOB}' for the deployment.")
+    try:
+        return _sf("project", "deploy", "start", "--target-org", target_org, "--source-dir", "force-app",
+                   "--test-level", "RunLocalTests", "--wait", "30")
+    finally:
+        if paused:
+            asyncio.run(_schedule(target_org, "resume"))
+            print(f"Scheduled '{s.RISK_SCHEDULE_JOB}' again.")
 
 
 async def _with_cli_org(args: argparse.Namespace) -> int:
@@ -105,14 +130,20 @@ async def _with_cli_org(args: argparse.Namespace) -> int:
             # Deploying the OAuth policy clears its approved permission sets: approve afterwards.
             if await org.approve_client_app(client):
                 print(f"- approved {s.INTEGRATION_PERMISSION_SET} for {s.EXTERNAL_CLIENT_APP}")
+            if await org.ensure_risk_schedule(client):
+                print(f"- scheduled '{s.RISK_SCHEDULE_JOB}' ({s.RISK_SCHEDULE_CRON})")
             print(f"Integration user: {result.integration_username}")
             print("Client app NABD_Backend runs the client credentials flow as that user.")
             return 0
+        if args.salesforce_command == "analytics-reconcile":
+            checks = await analytics.reconcile(client)
+            return _report([(check.name, check.passed, check.detail) for check in checks])
         dataset = fixtures.build(args.seed_date)
         if args.salesforce_command == "verify":
             checks = await org.verify_schema(client)
             checks += await org.verify_data(client, dataset)
             checks += await org.verify_access(client, org_id=auth.org_id, staff_username=auth.username)
+            checks += await org.verify_risk_and_analytics(client, org_id=auth.org_id)
             return _report([(check.name, check.passed, check.detail) for check in checks])
         staff = (await client.query(f"SELECT Id FROM User WHERE Username = {literal(auth.username)}"))[0]["Id"]
         report = await seed.Seeder(client, staff_user_id=staff).run(
@@ -127,6 +158,11 @@ async def _with_cli_org(args: argparse.Namespace) -> int:
 
 async def _smoke() -> int:
     results = await smoke.run(SalesforceSettings())
+    return _report([(result.name, result.passed, result.detail) for result in results])
+
+
+async def _risk_smoke(target_org: str) -> int:
+    results = await risk_smoke.run(target_org, SalesforceSettings())
     return _report([(result.name, result.passed, result.detail) for result in results])
 
 

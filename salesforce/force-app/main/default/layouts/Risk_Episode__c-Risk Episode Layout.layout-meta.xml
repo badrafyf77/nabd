@@ -23,22 +23,42 @@
                 <field>Risk_Rule__c</field>
             </layoutItems>
             <layoutItems>
-                <behavior>Required</behavior>
+                <behavior>Readonly</behavior>
+                <field>Rule_Code__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Rule_Version__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
                 <field>Status__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Active_Key__c</field>
             </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>
-                <behavior>Edit</behavior>
+                <behavior>Readonly</behavior>
                 <field>Opened_At__c</field>
             </layoutItems>
             <layoutItems>
-                <behavior>Edit</behavior>
+                <behavior>Readonly</behavior>
                 <field>Cleared_At__c</field>
             </layoutItems>
             <layoutItems>
-                <behavior>Edit</behavior>
+                <behavior>Readonly</behavior>
+                <field>Clear_Reason__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
                 <field>Last_Evaluated_At__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Evidence_Count__c</field>
             </layoutItems>
             <layoutItems>
                 <behavior>Readonly</behavior>
@@ -54,7 +74,7 @@
         <label>Explanation</label>
         <layoutColumns>
             <layoutItems>
-                <behavior>Edit</behavior>
+                <behavior>Readonly</behavior>
                 <field>Explanation__c</field>
             </layoutItems>
         </layoutColumns>
@@ -87,6 +107,7 @@
         <fields>NAME</fields>
         <fields>Case__c</fields>
         <fields>Detail__c</fields>
+        <fields>Current__c</fields>
         <fields>Observed_At__c</fields>
         <relatedList>Risk_Evidence__c.Risk_Episode__c</relatedList>
     </relatedLists>

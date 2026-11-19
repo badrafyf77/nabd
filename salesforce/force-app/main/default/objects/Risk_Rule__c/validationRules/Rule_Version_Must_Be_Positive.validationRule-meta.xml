@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Rule_Version_Must_Be_Positive</fullName>
+    <active>true</active>
+    <description>Keeps rule keys stable and ordered.</description>
+    <errorConditionFormula>Version__c &lt; 1</errorConditionFormula>
+    <errorDisplayField>Version__c</errorDisplayField>
+    <errorMessage>Rule versions start at 1.</errorMessage>
+</ValidationRule>

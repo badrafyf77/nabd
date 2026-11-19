@@ -134,11 +134,23 @@
                 <behavior>Edit</behavior>
                 <field>Classification_Confidence__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>NABD_Open_Since__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>NABD_Open_Age_Band__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>
                 <behavior>Edit</behavior>
                 <field>Sentiment__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>Negative_Streak__c</field>
             </layoutItems>
             <layoutItems>
                 <behavior>Edit</behavior>
@@ -372,6 +384,9 @@
         </relatedContentItems>
     </relatedContent>
     <relatedLists>
+        <relatedList>RelatedCommentsList</relatedList>
+    </relatedLists>
+    <relatedLists>
         <fields>SOLUTION.ISSUE</fields>
         <fields>SOLUTION.SOLUTION_NUMBER</fields>
         <fields>SOLUTION.STATUS</fields>
@@ -396,9 +411,6 @@
         <fields>CORE.USERS.FULL_NAME</fields>
         <fields>TASK.LAST_UPDATE</fields>
         <relatedList>RelatedHistoryList</relatedList>
-    </relatedLists>
-    <relatedLists>
-        <relatedList>RelatedCommentsList</relatedList>
     </relatedLists>
     <relatedLists>
         <relatedList>RelatedAttachmentList</relatedList>

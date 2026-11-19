@@ -149,3 +149,35 @@ def test_records_seeded_before_a_field_was_added_are_not_mistaken_for_staff_edit
     assert report.counts[s.KNOWLEDGE.name]["update"] == len(dataset.knowledge) - 1
     assert org.find(s.KNOWLEDGE.name, "policy.return_window@1")["Policy_Days__c"] == 30.0
     assert _run(org, dataset).writes == 0
+
+
+def test_fields_added_in_two_later_phases_are_not_mistaken_for_staff_edits():
+    # Phase 3 fingerprints include the Phase 3 case fields but not the Phase 6 streak.
+    org, dataset = FakeSalesforce(), fx.build()
+    _run(org, dataset)
+    cases = [record for record in seed.records(dataset) if record.sobject == "Case"]
+    for record in cases:
+        row = org.find("Case", record.key)
+        row["Negative_Streak__c"] = None
+        old = {k: v for k, v in seed.canonical_values(record).items() if k != "Negative_Streak__c"}
+        row[s.SEED_FINGERPRINT] = seed.fingerprint(old)
+    edited = org.find("Case", "FX-ISSUE-0002")
+    edited["Priority"] = "High"  # a staff edit to a Phase 1 field is still preserved
+    report = _run(org, dataset)
+    assert report.preserved == ["Case:FX-ISSUE-0002"]
+    assert report.counts["Case"]["update"] == len(cases) - 1
+    assert org.find("Case", "FX-ISSUE-0001")["Negative_Streak__c"] == 2
+    assert _run(org, dataset).writes == 0
+
+
+def test_fixture_contacts_carry_sentiment_and_streaks():
+    dataset = fx.build()
+    complaints = {complaint.issue_id: complaint for complaint in dataset.complaints}
+    streaks = {key: seed.negative_streak(complaint) for key, complaint in complaints.items()}
+    # FX-ISSUE-0001 is negative at two consecutive contacts; the resolved case ends positive.
+    assert streaks["FX-ISSUE-0001"] == 2 and streaks["FX-ISSUE-0005"] == 0 and streaks["FX-ISSUE-0006"] == 0
+    assert {key for key, value in streaks.items() if value >= 2} == {"FX-ISSUE-0001"}
+    for complaint in dataset.complaints:
+        for item in complaint.evidence:
+            sentiment = seed.assessed_sentiment(complaint, item)
+            assert (sentiment is None) == (item.kind == "verified_fact"), item.message_id
