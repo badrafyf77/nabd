@@ -1,6 +1,7 @@
 # NABD Phase 7 — quality review and demonstration release
 
-Status: **plan only** (written 19 November 2026). Nothing is implemented yet.
+Status: **implemented; release verification in progress** (19 November 2026).
+See the [implementation handoff](#implementation-handoff--19-november-2026).
 Branch `codex/nabd-phase7-quality-release`, created from `main` at `0079407`
 (Phases 0–6 merged). Accepted [decisions](../decisions.md) and the
 [architecture](../architecture.md) still apply; this plan does not reopen them.
@@ -141,9 +142,9 @@ and duration. It is for operators and the evaluator only.
 
 ### 4. Salesforce: `revise_summary` gateway operation
 
-- New operation in `NabdCaseCommands` (hand-written Apex, so no schema
-  change and no new fields or permissions): needs case ID, expected version
-  and summary. In one transaction it locks the customer's account and the
+- New operation in `NabdCaseCommands` (hand-written Apex with a generated
+  receipt picklist value and no new fields or permissions): needs case ID,
+  expected version and summary. In one transaction it locks the customer's account and the
   case, checks ownership, version, that it is a NABD case
   (`NABD_Issue_Id__c`), and that the current summary is still NABD's
   (hash match). It replaces `English_Summary__c` and its hash, and saves a
@@ -286,9 +287,9 @@ reported as missed, with its cause, not hidden.
 Every NABD paid run so far was approved one run at a time; this continues.
 Expected requests, each asked separately with the exact scenarios and count:
 
-- Campaign run 1: 60 scenarios (about 95 turns, each 3–8 model calls, plus one
-  evaluator call per turn). Its measured tokens give the real cost before
-  runs 2 and 3 are requested.
+- Campaign run 1: 60 scenarios (73 base turns, up to 75 with the optional
+  Darija clarifications, plus one evaluator call per completed turn). Report
+  its measured tokens before requesting runs 2 and 3.
 - Campaign runs 2 and 3 on the same version.
 - Evaluator labeled set: 12 evaluator calls, once.
 - Any recheck after a fix (which restarts the three-run count).
@@ -313,3 +314,73 @@ No token or price figures exist yet; the first run measures them.
 Voice, production login, more businesses, refund execution, offline
 notifications, a trained churn model, a staff portal and a manager analytics
 agent remain later work ([roadmap](../roadmap.md#deferred)).
+
+
+## Implementation handoff — 19 November 2026
+
+The first implementation checkpoint is `6864092` on
+`codex/nabd-phase7-quality-release`. The follow-up checkpoint fixes the paid
+harness event-loop lifetime and isolates malformed quality settings from chat. The local dev database is at
+`0005_quality`, and the dedicated Salesforce org is deployed with the
+wording-only gateway and its restricted receipt value. Restore the
+application from [setup](../README.md#fresh-checkout) and use the
+[runbook](../runbook.md) and [demo](../demo.md).
+
+| Check | Result |
+| --- | --- |
+| Offline with real PostgreSQL | 325 passed on macOS; Linux image 312 passed, 13 skipped. Both deselected 142 paid tests. |
+| Salesforce deploy and verification | 43 Apex tests passed; verify 53/53. The first deploy exposed the operation receipt's restricted picklist and was corrected through the schema generator. |
+| Salesforce and MCP smokes | 12/12, read MCP 14/14, write MCP 17/17, including a closed-case wording change and receipt replay. Analytics reconciled 15/15. |
+| Fault, authorization and privacy | Quality tests cover stale grade fencing, invalid output, disabled review, scoped quotes and cases, redacted trace, unavailable send/receipt replay, version conflict, staff edit and rejection. The full suite covers existing customer isolation, lifecycle, SSE and replay. |
+| Browser PostgreSQL event to SSE receipt | 405 events, p50 14 ms, p95 34 ms, max 108 ms. PostgreSQL clock was 1.75 ms behind the browser host in the best of ten round trips, 0.82 ms RTT. The 1 s p95 target passed. |
+| Salesforce status write to browser | 20 isolated updates, p50 1.934 s, p95 3.713 s, max 6.597 s. **19/20 within five seconds**. The strict five-second target was missed once. The slow sample took about 22 ms from persisted event to browser; the earlier portion was not instrumented by stage. An initial overlapping chat/test series stopped after three updates and one timeout. |
+| Staff smoke, 30 samples | 12/12 checks, p95 2.911 s and max 3.352 s to the durable event |
+| Scripted case and translation | The English complaint created case 00001054 and its unsupported compensation claim was revised once. French follow-up reused the case. Status notices and original/labeled French translation survived reload. Temporary comment removed and case closed as a duplicate. |
+| Risk fixture review after cleanup | 1 true positive, 44 true negatives, 0 false positives, 0 false negatives across 15 fixture customers × three rules. C013 was below 24 hours. While the scripted case was open, the test case's second negative contact produced one expected baseline mismatch. |
+| Frontend and startup | Chat replay, template and RTL tests, TypeScript and production build passed. Compose rebuilt at Phase 7 and the API is ready. |
+
+[Free measurement data](../evidence/phase7-free.json) records exact counts
+and clock measurements. Risk labels cover the seeded condition at evaluation
+time and exclude C008 smoke activity. The browser sample is a local scripted
+workload. Scripted grades demonstrate persistence and gateway wiring. The
+release campaign measures model grades, case accuracy, scenario latency and
+tokens. A partial trace can omit evidence from a prior attempt. Summary
+reviews use evidence stored with the current command. The correction model
+identifies English wording, and code checks references and the Latin script.
+
+### Initial paid run
+
+The owner approved one run of all 60 scenarios. It finished at **52/60**:
+English and mixed 8/10 each, French, standard Arabic, Latin Darija and Arabic
+Darija 9/10 each. There were 72 completed turns, with 72/72 confirmed case
+expectations met, and 72 evaluator grades. One scenario ended before a turn
+completed. Turn latency was 11.174 s p50 and 23.493 s p95. First reply text
+was 10.253 s p50 and 22.355 s p95. Recorded model usage was 768,419 input
+and 94,292 output tokens, with no configured USD rates. Earlier usage from
+the failed operation is unavailable. [Initial run aggregate](../evidence/phase7-campaign.json).
+
+- Five foreign-order challenges returned no foreign data and missed the
+  required explicit tool lookup. They often suggested the customer's own order.
+- The mixed-language delivery reply said free shipping starts at £40, changing
+  the strict above-£40 boundary. The evaluator passed that turn.
+- One standard Arabic two-issue scenario created the correct cases and
+  selected Arabic-script Darija. The expected form was standard Arabic.
+- The first held-out scenario crashed in the harness when the shared OpenAI
+  transport tried to reuse its closed async loop. The repaired harness uses a
+  session runner across multilingual, held-out and labeled evaluator tests.
+  The holdout inputs, assertions and runtime prompts are unchanged.
+
+Read-through of both Darija forms found intelligible replies and appropriate
+writing systems, with awkward literal wording in certain delivery, return
+and refund phrases. One Latin Darija two-issue reply attached the wrong
+weekday to an otherwise correct ISO delivery date. This was a read-through
+of fixture outputs. Native staff assessment and broader grading accuracy
+still need evidence.
+
+The initial run is retained for comparison and does not count toward the
+three-run gate. Its private JSONL and logs are in
+`~/.local/state/nabd/phase7/6864092/` on the development machine. Restart
+with run 1 from the repaired checkpoint and use a fresh private results
+directory. Each of the three full runs and the 12 labeled evaluator calls
+requires separate approval. Document the measured outcomes and compare
+them with the roadmap before merging. [Follow-up backlog](../backlog.md).

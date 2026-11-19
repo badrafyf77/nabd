@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-19",
+  "initial_implementation": "6864092",
+  "offline": {
+    "macos_postgres": {"passed": 325, "paid_deselected": 142},
+    "linux_postgres": {"passed": 312, "skipped": 13, "paid_deselected": 142}
+  },
+  "salesforce": {
+    "apex_passed": 43,
+    "verify": {"passed": 53, "total": 53},
+    "analytics_reconcile": {"passed": 15, "total": 15},
+    "smoke": {"passed": 12, "total": 12},
+    "read_mcp": {"passed": 14, "total": 14},
+    "write_mcp": {"passed": 17, "total": 17},
+    "staff_sync": {"passed": 12, "total": 12, "samples": 30, "p95_ms": 2911, "max_ms": 3352}
+  },
+  "browser": {
+    "stack": "in-app browser, Next.js development proxy, scripted models, real PostgreSQL and Salesforce",
+    "clock_sample": {"db_minus_host_ms": -1.75, "round_trip_ms": 0.82, "attempts": 10},
+    "event_to_browser_ms": {"samples": 405, "p50": 14, "p95": 34, "max": 108, "target_p95_met": true},
+    "staff_write_to_browser_ms": {
+      "samples": 20,
+      "p50": 1933.5,
+      "p95": 3713,
+      "max": 6597,
+      "within_5000_ms": 19,
+      "all_within_target": false
+    },
+    "earlier_overlapping_staff_series": {"successful": 3, "timeout": 1, "included_in_staff_latency": false},
+    "checks": ["live case", "one wording-only correction", "same case after French follow-up",
+               "original and labeled translation after reload", "test data cleaned up", "published delivery FAQ"]
+  },
+  "risk_fixture_review": {
+    "customers": 15,
+    "labeled_pairs": 45,
+    "true_positives": 1,
+    "true_negatives": 44,
+    "false_positives": 0,
+    "false_negatives": 0,
+    "c013_24_hour_threshold_utc": "2026-11-19T03:20:42Z",
+    "measurement_after_test_case_cleanup": true
+  }
+}

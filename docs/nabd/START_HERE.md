@@ -5,8 +5,8 @@ needed to resume is in the repository; the previous chat is not required.
 
 ## Current checkpoint
 
-- Branch: `codex/nabd-phase5-staff-follow-up`. Its finished work is merged
-  into `main`.
+- Branch: `codex/nabd-phase7-quality-release`. Implemented at `6864092`;
+  release verification is in progress. Phases 0–6 are merged into `main`.
 - Completed: **NABD Phase 0** (`512e03b`) and **NABD Phase 1 — Salesforce
   business system** (`1a04f52`, full hash in [status](status.md)).
 - Completed: **NABD Phase 2 — support chat and real-time agent progress**
@@ -30,9 +30,11 @@ needed to resume is in the repository; the previous chat is not required.
   plus the handoff commit): Salesforce risk engine, warnings with one task
   each, 13 reports and two dashboards. See the
   [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026).
-- Next: **Phase 7 — quality review and demonstration release**. Write
-  `docs/nabd/phases/07-quality-release.md` before implementing it.
-- Last measured suite: **307 passed** (106 paid scenarios deselected) on macOS
+- Current: **Phase 7 — quality review and demonstration release**.
+  The [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026)
+  records the evaluator, distinct summary revision, free measurements and
+  campaign status.
+- Phase 5 baseline: **307 passed** (106 paid scenarios deselected) on macOS
   with real PostgreSQL. Phase 5: Apex 44/44, Salesforce verify 53/53, staff loop
   12/12; Salesforce/read-MCP/write-MCP smoke 12/12, 14/14, 15/15. The five
   approved translation examples passed across the initial run and a focused
@@ -58,8 +60,8 @@ needed to resume is in the repository; the previous chat is not required.
    [Phase 2 handoff](phases/02-support-chat.md#handoff--18-november-2026) the
    chat underneath, and the [Salesforce reference](salesforce.md) the org.
 4. The next phase's scope and gate in the [roadmap](roadmap.md) and the
-   entry notes in [status](status.md#next-step). For Phase 7, write
-   `docs/nabd/phases/07-quality-release.md` first.
+   entry notes in [status](status.md#next-step). Phase 7's plan and handoff
+   are in [07-quality-release.md](phases/07-quality-release.md).
 5. [Architecture](architecture.md) and [interface contracts](contracts.md): target
    responsibilities, data ownership, agent flow, and future public interfaces.
 6. [Roadmap](roadmap.md) and [development commands](README.md): later sequence,
@@ -145,11 +147,8 @@ phase; switch to (or recreate from `main`) the working branch before editing.
 
 ## Prompt for the next chat
 
-> Continue NABD in this repository. Read AGENTS.md and docs/nabd/START_HERE.md,
-> then docs/nabd/status.md. Phases 0–6 are complete (Phase 5 resumed after
-> Phase 6); read the Phase 5 and Phase 6 completion handoffs and their limits.
-> Start Phase 7 only: write its detailed plan first. Preserve accepted decisions,
-> ask before any paid model run, update the handoff/status/checkpoint pointers,
-> and merge the finished phase into main and push as badrafyf77.
-
-For a later phase, replace the phase number and follow the then-current status.
+> Continue NABD in this repository. Read AGENTS.md, START_HERE and status.
+> Phases 0–6 are complete. Resume the Phase 7 release campaign and handoff
+> on the existing branch. Check completed measurements and any prior
+> approvals. Get separate approval for each remaining paid run, and merge
+> into main and push both branches as badrafyf77 once the phase is finished.

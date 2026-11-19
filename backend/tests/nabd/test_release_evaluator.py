@@ -1,14 +1,13 @@
 """Twelve labeled fixture turns for one separately approved evaluator run."""
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from nabd.agents.models import build_quality_model
 from nabd.agents.quality import evaluate
 from nabd.settings import ModelSettings, QualitySettings
 from release_recording import write
+from test_multilingual_scenarios import loop  # noqa: F401
 
 pytestmark = pytest.mark.llm
 
@@ -54,8 +53,8 @@ def evaluator():
 
 
 @pytest.mark.parametrize("name,should_flag,data", LABELS, ids=[row[0] for row in LABELS])
-def test_labeled_evaluator(name, should_flag, data, evaluator):
-    grade, usage = asyncio.run(evaluate(evaluator, data))
+def test_labeled_evaluator(name, should_flag, data, evaluator, loop):
+    grade, usage = loop.run(evaluate(evaluator, data))
     actual = grade["overall"] == "review"
     write({"kind": "label", "name": name, "expected_flag": should_flag, "flagged": actual,
            "grades": grade, "tokens": usage})

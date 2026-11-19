@@ -292,3 +292,19 @@ records recovery/privacy tests, the measured healthy p95 and operating limits.
 Salesforce metadata remains generated from `schema.py`; always use
 `python -m nabd salesforce deploy` so the hourly Phase 6 risk job is paused and
 restored around a deployment.
+
+
+## Wording-only revisions (Phase 7)
+
+The existing Apex case command gateway accepts `revise_summary` through the
+write MCP server. It uses the same account lock, case lock and durable receipt
+as the other case commands. The customer must own the case, the version must
+match, and the case must have a NABD issue ID and a matching NABD summary hash.
+While closed cases are eligible, staff-owned wording is preserved. The
+receipt object records the new restricted `Operation_Type__c` picklist value.
+The integration user has the same gateway and record permissions as before.
+
+`python -m nabd salesforce risk-review --target-org nabd-dev` reads active
+episodes as the CLI admin and compares them with the fixture labels. The C013
+24-hour baseline starts from the fixture case's Salesforce creation time.
+Test cases or staff edits can produce legitimate differences from the labels.

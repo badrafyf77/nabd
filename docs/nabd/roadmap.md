@@ -5,7 +5,7 @@ the next. Read [START_HERE](START_HERE.md) and [status](status.md) to resume. Ph
 is complete at `512e03b`; Phase 1 is complete at `1a04f52`; Phase 2 is complete at
 `02178fa` (plus handoff commits); Phase 3 is complete at 9879593 (plus
 handoff commit); Phase 4 is complete at `b4d5f71`; Phase 5 is complete at `575712a`; Phase 6
-is complete at `45a9445`; Phase 7 is pending. [Accepted decisions](decisions.md)
+is complete at `45a9445`; Phase 7 is implemented at `6864092` and undergoing release verification. [Accepted decisions](decisions.md)
 and [architecture](architecture.md) apply to every phase.
 
 ## Phase 0 — Foundation
@@ -130,8 +130,8 @@ Plan and handoff: [06-analytics-warnings](phases/06-analytics-warnings.md) —
 
 ## Phase 7 — Quality review and demonstration release
 
-Depends on completed Phases 5 and 6. Write `phases/07-quality-release.md`
-before implementation. Testing already accompanies every earlier phase.
+Depends on completed Phases 5 and 6. See the [Phase 7 plan and evidence](phases/07-quality-release.md).
+Testing accompanies every phase.
 
 - Add read-only background evaluator and grounded summary review with at most
   one corrective pass. Grade coverage, language, tool use, and resolution claims.

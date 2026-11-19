@@ -1,13 +1,12 @@
 # NABD status
 
-Updated: 19 November 2026 (Africa/Casablanca), after resuming and completing
-Phase 5 on top of the finished Phase 6.
+Updated: 19 November 2026 (Africa/Casablanca), during Phase 7 verification.
 
 ## Current work
 
-**Phases 0–6 are complete; Phase 7 is pending.** Latest phase branch:
-`codex/nabd-phase5-staff-follow-up`, rebased onto Phase 6 `main`, completed at
-`575712a`, then merged into `main`. Phase 5 delivers live public staff
+**Phases 0–6 are complete. Phase 7 is implemented and release verification
+is in progress.** The Phase 7 branch is `codex/nabd-phase7-quality-release`
+at implementation checkpoint `6864092`. Phase 5 delivers live public staff
 updates/replies, labeled translations, durable replay/reconciliation and the
 chat UI. Real staff loop 12/12, ten-change p95 2.696 s; see its
 [completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
@@ -25,6 +24,7 @@ real-model run ([Phase 4 handoff](phases/04-multilingual.md#final-full-run-of-0b
 | 4 — Multilingual behavior | `b4d5f710f2ea5289bbda8762c8f078081d9cac61` (last implementation commit; earlier `e352b0a`, `94957e5`, `e7c876a`, `dbccbf1`, `f341970`) | [Phase 4 handoff](phases/04-multilingual.md#handoff) |
 | 5 — Live staff follow-up | `575712a` (completed after Phase 6, rebased onto it) | [Phase 5 completion handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026) |
 | 6 — Analytics and proactive warnings | `45a9445` (implementation; handoff in the next commit) | [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026) |
+| 7 — Quality review and demonstration release | `6864092` (implementation; campaign in progress) | [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026) |
 
 Completed phases are merged into `main` on GitHub
 (`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
@@ -106,8 +106,8 @@ Phase 6 — analytics and proactive warnings, all inside Salesforce:
 - commands `analytics-reconcile` and `risk-smoke`; `deploy` pauses the
   hourly job, `configure` schedules it.
 
-Customers and the backend see none of the internal risk data. Phase 5 now
-adds public staff follow-up; quality review (Phase 7) is pending.
+Customers and the backend see none of the internal risk data. Phase 5 adds
+public staff follow-up. Phase 7 adds private quality review.
 
 Phase 5 — live staff follow-up:
 
@@ -121,7 +121,21 @@ Phase 5 — live staff follow-up:
 - migration `0004_staff_sync`, API lifespan wiring and `staff-sync smoke`.
   See the [Phase 5 handoff](phases/05-staff-follow-up.md#completion-handoff--19-november-2026).
 
+Phase 7 — migration `0005_quality`, bounded operator traces and token
+capture, a tool-free evaluator, fenced retries, and an idempotent
+summary-only Salesforce gateway operation. Operator quality and risk
+reports, release campaign harness and reproducible [demo](demo.md) are
+available. [Operations runbook](runbook.md).
+
 ## Verification
+
+Phase 7 free verification measured 325 macOS and 312 Linux passes with
+PostgreSQL (13 Linux skips), 43 Apex passes and 53 Salesforce verification
+checks. Event-to-browser p95 was 34 ms across 405 events. Staff status
+changes reached the browser within five seconds in 19 of 20 isolated
+samples. The full results are in [Phase 7 evidence](evidence/phase7-free.json).
+The initial paid run returned 52/60 and exposed a harness crash. The
+repaired harness needs a fresh three-run series. [Initial paid run](evidence/phase7-campaign.json).
 
 | Check | Actual result |
 | --- | --- |
@@ -238,20 +252,11 @@ run `sf org login web --alias nabd-dev`.
 
 ## Next step
 
-**Phase 7 — quality review and demonstration release** is next. Write
-`docs/nabd/phases/07-quality-release.md` before implementation. Phases 5 and 6
-are both complete; the historical pause does not require any further rebase.
-Carry forward the [Phase 5 limits](phases/05-staff-follow-up.md#practical-limits-and-phase-7-entry)
-and the Phase 3/4/6 limitations. Five-second staff sync was measured to the
-durable event on a healthy connection, not as a browser/load-test percentile.
-Phase 7 still needs its broader multilingual/held-out quality campaign, release
-runbook and event-to-browser latency measurements.
-
-Deploy Salesforce only with `python -m nabd salesforce deploy`, which pauses
-and restores the hourly risk job. Staff synchronization is enabled by default
-in the API; no extra Salesforce metadata was needed when Phase 5 resumed.
-
-When a phase is finished: update its handoff, this status, START_HERE, the
-roadmap and the AGENTS pointer, commit as `badrafyf77`, then merge into `main`
-and push both branches. Model runs cost the owner money; get explicit approval
-for each paid test run (including rechecks).
+Finish [Phase 7 release verification](phases/07-quality-release.md#implementation-handoff--19-november-2026).
+The frozen paid campaign uses 60 multilingual scenarios per run and a separate
+12-call labeled evaluator run. Each requires explicit approval. Record
+per-form success, case accuracy, latency, token use and Darija review.
+Compare them with the [roadmap gates](roadmap.md#phase-7--quality-review-and-demonstration-release).
+Update the plan, status, START_HERE, roadmap and AGENTS together. When
+verification is finished, merge into `main` and push both branches as
+`badrafyf77` after scanning the push range for secrets.

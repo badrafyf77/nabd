@@ -38,8 +38,9 @@ class Scenario:
 SCENARIOS = [Scenario(f"{f.name}-{flow}", f, flow) for f in FORMS
              for flow in ("knowledge", "returns", "refund", "switch_case", "ambiguous", "held_out")]
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def loop():
+    # OpenAI's cached async HTTP client outlives each test module.
     with asyncio.Runner() as runner:
         yield runner
 

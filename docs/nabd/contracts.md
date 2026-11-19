@@ -140,3 +140,21 @@ is removed with its replies, without forwarding the new customer's content.
 Only comments posted after a conversation linked the case can reach it. Current
 public originals enter later turns as `staff` context; evidence and confirmation
 validation continues to accept only stored `customer` message IDs.
+
+
+## Restricted quality review (Phase 7)
+
+Migration `0005_quality` adds `nabd.run_traces`, `nabd.quality_reviews` and
+`nabd.summary_revisions`. The run completion transaction queues one review
+per completed run. A review lease fences the grade and its correction jobs
+in a single commit. The private trace keeps bounded tool arguments/results,
+per-model-call duration and usage, and an incomplete-attempt marker. The
+customer API, snapshots and SSE have no quality fields.
+
+The durable revision key is unique per source command. Write MCP
+`revise_case_summary(operation_id, case_id, expected_version, summary)`
+takes customer identity from the signed context. It dispatches
+`revise_summary` and settles an ambiguous reply with `get_operation`.
+The gateway returns confirmed, conflict (including `version_changed` or
+`staff_override`), or failed. Closed cases are valid wording targets. No
+evidence, contact, sentiment or status mutation accompanies the revision.

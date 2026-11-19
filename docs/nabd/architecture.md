@@ -45,8 +45,8 @@ records; `analytics-reconcile` compares them with SOQL. The backend, MCP
 servers, prompts and customer streams are unchanged: the integration user
 cannot read warnings, tasks, evidence or sentiment, and its only create right
 is publishing the risk-check event. This replaces the "Durable background jobs
-→ risk evaluation" path of the diagram; summary refinement and quality review
-remain open.
+→ risk evaluation" path of the diagram. The PostgreSQL workers handle quality
+review and bounded summary correction.
 
 ## Phase 4 language boundary
 
@@ -178,7 +178,8 @@ Turn sequence:
 4. Validate proposals and refresh current Salesforce state; execute accepted
    commands through write MCP and record confirmed/pending/failed outcomes.
 5. Supervisor streams a reply grounded in available evidence and command receipts.
-6. Enqueue summary refinement, risk evaluation, and later quality evaluation.
+6. Commit reply, trace, and quality job together. Salesforce case changes
+   trigger their own risk evaluation.
 
 Await dependent specialist results in the graph. Put actual post-response work
 in durable jobs. Serialize turns per conversation and conflicting customer case
@@ -278,3 +279,20 @@ evidence. Use deterministic assertions for permissions/invariants and labeled
 semantic scenarios with manual Darija review. The quality evaluator is read-only;
 summary correction is bounded to one pass. Release targets are in the roadmap,
 and must be measured rather than presented as current performance.
+
+
+### Restricted post-turn review
+
+Completed turns store a bounded tool trace and model usage in PostgreSQL with
+their durable review job. A resumed attempt is marked partial. The evaluator
+has no representation in the chat graph and no MCP connection. It reads the
+reply, recent turns, selected language/script, confirmed case work and tool
+results under a separate background lease. Its validated grades are visible
+through the operator CLI.
+
+An evidence-based review can enqueue one correction for a summary-writing
+command. The Complaint model proposes English wording with tools disabled.
+Code checks script, copied references and unsupported text. The gated write
+uses a durable operation ID and the confirmed case version. The gateway
+checks ownership and the summary's NABD hash and only changes the summary
+fields. [Phase 7 plan and handoff](phases/07-quality-release.md).

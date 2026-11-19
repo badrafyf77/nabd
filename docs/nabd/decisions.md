@@ -179,3 +179,16 @@ they do not require repeating the product interview.
   The org already had it, and deploying without it fails, so commit `2bb6d02`
   was cherry-picked (`7b4157e`). Its event and triggers stay dormant until
   Phase 5 resumes; rebase the Phase 5 branch on `main` then.
+
+- **Restricted review (19 November 2026).** Commit the completed turn's
+  bounded tool trace, model usage and review job together in PostgreSQL.
+  Recovered attempts mark their trace partial. Only operators and the
+  tool-free evaluator use the trace; the customer event contract is unchanged.
+- **One summary correction (19 November 2026).** Key the revision job by the
+  summary-writing case command and reuse Complaint capabilities for English
+  wording. Use a dedicated `revise_summary` gateway operation so a wording
+  change leaves operational case fields and contact accounting unchanged.
+  Store the command before sending and settle ambiguous writes by receipt.
+- **Receipt schema (19 November 2026).** The existing operation type field is
+  a restricted picklist. Add the `revise_summary` value through the schema
+  generator. There are no new Salesforce fields or permissions.

@@ -383,3 +383,53 @@ The five paid staff-translation examples are opt-in:
 `pytest -m llm tests/nabd/test_staff_translation_scenarios.py -s`. Get approval
 before each run or recheck. They cover references/script and a quoted
 instruction; broader language-quality evaluation remains Phase 7.
+
+## Fresh checkout
+
+1. Install Python 3.14, Node.js compatible with the frontend lockfile,
+   Docker with Compose, and the Salesforce CLI. Clone the repository.
+2. In `backend/`, create `.venv-text` with Python 3.14, install from
+   `requirements-text-dev.txt`, and copy `.env.nabd.example` to `.env.nabd`.
+   Use the local database URL in the example for host commands and generate a
+   distinct random value of at least 32 characters for each MCP secret.
+3. Connect `sf` to the dedicated Developer Edition as `nabd-dev`. Run
+   `salesforce deploy`, `configure --create-integration-user` for a new org,
+   and `seed`, followed by `verify`. Copy the approved client app key and
+   secret into `.env.nabd` by following the Salesforce setup above.
+4. In `frontend/`, run `npm ci`. For a free walkthrough, use
+   [the scripted demo](demo.md#free-scripted-walkthrough).
+   For real models, set `NABD_OPENAI_API_KEY`, start Compose with
+   `docker compose -f docker-compose.nabd.yml up -d --build --wait api` from
+   `backend/`, test `/readyz`, then run `npm run dev` from `frontend/`.
+
+## Phase 7 quality review
+
+Migration `0005_quality` adds the private turn trace, evaluation queue and
+one summary revision per matching source case command. No HTTP routes are
+added. Background grading is enabled by default with `gpt-5.4-mini` and low
+reasoning. Use `NABD_QUALITY_ENABLED` to pause grading, or
+`NABD_QUALITY_SUMMARY_CORRECTION_ENABLED` to pause summary jobs. The default
+poll, lease and attempt limit are 0.5 seconds, 90 seconds and three attempts.
+Configuration and optional USD rates are in `backend/.env.nabd.example`.
+
+```bash
+# From backend/:
+PYTHONPATH=code .venv-text/bin/python -m nabd quality report --since 2026-11-19
+PYTHONPATH=code .venv-text/bin/python -m nabd quality show RUN_UUID
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce risk-review --target-org nabd-dev
+```
+
+See [operations](runbook.md) for role, retention and recovery guidance. The
+[Phase 7 plan](phases/07-quality-release.md) lists the release gates and
+[the demo](demo.md) shows the walkthrough. For each separately approved paid
+run, use the committed phase version and a private results directory outside
+the repository:
+
+```bash
+.venv-text/bin/python scripts/release_campaign.py --results-dir /private/path/to/results run --number 1
+.venv-text/bin/python scripts/release_campaign.py --results-dir /private/path/to/results report
+```
+
+Use `run --number 2`, `run --number 3`, and `labels` only after their
+individual approvals. Review raw fixture replies in the private directory.
+Commit the aggregate report from `docs/nabd/evidence`.

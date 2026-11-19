@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import AsyncExitStack
 
 import pytest
 
 from fakes import FakeChatModel, call, say
 from nabd.agents.quality import EnglishSummary, Evaluation, evaluate, valid_correction, validate_grade
+from nabd.app import _production_chat
 from nabd.context import mint
 from nabd.database import open_database
 from nabd.runtime.events import RunContext, TurnBudget
@@ -66,6 +68,23 @@ def test_evaluator_cannot_supply_tool_calls():
     with pytest.raises(ValueError, match="tool call"):
         asyncio.run(evaluate(model, {}))
     assert model.requests[0]["tools"] == [] and model.requests[0]["tool_choice"] == "none"
+
+
+def test_invalid_quality_environment_leaves_production_chat_configured(monkeypatch):
+    monkeypatch.setenv("NABD_READ_MCP_CONTEXT_SECRET", "fixture-read-credential-long-enough")
+    monkeypatch.setenv("NABD_WRITE_MCP_CONTEXT_SECRET", "fixture-write-credential-long-enough")
+    monkeypatch.setenv("NABD_OPENAI_API_KEY", "fixture-key")
+    monkeypatch.setenv("NABD_SALESFORCE_DOMAIN_URL", "https://fixture.my.salesforce.com")
+    monkeypatch.setenv("NABD_SALESFORCE_CLIENT_ID", "fixture-client")
+    monkeypatch.setenv("NABD_SALESFORCE_CLIENT_SECRET", "fixture-secret")
+    monkeypatch.setenv("NABD_QUALITY_LEASE_SECONDS", "invalid")
+
+    async def scenario():
+        async with AsyncExitStack() as stack:
+            chat = await _production_chat(stack)
+            assert chat is not None and chat.evaluator is None
+
+    asyncio.run(scenario())
 
 
 async def _queued(db, *, review=True, source=False):

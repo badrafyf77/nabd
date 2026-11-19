@@ -77,7 +77,7 @@ async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
         evaluator = build_quality_model(models, quality) if quality.enabled else None
     except (ValueError, TypeError) as error:
         logger.warning("NABD quality worker disabled; invalid configuration (%s)", type(error).__name__)
-        quality, evaluator = QualitySettings(enabled=False, _env_file=None), None
+        quality, evaluator = None, None
     http = await stack.enter_async_context(httpx.AsyncClient(timeout=salesforce.timeout_seconds))
     auth = ClientCredentialsAuth(salesforce.domain_url, salesforce.client_id, salesforce.client_secret, http)
     return ChatDependencies(
@@ -106,7 +106,7 @@ def create_app(settings: Settings | None = None, *, chat: ChatDependencies | Non
                 store = Store(database.pool, local_notify=notifier.wake,
                               lock_conninfo=config.database_url.get_secret_value())
                 stage = ComplaintStage(deps.models.complaints, store, deps.chat.review_confidence)
-                quality = deps.quality or QualitySettings(_env_file=None)
+                quality = deps.quality or QualitySettings.model_construct(enabled=deps.evaluator is not None)
                 quality_enabled = quality.enabled and deps.evaluator is not None
                 executor = TurnExecutor(Supervisor(deps.models.supervisor, deps.models.orders,
                                                    database.checkpointer),

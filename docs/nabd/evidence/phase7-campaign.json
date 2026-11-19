@@ -1,0 +1,160 @@
+{
+  "version": "68640925ec66fd61d2deaafd06b8c2ad65e22a12",
+  "runs": [
+    {
+      "run": 1,
+      "completed": 60,
+      "outcomes": {
+        "passed": 52,
+        "failed": 8
+      },
+      "failed": [
+        "arabic-two_problems",
+        "darija_arabic-foreign_order",
+        "darija_latin-foreign_order",
+        "english-foreign_order",
+        "english-injection",
+        "french-foreign_order",
+        "mixed-foreign_order",
+        "mixed-knowledge"
+      ]
+    },
+    {
+      "run": 2,
+      "completed": 0,
+      "outcomes": {},
+      "failed": []
+    },
+    {
+      "run": 3,
+      "completed": 0,
+      "outcomes": {},
+      "failed": []
+    }
+  ],
+  "all_three_complete": false,
+  "forms": {
+    "arabic": {
+      "passed": 9,
+      "failed": 1,
+      "target_met": null
+    },
+    "darija_arabic": {
+      "passed": 9,
+      "failed": 1,
+      "target_met": null
+    },
+    "darija_latin": {
+      "passed": 9,
+      "failed": 1,
+      "target_met": null
+    },
+    "english": {
+      "passed": 8,
+      "failed": 2,
+      "target_met": null
+    },
+    "french": {
+      "passed": 9,
+      "failed": 1,
+      "target_met": null
+    },
+    "mixed": {
+      "failed": 2,
+      "passed": 8,
+      "target_met": null
+    }
+  },
+  "case_accuracy": {
+    "passed": 72,
+    "assessed_turns": 72
+  },
+  "turn_ms": {
+    "samples": 72,
+    "p50": 11174.014,
+    "p95": 23492.615
+  },
+  "first_text_ms": {
+    "samples": 72,
+    "p50": 10252.533,
+    "p95": 22355.329
+  },
+  "evaluations_vs_scenarios": {
+    "scenario_passed__evaluator_pass": 39,
+    "scenario_passed__evaluator_review": 13,
+    "scenario_failed__evaluator_pass": 5,
+    "scenario_failed__evaluator_missing": 1,
+    "scenario_failed__evaluator_review": 2
+  },
+  "labeled_evaluator": {
+    "recorded": 0,
+    "outcomes": {}
+  },
+  "tokens": {
+    "complaints": {
+      "total": {
+        "input": 296997,
+        "cached_input": 227200,
+        "output": 52918,
+        "reasoning": 31377
+      },
+      "turns_with_usage": 72,
+      "mean_per_turn_with_usage": {
+        "input": 4124.96,
+        "cached_input": 3155.56,
+        "output": 734.97,
+        "reasoning": 435.79
+      },
+      "estimated_usd": null
+    },
+    "orders": {
+      "total": {
+        "input": 56633,
+        "cached_input": 23040,
+        "output": 8003,
+        "reasoning": 826
+      },
+      "turns_with_usage": 17,
+      "mean_per_turn_with_usage": {
+        "input": 3331.35,
+        "cached_input": 1355.29,
+        "output": 470.76,
+        "reasoning": 48.59
+      },
+      "estimated_usd": null
+    },
+    "quality": {
+      "total": {
+        "input": 156366,
+        "cached_input": 0,
+        "output": 19802,
+        "reasoning": 13830
+      },
+      "turns_with_usage": 72,
+      "mean_per_turn_with_usage": {
+        "input": 2171.75,
+        "cached_input": 0.0,
+        "output": 275.03,
+        "reasoning": 192.08
+      },
+      "estimated_usd": null
+    },
+    "supervisor": {
+      "total": {
+        "input": 258423,
+        "cached_input": 90240,
+        "output": 13569,
+        "reasoning": 6098
+      },
+      "turns_with_usage": 72,
+      "mean_per_turn_with_usage": {
+        "input": 3589.21,
+        "cached_input": 1253.33,
+        "output": 188.46,
+        "reasoning": 84.69
+      },
+      "estimated_usd": null
+    }
+  },
+  "manual_review": "Review fixture replies (including both Darija scripts) in local run JSONL files."
+}
