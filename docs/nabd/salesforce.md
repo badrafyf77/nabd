@@ -1,7 +1,8 @@
 # NABD Salesforce business system
 
-Phase 1 reference, extended in Phase 3: what lives in Salesforce, how it is
-deployed and seeded, how the backend reads it, and how it changes cases. The executable contract is
+Phase 1 reference, extended in Phases 3 and 6: what lives in Salesforce, how it
+is deployed and seeded, how the backend reads it, how it changes cases, and the
+risk engine and dashboards. The executable contract is
 [`backend/code/nabd/salesforce/schema.py`](../../backend/code/nabd/salesforce/schema.py);
 this page explains it. If the two ever disagree, the code is right and this
 page needs fixing.
@@ -32,12 +33,12 @@ Account plus one Contact.
 | Order | `ShopEasy_Order__c` | `Order_Number__c` (SE-1042) | Required lookup to Account (restrict delete); GBP `Total_GBP__c` |
 | Order line | `ShopEasy_Order_Item__c` | `Item_Key__c` (SE-1042-1) | Master-detail to order; `Returnable__c` |
 | Delivery | `ShopEasy_Delivery__c` | `Delivery_Key__c` (order number) | Master-detail to order; current and original expected dates |
-| Complaint | standard `Case` | `NABD_Issue_Id__c` | Category, language, sentiment, urgency, confidence, review flag, English summary, resolution and reopen fields; since Phase 3 NABD's assessed priority and reason, summary hash, staff action required/completed |
-| Original evidence | `Complaint_Evidence__c` | `Evidence_Key__c` (issue:message) | Master-detail to Case; exact original text; kind = customer report, verified fact or customer confirmation |
+| Complaint | standard `Case` | `NABD_Issue_Id__c` | Category, language, sentiment, urgency, confidence, review flag, English summary, resolution and reopen fields; since Phase 3 NABD's assessed priority and reason, summary hash, staff action required/completed; since Phase 6 the negative-contact streak and the formulas Open Since and Open Age Band |
+| Original evidence | `Complaint_Evidence__c` | `Evidence_Key__c` (issue:message) | Master-detail to Case; exact original text; kind = customer report, verified fact or customer confirmation; since Phase 6 NABD's sentiment at that contact |
 | Follow-up | standard `Task` | `NABD_Task_Key__c` (matched by query) | Linked by `WhatId` to a Case or Risk Episode; activities cannot hold unique external IDs |
 | FAQ/policy | `KnowledgeEntry__c` | `Revision_Key__c` (key@revision) | Draft, Published, Retired revisions of one `Entry_Key__c` |
-| Risk rule | `Risk_Rule__c` | `Rule_Key__c` (code@version) | Three starting rules seeded; no engine until Phase 6 |
-| Risk warning | `Risk_Episode__c`, `Risk_Evidence__c` | `Episode_Key__c`, `Evidence_Key__c` | One episode per customer/rule; holds its single follow-up task ID |
+| Risk rule | `Risk_Rule__c` | `Rule_Key__c` (code@version, set by a trigger) | Three starting rules seeded; the Phase 6 engine uses the highest active version of each code |
+| Risk warning | `Risk_Episode__c`, `Risk_Evidence__c` | `Episode_Key__c`, `Evidence_Key__c` | One active warning per customer and rule code (`Active_Key__c`); holds its single follow-up task ID; evidence rows kept as history |
 | Operation receipt | `NABD_Operation_Receipt__c` | `Operation_Id__c` | One per case command, written by the gateway with the request hash and result |
 
 Case statuses are exactly **New, Working, Waiting on Customer, Waiting on
@@ -75,7 +76,7 @@ publishing a new revision with a new value.
 | Who | Access |
 | --- | --- |
 | Staff (`NABD_Staff` permission set, `NABD_Staff` group) | NABD Support app and tabs; read/create/edit on NABD objects, view all custom records; receipts read-only; queue member of all five queues |
-| Backend integration user (`NABD_Integration_Read`, `NABD_Integration_Gateway`, `NABD_Integration` group) | API only; **read-only** on Account, Contact, Case, orders, items, deliveries and knowledge (only the fields the read adapter returns); may run the `NabdCaseCommands` class, which is its only write path |
+| Backend integration user (`NABD_Integration_Read`, `NABD_Integration_Gateway`, `NABD_Integration` group) | API only; **read-only** on Account, Contact, Case, orders, items, deliveries and knowledge (only the fields the read adapter returns); may run the `NabdCaseCommands` class, which is its only write path; since Phase 6 may publish (and, as Salesforce requires, read) the `NABD_Risk_Check__e` event, which names a customer to re-evaluate and is not a record |
 
 `KnowledgeEntry__c` is private. A criteria sharing rule shares only
 `Status__c = Published` revisions with the `NABD_Integration` group, so the
@@ -136,6 +137,48 @@ Salesforce Integration licence, so the read and write MCP servers share the
 integration user; Salesforce itself still refuses that user's direct record
 writes.
 
+## Risk engine (Phase 6)
+
+Hand-written Apex, deployed with the rest of `force-app`:
+
+| Piece | Role |
+| --- | --- |
+| `NabdRiskEngine` | Loads the rules, decides for each customer whether each rule holds, and opens, updates or clears its warning, evidence and task |
+| `NabdRiskEvaluation` | Publishes and handles risk checks; the hourly sweep as chained jobs of 50 customers |
+| `NabdRiskSchedule` | Hourly at minute 5 (`NABD risk evaluation (hourly)`); queues the sweep |
+| `NabdRiskCaseTrigger` | After NABD case changes the rules read (status, priority, account, negative streak, resolution, reopening; delete, undelete), publishes one `NABD_Risk_Check__e` per customer after commit |
+| `NabdRiskCheckTrigger` | Evaluates the customers named by risk checks, as the Automated Process user (up to 50 per run; locked rows are retried) |
+| `NabdRiskRuleTrigger` | Sets `Rule_Key__c`, refuses unknown codes and invalid parameters, queues a sweep after a definition change |
+
+The three rules, their parameters and the warning lifecycle are described in
+the [Phase 6 plan](phases/06-analytics-warnings.md#contracts-and-boundaries).
+In short: a warning opens with one task (Not Started, due the next day,
+assigned to the rule's owner, type `risk_warning`), is updated in place while
+the rule holds, and clears when it does not, completing an open task with a
+note. Staff never edit warnings; they work the task. To change a rule, create
+version N+1 with new parameters, activate it and deactivate version N.
+
+Why an event: asynchronous Apex runs as whoever started it. Jobs queued from
+the gateway ran as the integration user and could not create warnings, and an
+event that user publishes without Create permission is dropped silently
+(`EventBus.publish` returns a failure, it does not throw). The risk check is
+that user's one create right, and its trigger runs as the Automated Process
+user. The case gateway records each customer contact's sentiment on the new
+evidence and keeps `Negative_Streak__c`. Salesforce refuses to redeploy Apex
+that a scheduled job references, so `deploy` pauses the hourly job and
+schedules it again afterwards; `configure` schedules it if it is missing.
+
+## Dashboards (Phase 6)
+
+App Launcher → NABD Support → Dashboards → folder **NABD Dashboards**:
+**NABD Complaints** and **NABD Risk Warnings**. Their 13 reports are in folder
+**NABD Analytics**. Both folders are shared read-only with the `NABD_Staff`
+group. The dashboards are dynamic (each viewer's own access) and show at the
+top when they were last refreshed; the latest-activity and rule tables show
+how fresh the case data and the hourly sweep are. Reports, dashboards and
+folders are generated from [`analytics.py`](../../backend/code/nabd/salesforce/analytics.py);
+`analytics-reconcile` checks every report against SOQL.
+
 ## Fixtures
 
 [`fixtures.py`](../../backend/code/nabd/salesforce/fixtures.py) is the only
@@ -147,8 +190,8 @@ so the same seed date always gives the same records.
 | Customers | 16 | Legacy C001–C010 unchanged (English); C011–C016 Moroccan/French: 3 Darija, 1 Arabic, 2 French. All live in UK cities because ShopEasy only delivers to the UK |
 | Orders / items / deliveries | 35 / 39 / 35 | Legacy 25 orders unchanged; 10 new covering delay, damage, duplicate charge, loss and replacement, refund |
 | Knowledge revisions | 24 | 14 FAQs + 8 policies published (legacy facts in written form, e.g. £3.99); `faq.delivery_cost@1` retired; `faq.support_hours@2` draft |
-| Cases / evidence / tasks | 8 / 12 / 3 | English, French, Arabic, Darija (Latin and Arabic script) and a French/Darija mix; every status; one closed with customer confirmation; one ambiguous case flagged for review; since Phase 3 assessed priority, reason, summary hash and staff action on each, and FX-ISSUE-0008 (C007, plant pot SE-1101, Waiting on Customer) for a grounded closure |
-| Risk rules | 3 | Repeat complaints, unresolved High priority, persistent negative sentiment |
+| Cases / evidence / tasks | 8 / 13 / 3 | English, French, Arabic, Darija (Latin and Arabic script) and a French/Darija mix; every status; one closed with customer confirmation; one ambiguous case flagged for review; since Phase 3 assessed priority, reason, summary hash and staff action on each, and FX-ISSUE-0008 (C007, plant pot SE-1101, Waiting on Customer) for a grounded closure; since Phase 6 each customer message carries NABD's sentiment, and FX-ISSUE-0001 (C004) has a second negative message, so it shows the persistent-negative-sentiment warning |
+| Risk rules | 3 | Repeat complaints, unresolved High priority, persistent negative sentiment (version 1 of each, active) |
 
 Fixtures are deployment and test inputs. The running product never reads
 them or the legacy SQLite database as a fallback.
@@ -166,6 +209,8 @@ Log in at login.salesforce.com, open the App Launcher (nine dots) and choose
 | Complaints | Cases tab → **NABD Delivery**, **NABD Billing & Payments**, … or **NABD Needs Review**; evidence is on each case |
 | Follow-up tasks | Open a case (for example FX-ISSUE-0001) → activity |
 | Orders, FAQs/policies, risk and receipt records | Their tab → **All** list view (generated since Phase 2) |
+| Risk warnings and their tasks | Risk Episodes tab → **All**; open a warning for its explanation, evidence and task (Phase 6) |
+| Dashboards | Dashboards tab → **NABD Dashboards** (Phase 6) |
 | FAQs and policies | Also global search (for example "delivery cost") |
 
 Every custom object tab has a generated `All` list view (columns from
@@ -180,12 +225,14 @@ Run from `backend/` with `PYTHONPATH=code .venv-text/bin/python -m nabd salesfor
 | Command | What it does |
 | --- | --- |
 | `generate` / `check` | Write, or verify, `salesforce/force-app` metadata from the schema contract |
-| `deploy --target-org nabd-dev` | Refuse stale metadata, deploy `force-app`, run local Apex tests |
-| `configure --target-org nabd-dev [--create-integration-user]` | Staff permission set/group for the CLI user; integration user, licence, permission set, group; deploy the client app policy with the run-as username |
+| `deploy --target-org nabd-dev` | Refuse stale metadata, pause the hourly risk job, deploy `force-app`, run local Apex tests, schedule the job again |
+| `configure --target-org nabd-dev [--create-integration-user]` | Staff permission set/group for the CLI user; integration user, licence, permission set, group; deploy the client app policy with the run-as username; schedule the hourly risk job |
 | `seed --target-org nabd-dev [--seed-date YYYY-MM-DD]` | Create missing fixtures; update unedited fixtures whose definition changed; never overwrite staff edits |
 | `reset --target-org nabd-dev --confirm nabd-dev` | Explicitly restore fixture values over staff edits (deletes nothing) |
 | `verify --target-org nabd-dev` | Compare live schema, picklists, queues, routes, fixture records, links and access with the contract |
 | `smoke` | Read checks as the integration user, using only `backend/.env.nabd` |
+| `analytics-reconcile --target-org nabd-dev` | Run every NABD report through the Analytics API and compare its total and groups (or rows) with SOQL (Phase 6) |
+| `risk-smoke --target-org nabd-dev` | The warning lifecycle for smoke customer C008 through the real gateway: open, cite evidence, no duplicates, clear, history (Phase 6) |
 
 Case writes are checked with `python -m nabd write-mcp smoke` (15 checks
 through the real gateway; one labelled smoke case for C008 that is closed at

@@ -11,6 +11,17 @@ Pydantic models/TypeScript types alongside the first consumers; avoid unused
 schema scaffolding. Field names below describe required capabilities and stable
 identities; the phase implementation owns their concrete representation.
 
+Phase 6 adds no backend interface. In Salesforce: a gateway command that adds
+new customer evidence is one *contact*; its existing `sentiment` argument is
+stamped on that evidence and drives `Negative_Streak__c` (results are
+unchanged, so the backend never sees it). A risk warning (`Risk_Episode__c`)
+is identified by customer, rule code and start; `Active_Key__c` holds
+customer:code while active; it owns one Task and keeps `Risk_Evidence__c` rows
+with `Current__c`. Rules are `Risk_Rule__c` versions with JSON parameters
+checked on save. `NABD_Risk_Check__e` carries one account ID. Reports and
+dashboards are defined in `nabd/salesforce/analytics.py`, each with its SOQL
+equivalent.
+
 Phase 4 adds a model-selected `language` on the complaint assessment, even for
 non-complaints: `input_language` (`en`/`fr`/`ar`/`ary`/`mixed`),
 `reply_language` (`en`/`fr`/`ar`/`ary`) and `reply_script` (`latin`/`arabic`).

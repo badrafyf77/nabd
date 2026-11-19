@@ -9,6 +9,8 @@ delivered the [Salesforce business system](salesforce.md); Phase 2 the
 [support chat](phases/02-support-chat.md); Phase 3 the
 [complaint cases](phases/03-complaints.md) described below.
 
+Phase 6 adds the Salesforce risk engine and dashboards
+([analytics and warnings](phases/06-analytics-warnings.md); commands below).
 Phase 4's implementation and verification are in
 [multilingual behavior](phases/04-multilingual.md). It adds automatic language
 selection inside the existing complaint model call, localized activity/chat
@@ -317,3 +319,29 @@ held-out challenges remain outside the runtime prompts. The free browser stack
 also accepts the exact French and Darija follow-ups in its `BROWSER_FORMS` map.
 Its responses are scripted and demonstrate presentation/persistence, not model
 language quality; it updates the Phase 3 C006 browser test case (close it after).
+
+## Phase 6: analytics and risk warnings
+
+Everything runs in Salesforce; the backend, MCP servers and chat are unchanged
+(no migration, dependency or setting). Deploy and check from `backend/`:
+
+```bash
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce deploy --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce configure --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce seed --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce verify --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce analytics-reconcile --target-org nabd-dev
+PYTHONPATH=code .venv-text/bin/python -m nabd salesforce risk-smoke --target-org nabd-dev
+```
+
+`deploy` pauses the hourly risk job around the deployment; `configure`
+schedules it if missing. `analytics-reconcile` runs every NABD report through
+the Analytics API and compares it with SOQL (no writes). `risk-smoke` drives
+the warning lifecycle for smoke customer C008 through the real gateway and
+closes its test complaints as duplicates (each run leaves two cleared
+warnings as history). The dashboards are in Salesforce: App Launcher → NABD
+Support → Dashboards → NABD Dashboards. Reports and dashboards are generated
+from `backend/code/nabd/salesforce/analytics.py`; the risk engine's Apex is
+hand-written under `salesforce/force-app/main/default/classes/NabdRisk*`.
+Details: [Phase 6 handoff](phases/06-analytics-warnings.md#handoff--19-november-2026)
+and [NABD Salesforce](salesforce.md#risk-engine-phase-6).
