@@ -114,7 +114,7 @@ class OrdersSpecialist:
         schemas = self.tools.schemas(TOOLS)
 
         async def model_node(state: dict[str, Any]) -> dict[str, Any]:
-            reply = await invoke_model(self.model, schemas, self.system_prompt(), state["messages"],
+            reply = await invoke_model(self.model, schemas, self.system_prompt(), state["messages"], run=run, agent="orders",
                                        allow_tools=tools_allowed(state, run), response_format=OrdersFindings)
             return {"messages": [reply]}
 

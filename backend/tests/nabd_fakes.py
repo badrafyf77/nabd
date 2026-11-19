@@ -275,6 +275,8 @@ class FakeGateway:
         if c.operation == "close_case" and not any(e.kind == "customer_confirmation" and e.ref == c.confirmation_message_id
                                                    for e in c.evidence):
             return self._result(c, "failed", "invalid_command")
+        if c.operation == "revise_summary" and not (c.summary or "").strip():
+            return self._result(c, "failed", "invalid_command")
         result = self._apply(c).model_copy(update={"recorded": True})
         self.receipts[c.operation_id] = (fingerprint, result, c.customer_id)
         return result
@@ -315,6 +317,14 @@ class FakeGateway:
             return self._result(c, "failed", "case_not_found")
         if salesforce_time(case.version) != c.expected_version:
             return self._result(c, "conflict", "version_changed", case)
+        if c.operation == "revise_summary":
+            if not case.issue_id:
+                return self._result(c, "conflict", "not_nabd_case", case)
+            if not case.summary_hash or summary_hash(case.summary or "") != case.summary_hash:
+                return self._result(c, "conflict", "staff_override", case)
+            case.summary, case.summary_hash = c.summary, summary_hash(c.summary)
+            self.reads.touch(case)
+            return self._result(c, "confirmed", None, case)
         overrides: list[str] = []
         if c.operation == "reopen_case":
             if not case.closed:

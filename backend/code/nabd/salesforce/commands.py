@@ -26,7 +26,7 @@ from nabd.salesforce.rest import SalesforceClient
 
 GATEWAY_PATH = "/services/apexrest/nabd/v1/case-commands"
 
-Operation = Literal["create_case", "update_case", "reopen_case", "request_closure", "close_case"]
+Operation = Literal["create_case", "update_case", "reopen_case", "request_closure", "close_case", "revise_summary"]
 Category = Literal[tuple(value.api for value in s.COMPLAINT_CATEGORIES)]  # type: ignore[valid-type]
 Priority = Literal["High", "Medium", "Low"]
 Sentiment = Literal[tuple(value.api for value in s.SENTIMENTS)]  # type: ignore[valid-type]

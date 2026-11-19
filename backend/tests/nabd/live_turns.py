@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from nabd.agents.cases import ComplaintStage
 from nabd.agents.complaints import ChatLine
 from nabd.agents.mcp_tools import http_connector
 from nabd.agents.models import build_models
+from nabd.agents.quality import evaluate, review_input
 from nabd.agents.supervisor import Supervisor, Turn
 from nabd.read_mcp.server import ReadBackend, create_app as create_read_app
 from nabd.runtime.events import RunContext, TurnBudget
@@ -59,9 +61,12 @@ class HybridReads:
 class Sink:
     def __init__(self):
         self.events = []
+        self.first_text = None
 
     async def emit(self, conversation_id, event):
         self.events.append(event)
+        if self.first_text is None and event.type == "message.delta":
+            self.first_text = time.monotonic()
         return len(self.events)
 
 
@@ -72,6 +77,13 @@ class TurnResult:
     commands: list  # gateway commands sent this turn
     confirmed: list[str]  # case numbers Salesforce (fake) confirmed this turn
     assessment: dict  # verified complaint assessment, for diagnosing scenario failures
+
+    trace: list = field(default_factory=list)
+    duration_ms: float = 0
+    first_text_ms: float | None = None
+    grade: dict | None = None
+    quality_usage: dict | None = None
+    quality_error: str | None = None
 
     def completed(self) -> list[str]:
         return [e.code for e in self.events if e.type == "activity" and e.state == "completed"]
@@ -84,6 +96,7 @@ class LiveConversation:
     salesforce: object
     world: FixtureReads = field(default_factory=FixtureReads)
     history: list[ChatLine] = field(default_factory=list)
+    evaluator: object = None
 
     def __post_init__(self):
         self.gateway = FakeGateway(self.world)
@@ -92,6 +105,7 @@ class LiveConversation:
         self.conversation = f"scenario-{uuid.uuid4().hex[:8]}"
 
     async def say(self, text: str) -> TurnResult:
+        started = time.monotonic()
         sent = len(self.gateway.calls)
         sink = Sink()
         run_id = str(uuid.uuid4())
@@ -122,11 +136,25 @@ class LiveConversation:
                     async with asyncio.timeout(120):
                         reply = await Supervisor(self.models.supervisor, self.models.orders, self.saver).run_turn(
                             run, tools, turn, stage=lambda: stage.run(run, turn, case_reads, writes))
-        self.history += [line, ChatLine("assistant", f"reply-{run_id}", reply, now)]
+        duration_ms = (time.monotonic() - started) * 1000
         confirmed = [e.payload["result"]["case_number"] for e in sink.events
                      if e.type == "activity" and (e.code or "").startswith("case.") and e.state == "completed"]
-        return TurnResult(reply, sink.events, self.gateway.calls[sent:], confirmed,
-                          self.store.plans[run_id]["assessment"])
+        plan, rows = await self.store.case_plan(run_id)
+        result = TurnResult(reply, sink.events, self.gateway.calls[sent:], confirmed,
+                            plan["assessment"], run.trace, duration_ms,
+                            (sink.first_text - started) * 1000 if sink.first_text else None)
+        if self.evaluator is not None:
+            commands = [{"operation_id": row.operation_id, "operation": row.operation, "request": row.request,
+                         "result": row.result} for row in rows if row.status == "confirmed"]
+            data = review_input(text, reply, [{"role": line.role, "text": line.text} for line in self.history[-11:]],
+                                plan, commands, run.trace)
+            data["partial_trace"] |= run.trace_partial
+            try:
+                result.grade, result.quality_usage = await evaluate(self.evaluator, data)
+            except Exception as error:
+                result.quality_error = type(error).__name__
+        self.history += [line, ChatLine("assistant", f"reply-{run_id}", reply, now)]
+        return result
 
 
 def live_models(settings):

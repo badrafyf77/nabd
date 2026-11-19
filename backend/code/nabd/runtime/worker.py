@@ -77,6 +77,7 @@ class TurnExecutor:
     complaints: ComplaintStage
     connect_writes: McpConnector
     write_mcp: WriteMcpSettings
+    quality_enabled: bool = True
 
     def _tokens(self, customer_id: str, conversation_id: str, run_id: str) -> tuple[str, str, str]:
         """Read (Supervisor and Orders), case-history read (Complaint stage) and write tokens of one run."""
@@ -115,7 +116,7 @@ class TurnExecutor:
                 text = await self.supervisor.run_turn(context, tools, turn, stage=stage)
         if not text.strip():
             raise RuntimeError("empty_reply")  # localized failure card; never inject an English fallback
-        await store.complete_run(run, assistant_message_id(run.id), text)
+        await store.complete_run(run, assistant_message_id(run.id), text, trace=context, review=self.quality_enabled)
 
     async def reconcile(self, store: Store, row: CommandRow) -> None:
         """Settle one case command whose run ended before Salesforce gave a definite answer."""

@@ -14,6 +14,8 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
+from nabd.runtime.trace import MAX_ITEMS, bounded
+
 EventType = Literal[
     "staff.reply", "staff.reply.withdrawn", "case.staff_update", "case.removed",
     "conversation.language",
@@ -65,12 +67,30 @@ class RunContext:
     agent_tool_calls: int = 5
     _activity_state: dict[str, str] = field(default_factory=dict)
 
+    trace: list[dict[str, Any]] = field(default_factory=list)
+    trace_partial: bool = False
+    _activity_agents: dict[str, str] = field(default_factory=dict)
+
+    def record(self, agent: str, kind: str, name: str, *, arguments: Any = None,
+               result: Any = None, usage: dict[str, int] | None = None, duration_ms: int | None = None) -> None:
+        if len(self.trace) >= MAX_ITEMS:
+            self.trace_partial = True
+            return
+        args, output = bounded(arguments), bounded(result)
+        self.trace_partial |= any(isinstance(value, dict) and value.get("truncated") is True
+                                  for value in (args, output))
+        self.trace.append({"agent": agent, "kind": kind, "name": name, "arguments": args,
+                           "result": output, "usage": usage, "duration_ms": duration_ms})
+
     async def emit(self, event: NewEvent) -> int:
         return await self.sink.emit(self.conversation_id, event.model_copy(update={"run_id": self.run_id}))
 
     def activity(self, local_id: str, code: str, *, parent: Activity | None = None,
                  params: dict[str, Any] | None = None) -> Activity:
-        return Activity(self, f"{self.run_id}:{local_id}", code, parent.id if parent else None, params or {})
+        activity_id = f"{self.run_id}:{local_id}"
+        if code.startswith("agent."):
+            self._activity_agents[activity_id] = code.removeprefix("agent.")
+        return Activity(self, activity_id, code, parent.id if parent else None, params or {})
 
 
 @dataclass
@@ -109,6 +129,10 @@ class Activity:
 
     async def fail(self, error: str) -> None:
         await self._emit("failed", error=error, duration_ms=self.elapsed_ms)
+
+    @property
+    def parent_agent(self) -> str:
+        return self.run._activity_agents.get(self.parent_id, "unknown")
 
     @property
     def elapsed_ms(self) -> int:

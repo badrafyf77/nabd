@@ -26,3 +26,12 @@ def pytest_terminal_summary(terminalreporter):
     passed_runs = sum(sum(runs) for runs in RESULTS.values())
     passed_scenarios = sum(all(runs) for runs in RESULTS.values())
     write(f"{passed_scenarios}/{len(RESULTS)} scenarios passed every run, {passed_runs}/{total_runs} runs passed")
+
+
+def pytest_runtest_logreport(report):
+    path = os.environ.get("NABD_CAMPAIGN_JSONL")
+    if not path or report.when != "call":
+        return
+    import json
+    with open(path, "a", encoding="utf-8") as stream:
+        stream.write(json.dumps({"kind": "scenario", "node": report.nodeid, "outcome": report.outcome}) + "\n")

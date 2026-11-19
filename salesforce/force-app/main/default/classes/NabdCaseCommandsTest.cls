@@ -370,6 +370,65 @@ private class NabdCaseCommandsTest {
         System.assertEquals(1, streak(caseId)); // a new unresolved period starts a new streak
     }
 
+    static Map<String, Object> revision(String operationId, Id caseId) {
+        Map<String, Object> command = change('revise_summary', operationId, caseId);
+        command.remove('evidence');
+        command.put('summary', 'The customer reports an undelivered parcel.');
+        return command;
+    }
+
+    @IsTest
+    static void summaryRevisionOnlyChangesWordingAndReplays() {
+        Id caseId = createCase('op-create-0110', 'nabd-issue-test-0110');
+        Map<String, Object> waiting = change('request_closure', 'op-wait-0110', caseId);
+        waiting.put('evidence', new List<Object>{evidence('fact:0110', 'verified_fact', 'Delivered.')});
+        System.assertEquals('confirmed', post(waiting).get('status'));
+        Map<String, Object> command = revision('op-revise-0110', caseId);
+        String body = JSON.serialize(command);
+        Map<String, Object> result = post(body);
+        System.assertEquals('confirmed', result.get('status'), String.valueOf(result));
+        System.assertEquals(0, result.get('evidenceAdded'));
+        System.assertEquals(true, post(body).get('replayed'));
+        command.put('summary', 'Different text.');
+        System.assertEquals('operation_reused', post(command).get('reason'));
+        System.assertEquals(1, receipts('op-revise-0110'));
+        Case current = reload(caseId);
+        System.assertEquals('Waiting on Customer', current.Status);
+        System.assertEquals('negative', current.Sentiment__c);
+        System.assertEquals(1, streak(caseId));
+        System.assertEquals('The customer reports an undelivered parcel.', current.English_Summary__c);
+        System.assertEquals(NabdCaseCommands.hashOf(current.English_Summary__c), current.NABD_Summary_Hash__c);
+        System.assertEquals(3, [SELECT COUNT() FROM Complaint_Evidence__c WHERE Case__c = :caseId WITH SYSTEM_MODE]);
+
+        Case closed = new Case(Id = caseId, Status = 'Closed');
+        update as system closed;
+        System.assertEquals('Closed', post(revision('op-revise-0111', caseId)).get('caseStatus'));
+        System.assertEquals(1, streak(caseId));
+    }
+
+    @IsTest
+    static void summaryRevisionChecksVersionOwnershipAndStaffEdits() {
+        Id caseId = createCase('op-create-0120', 'nabd-issue-test-0120');
+        Map<String, Object> stale = revision('op-revise-0120', caseId);
+        stale.put('expectedVersion', '2020-01-01T00:00:00.000Z');
+        System.assertEquals('version_changed', post(stale).get('reason'));
+        Map<String, Object> other = revision('op-revise-0121', caseId);
+        other.put('customerId', 'C902');
+        System.assertEquals('case_not_found', post(other).get('reason'));
+        Map<String, Object> blank = revision('op-revise-0122', caseId);
+        blank.put('summary', '  ');
+        System.assertEquals('invalid_command', post(blank).get('reason'));
+        System.assertEquals(0, receipts('op-revise-0122'));
+        Case edited = new Case(Id = caseId, English_Summary__c = 'Staff wording.');
+        update as system edited;
+        System.assertEquals('staff_override', post(revision('op-revise-0123', caseId)).get('reason'));
+        System.assertEquals('Staff wording.', reload(caseId).English_Summary__c);
+
+        Case unmanaged = new Case(Id = caseId, NABD_Issue_Id__c = null);
+        update as system unmanaged;
+        System.assertEquals('not_nabd_case', post(revision('op-revise-0124', caseId)).get('reason'));
+    }
+
     @IsTest
     static void malformedAndInvalidCommandsAreRefusedWithoutReceipts() {
         System.assertEquals('malformed', post('not json').get('reason'));

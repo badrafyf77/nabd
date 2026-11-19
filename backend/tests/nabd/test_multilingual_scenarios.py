@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import pytest
 from live_turns import CASE_NUMBER, LiveConversation, live_models
 from multilingual_examples import FORMS
+from release_recording import case_matches, record_turn, release_evaluator  # noqa: F401
 from nabd.agents.language import original_script
 from nabd.salesforce import fixtures as fx
 from nabd.settings import ModelSettings, SalesforceSettings
@@ -81,15 +82,33 @@ def check(result, conversation, form, *, operations=None, case=None, language=Tr
     assert not any(e.state == "failed" and (e.code or "").startswith("agent.") for e in result.events)
 
 @pytest.mark.parametrize("scenario", SCENARIOS, ids=lambda s: s.name)
-def test_multilingual_scenario(scenario, live, loop):
+def test_multilingual_scenario(scenario, live, loop, release_evaluator):
     models, salesforce = live
     f, flow = scenario.form, scenario.flow
     customer = {"knowledge": "C001", "returns": "C002", "refund": "C002", "switch_case": "C003",
                 "ambiguous": "C010", "held_out": "C007"}[flow]
-    c = LiveConversation(customer, models, salesforce)
+    c = LiveConversation(customer, models, salesforce, evaluator=release_evaluator)
+    turn_number = 0
+
     def say(text, form=f, **expected):
         print(f"\n[{scenario.name}] {c.customer}: {text}")
+        nonlocal turn_number
         result = loop.run(c.say(text))
+        turn_number += 1
+        operations = expected.get("operations")
+        cases = None if operations is None else [(op, None, None, None, expected.get("case")) for op in operations]
+        if flow == "refund":
+            cases = [("create_case", "Returns_Refunds", "refund", "SE-1051", None)]
+        elif flow == "switch_case":
+            cases = [(operations[0], "Delivery", None, "SE-1061", expected.get("case"))]
+        elif flow == "held_out" and f.name == "english":
+            cases = [("create_case", "Delivery", None, "SE-1061", None),
+                     ("create_case", "Orders_Products", None, "SE-1062", None)]
+        elif flow == "held_out" and f.name == "arabic":
+            cases = [("update_case", "Delivery", None, "SE-1101", "00001008")] if result.commands else []
+        elif flow == "held_out" and f.name == "darija_arabic":
+            cases = [("close_case", "Delivery", None, "SE-1101", "00001008")]
+        record_turn(scenario.name, f.name, turn_number, result, case_ok=case_matches(result, c, cases))
         check(result, c, form, **expected)
         return result
     if flow == "knowledge":

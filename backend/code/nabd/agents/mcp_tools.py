@@ -122,16 +122,18 @@ class McpTools:
         if name not in allowed:
             outcome = ToolOutcome(False, error="not_allowed", message=f"{name} is not available to this agent.")
             await activity.fail(outcome.error)
-            return outcome
-        outcome = await self._call_once(name, args)
-        if not outcome.ok and outcome.error in RETRYABLE:
-            await activity.retrying(outcome.error, 1)
-            await asyncio.sleep(RETRY_DELAY_SECONDS)
-            outcome = await self._call_once(name, args)
-        if outcome.ok:
-            await activity.complete(**_summary(name, outcome.data))
         else:
-            await activity.fail(outcome.error or "failed")
+            outcome = await self._call_once(name, args)
+            if not outcome.ok and outcome.error in RETRYABLE:
+                await activity.retrying(outcome.error, 1)
+                await asyncio.sleep(RETRY_DELAY_SECONDS)
+                outcome = await self._call_once(name, args)
+            if outcome.ok:
+                await activity.complete(**_summary(name, outcome.data))
+            else:
+                await activity.fail(outcome.error or "failed")
+        run.record(activity.parent_agent, "tool", name, arguments=args, result=outcome.for_model(),
+                   duration_ms=activity.elapsed_ms)
         return outcome
 
 

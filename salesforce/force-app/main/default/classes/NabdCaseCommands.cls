@@ -36,7 +36,9 @@ global without sharing class NabdCaseCommands {
     public static final String REQUEST_CLOSURE = 'request_closure';
     public static final String CLOSE = 'close_case';
 
-    static final Set<String> OPERATIONS = new Set<String>{CREATE, UPDATE_OP, REOPEN, REQUEST_CLOSURE, CLOSE};
+    public static final String REVISE_SUMMARY = 'revise_summary';
+
+    static final Set<String> OPERATIONS = new Set<String>{CREATE, UPDATE_OP, REOPEN, REQUEST_CLOSURE, CLOSE, REVISE_SUMMARY};
     static final Set<String> CATEGORIES = new Set<String>{
         'Delivery', 'Orders_Products', 'Billing_Payments', 'Returns_Refunds', 'General_Support'
     };
@@ -236,6 +238,9 @@ global without sharing class NabdCaseCommands {
         if (!sameVersion(target.SystemModstamp, command.expectedVersion)) {
             return conflict(command, target, 'version_changed', 'The case changed after NABD read it.');
         }
+        if (command.operation == REVISE_SUMMARY) {
+            return reviseSummary(command, target);
+        }
         if (command.operation == REOPEN) {
             return reopenCase(command, target);
         }
@@ -301,6 +306,20 @@ global without sharing class NabdCaseCommands {
         Result result = outcome(command, 'confirmed', null, null);
         result.evidenceAdded = insertEvidence(command, newEvidence(command, created.Id, command.issueId));
         return describe(result, created.Id);
+    }
+
+    static Result reviseSummary(Command command, Case target) {
+        if (String.isBlank(target.NABD_Issue_Id__c)) {
+            return conflict(command, target, 'not_nabd_case', 'This case is not managed by NABD.');
+        }
+        if (String.isBlank(target.NABD_Summary_Hash__c) ||
+            !target.NABD_Summary_Hash__c.equals(hashOf(target.English_Summary__c))) {
+            return conflict(command, target, 'staff_override', 'Staff own the current summary.');
+        }
+        Case wording = new Case(Id = target.Id, English_Summary__c = command.summary,
+                                NABD_Summary_Hash__c = hashOf(command.summary));
+        update as system wording;
+        return describe(outcome(command, 'confirmed', null, null), target.Id);
     }
 
     static Result updateCase(Command command, Case target) {
@@ -514,6 +533,10 @@ global without sharing class NabdCaseCommands {
             if (String.isNotBlank(command.priority) && !PRIORITY_RANK.containsKey(command.priority)) {
                 return 'Unknown priority.';
             }
+        }
+        if (command.operation == REVISE_SUMMARY &&
+            (String.isBlank(command.summary) || command.summary.length() > MAX_TEXT)) {
+            return 'A summary revision needs nonblank English summary text within the field limit.';
         }
         if ((command.operation == REQUEST_CLOSURE || command.operation == CLOSE) && !hasKind(command, 'verified_fact')) {
             return 'Closing needs verified resolution evidence.';

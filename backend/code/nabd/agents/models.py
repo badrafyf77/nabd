@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 
-from nabd.settings import ModelSettings
+from nabd.settings import ModelSettings, QualitySettings
 
 
 def _chat(settings: ModelSettings, model: str, effort: str | None) -> ChatOpenAI:
@@ -33,3 +33,7 @@ def build_models(settings: ModelSettings) -> AgentModels:
         orders=_chat(settings, settings.orders_model, settings.orders_reasoning_effort),
         complaints=_chat(settings, settings.complaints_model, settings.complaints_reasoning_effort),
     )
+
+
+def build_quality_model(models: ModelSettings, quality: QualitySettings) -> BaseChatModel:
+    return _chat(models, quality.model, quality.reasoning_effort)

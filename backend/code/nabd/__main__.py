@@ -21,12 +21,15 @@ def main() -> None:
     salesforce_cli.add_parser(commands)
     read_mcp_cli.add_parser(commands)
     write_mcp_cli.add_parser(commands)
-    from nabd.runtime import staff_cli
+    from nabd.runtime import quality_cli, staff_cli
     staff_cli.add_parser(commands)
+    quality_cli.add_parser(commands)
     args = parser.parse_args()
-    quiet = args.command in ("salesforce", "staff-sync") or (
+    quiet = args.command in ("salesforce", "staff-sync", "quality") or (
         args.command in ("read-mcp", "write-mcp") and args.action in ("prompt", "smoke"))
     logging.basicConfig(level=logging.WARNING if quiet else logging.INFO)
+    if args.command == "quality":
+        sys.exit(asyncio.run(quality_cli.run(args)))
     if args.command == "staff-sync":
         sys.exit(asyncio.run(staff_cli.run(args.target_org, args.samples)))
     if args.command == "salesforce":

@@ -837,6 +837,7 @@ OPERATION_RECEIPT = SObject(
         Field("Operation_Type__c", "Operation Type", "Picklist", required=True, values=_values(
             ("create_case", "Create case"), ("update_case", "Update case"), ("reopen_case", "Reopen case"),
             ("request_closure", "Request closure"), ("close_case", "Close case"),
+            ("revise_summary", "Revise summary"),
             ("add_evidence", "Add evidence"), ("create_task", "Create task"),
         )),
         Field("Status__c", "Result", "Picklist", required=True, values=_values(

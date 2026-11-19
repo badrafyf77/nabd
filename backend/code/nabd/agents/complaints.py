@@ -301,7 +301,7 @@ class ComplaintSpecialist:
         schemas = self.tools.schemas(TOOLS)
 
         async def model_node(state: dict[str, Any]) -> dict[str, Any]:
-            reply = await invoke_model(self.model, schemas, self.system_prompt(), state["messages"],
+            reply = await invoke_model(self.model, schemas, self.system_prompt(), state["messages"], run=run, agent="complaints",
                                        allow_tools=tools_allowed(state, run), response_format=ComplaintAssessment)
             return {"messages": [reply]}
 

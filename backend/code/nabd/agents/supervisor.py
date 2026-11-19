@@ -186,7 +186,7 @@ class Supervisor:
         words = arabic_words(draft)
         rewrite = await invoke_model(self.model, schemas, LATIN_REWRITE, [HumanMessage(
             "Words written in Arabic letters: " + json.dumps(words, ensure_ascii=False) + "\n\nReply:\n" + draft)],
-            allow_tools=False)
+            allow_tools=False, run=run, agent="supervisor")
         text = rewrite.text.strip()
         if rewrite.tool_calls or not text or not kept_references(draft, text):
             text = draft
@@ -218,7 +218,7 @@ class Supervisor:
                 first = False
                 await deltas.add(piece)
 
-            reply = await invoke_model(self.model, schemas, prompt, state["messages"],
+            reply = await invoke_model(self.model, schemas, prompt, state["messages"], run=run, agent="supervisor",
                                        allow_tools=tools_allowed(state, run), on_text=None if latin else on_text)
             if not reply.tool_calls and latin:
                 if violates_latin_script(reply.text, language):
@@ -253,7 +253,10 @@ class Supervisor:
         async def tools_node(state: dict[str, Any]) -> dict[str, Any]:
             async def execute(tool_call: dict[str, Any]) -> dict[str, Any]:
                 if tool_call["name"] == ASK_ORDERS["function"]["name"]:
-                    return await ask_orders(tool_call)
+                    result = await ask_orders(tool_call)
+                    run.record("supervisor", "tool", tool_call["name"], arguments=tool_call.get("args") or {},
+                               result=result)
+                    return result
                 outcome = await tools.call(run, tool_call["name"], tool_call.get("args") or {}, allowed=TOOLS,
                                            activity=tool_activity(run, tool_call, me))
                 return outcome.for_model()

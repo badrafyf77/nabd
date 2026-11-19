@@ -119,7 +119,7 @@ async def _smoke() -> int:
         }
         async with client(token(CUSTOMER)) as session:
             names = {item.name for item in (await session.list_tools()).tools}
-            check("six case operation tools listed", len(names) == 6, ", ".join(sorted(names)))
+            check("seven case operation tools listed", len(names) == 7, ", ".join(sorted(names)))
             created, error = await tool(session, "create_case", create_args)
             check("create confirmed (or replayed from an earlier smoke run)",
                   created.get("status") == "confirmed" and created.get("queue") == "NABD_Orders_Products",
@@ -173,6 +173,19 @@ async def _smoke() -> int:
             check("close with confirmation and resolution evidence confirmed",
                   closed.get("status") == "confirmed" and closed.get("case_status") == "Closed",
                   error or summary(closed))
+            revise_args = {
+                "operation_id": f"{SMOKE}-summary", "case_id": closed.get("case_id"),
+                "expected_version": closed.get("case_version"),
+                "summary": "Smoke test: the customer reported a loose backpack strap and later confirmed it was fixed.",
+            }
+            revised, error = await tool(session, "revise_case_summary", revise_args)
+            check("summary revision preserves closed status and adds no evidence",
+                  revised.get("status") == "confirmed" and revised.get("case_status") == "Closed"
+                  and revised.get("evidence_added") == 0, error or summary(revised))
+            replay, error = await tool(session, "revise_case_summary", revise_args)
+            check("summary revision replay returns the same receipt",
+                  replay.get("replayed") is True and replay.get("case_version") == revised.get("case_version"),
+                  error or summary(replay))
             lookup, error = await tool(session, "get_operation", {"operation_id": f"{SMOKE}-create"})
             check("receipt lookup returns the stored outcome",
                   lookup.get("status") == "confirmed" and lookup.get("case_number") == created.get("case_number"),

@@ -36,6 +36,11 @@
                 <label>Close case</label>
             </value>
             <value>
+                <fullName>revise_summary</fullName>
+                <default>false</default>
+                <label>Revise summary</label>
+            </value>
+            <value>
                 <fullName>add_evidence</fullName>
                 <default>false</default>
                 <label>Add evidence</label>

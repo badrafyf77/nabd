@@ -130,12 +130,27 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
     let watchdog: number | undefined;
     let cancelled = false;
     let lastSeen = Date.now();
+    const measure = process.env.NODE_ENV === "development" &&
+      new URLSearchParams(window.location.search).get("nabdLatency") === "1";
+    if (measure) window.nabdLatency ??= [];
     setLoading(true);
     setConnection("connecting");
 
     const onEvent = (message: MessageEvent) => {
       lastSeen = Date.now();
       const event: ServerEvent = JSON.parse(message.data);
+      const samples = window.nabdLatency;
+      if (Array.isArray(samples) && samples.length < 2000 &&
+          event.sequence > lastSequence.current) {
+        samples.push({ id: event.id, type: event.type, createdAt: Date.parse(event.created_at), receivedAt: lastSeen });
+        if (measure) {
+          const lag = samples.map((sample) => sample.receivedAt - sample.createdAt).sort((a, b) => a - b);
+          document.documentElement.dataset.nabdLatency = JSON.stringify({
+            count: lag.length, p50: lag[Math.ceil(lag.length * 0.5) - 1], p95: lag[Math.ceil(lag.length * 0.95) - 1],
+            max: lag.at(-1), staff: samples.filter((sample) => sample.type === "case.staff_update"),
+          });
+        }
+      }
       lastSequence.current = Math.max(lastSequence.current, event.sequence);
       setState((s) => applyEvents(s, [event]));
       if (event.type === "message.created") {
@@ -383,6 +398,14 @@ function Chat({ session, onSignedOut }: { session: Session; onSignedOut: () => v
       </main>
     </div>
   );
+}
+
+type LatencySample = { id: string; type: string; createdAt: number; receivedAt: number };
+
+declare global {
+  interface Window {
+    nabdLatency?: LatencySample[];
+  }
 }
 
 export default function ChatApp() {

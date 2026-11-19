@@ -234,3 +234,19 @@ class StaffSyncSettings(BaseSettings):
     reconcile_seconds: float = Field(default=60, ge=5, le=3600)
     reconnect_max_seconds: float = Field(default=30, ge=1, le=120)
     translation_timeout_seconds: float = Field(default=25, ge=1, le=45)
+
+
+class QualitySettings(BaseSettings):
+    """Asynchronous review and optional configured USD prices per million tokens."""
+
+    model_config = _env("NABD_QUALITY_")
+    enabled: bool = True
+    model: str = "gpt-5.4-mini"
+    reasoning_effort: str | None = "low"
+    poll_seconds: float = Field(default=0.5, ge=0.05, le=60)
+    lease_seconds: float = Field(default=90, ge=5, le=600)
+    max_attempts: int = Field(default=3, ge=1, le=10)
+    summary_correction_enabled: bool = True
+    price_input: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    price_cached_input: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    price_output: float | None = Field(default=None, ge=0, allow_inf_nan=False)

@@ -205,6 +205,15 @@ def build_server(backend: WriteBackend, secret: SecretStr, *, issuer_url: str, r
                           expected_version=expected_version, confirmation_message_id=confirmation_message_id,
                           evidence=tuple(evidence), sentiment=sentiment)
 
+    @server.tool(title="Revise case summary", annotations=CASE_WRITE)
+    async def revise_case_summary(
+        operation_id: OperationId, case_id: CaseId, expected_version: Version,
+        summary: Annotated[str, Field(min_length=1, max_length=32000)],
+    ) -> CommandResult:
+        """Correct NABD-owned English summary text without changing the case lifecycle."""
+        return await send("revise_summary", operation_id=operation_id, case_id=case_id,
+                          expected_version=expected_version, summary=summary)
+
     @server.tool(title="Operation receipt", annotations=LOOKUP)
     async def get_operation(operation_id: OperationId) -> CommandResult:
         """The stored outcome of an earlier operation, or status unknown if it never happened."""

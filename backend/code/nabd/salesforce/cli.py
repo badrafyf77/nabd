@@ -17,7 +17,7 @@ from datetime import date
 
 import httpx
 
-from nabd.salesforce import analytics, fixtures, metadata, org, risk_smoke, seed, smoke
+from nabd.salesforce import analytics, fixtures, metadata, org, risk_review, risk_smoke, seed, smoke
 from nabd.salesforce import schema as s
 from nabd.salesforce.rest import CliOrgAuth, SalesforceClient
 from nabd.salesforce.soql import literal
@@ -37,7 +37,8 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
                        ("reset", "restore fixture values, overwriting staff edits to fixture records"),
                        ("verify", "compare the org with the schema contract and fixtures"),
                        ("analytics-reconcile", "check every dashboard report against SOQL counts"),
-                       ("risk-smoke", "run the risk warning lifecycle in the org through the real gateway")):
+                       ("risk-smoke", "run the risk warning lifecycle in the org through the real gateway"),
+                       ("risk-review", "compare active warnings with labeled seed cases")):
         command = commands.add_parser(name, help=text)
         command.add_argument("--target-org", default=DEFAULT_ORG)
         if name in ("seed", "reset", "verify"):
@@ -135,6 +136,8 @@ async def _with_cli_org(args: argparse.Namespace) -> int:
             print(f"Integration user: {result.integration_username}")
             print("Client app NABD_Backend runs the client credentials flow as that user.")
             return 0
+        if args.salesforce_command == "risk-review":
+            return await risk_review.run(client)
         if args.salesforce_command == "analytics-reconcile":
             checks = await analytics.reconcile(client)
             return _report([(check.name, check.passed, check.detail) for check in checks])

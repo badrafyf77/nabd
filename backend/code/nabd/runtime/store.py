@@ -29,7 +29,7 @@ from psycopg import AsyncConnection
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
-from nabd.runtime.events import NewEvent
+from nabd.runtime.events import NewEvent, RunContext
 
 NOTIFY_CHANNEL = "nabd_events"
 SNAPSHOT_RUNS = 50
@@ -330,7 +330,8 @@ class Store:
         return cursor.rowcount == 1
 
     async def _finish(self, run: ClaimedRun, status: str, error: str | None,
-                      events: list[NewEvent], reply: tuple[str, str] | None = None) -> bool:
+                      events: list[NewEvent], reply: tuple[str, str] | None = None,
+                      trace: RunContext | None = None, review: bool = False) -> bool:
         async with self.pool.connection() as conn, conn.transaction():
             cursor = await conn.execute(
                 "UPDATE nabd.runs SET status = %s, error_code = %s, finished_at = now(), lease_owner = NULL, "
@@ -343,17 +344,24 @@ class Store:
                     "INSERT INTO nabd.messages (id, conversation_id, role, run_id, text) "
                     "VALUES (%s, %s, 'assistant', %s, %s) ON CONFLICT (id) DO NOTHING",
                     (reply[0], run.conversation_id, run.id, reply[1]))
+            if trace is not None:
+                from nabd.runtime.quality_store import save_trace
+                await save_trace(conn, run.id, trace)
+            if review:
+                await conn.execute("INSERT INTO nabd.quality_reviews (run_id) VALUES (%s) "
+                                   "ON CONFLICT (run_id) DO NOTHING", (run.id,))
             for event in events:
                 await self._append(conn, run.conversation_id, event.model_copy(update={"run_id": run.id}))
         self._notify_local(run.conversation_id)
         return True
 
-    async def complete_run(self, run: ClaimedRun, message_id: str, text: str) -> bool:
+    async def complete_run(self, run: ClaimedRun, message_id: str, text: str, *,
+                           trace: RunContext | None = None, review: bool = True) -> bool:
         return await self._finish(run, "completed", None, [
             NewEvent(type="message.completed", payload={"message_id": message_id, "role": "assistant",
                                                         "text": text, "attempt": run.attempt}),
             NewEvent(type="run.completed", state="completed"),
-        ], reply=(message_id, text))
+        ], reply=(message_id, text), trace=trace, review=review)
 
     async def fail_run(self, run: ClaimedRun, error: str) -> bool:
         return await self._finish(run, "failed", error, [

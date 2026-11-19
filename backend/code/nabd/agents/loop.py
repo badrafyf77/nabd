@@ -7,6 +7,7 @@ used up, the model is called with tools switched off and must answer in words.
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, TypedDict
 
@@ -16,6 +17,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
 from nabd.runtime.events import RunContext
+from nabd.runtime.trace import token_usage
 
 LIMIT_REACHED = {
     "error": "limit_reached",
@@ -41,19 +43,26 @@ async def invoke_model(
     allow_tools: bool,
     response_format: Any = None,
     on_text: Callable[[str], Awaitable[None]] | None = None,
+    run: RunContext | None = None,
+    agent: str = "",
 ) -> AIMessage:
     kwargs: dict[str, Any] = {"tool_choice": "auto" if allow_tools else "none"}
     if response_format is not None:
         kwargs["response_format"] = response_format
     bound = model.bind_tools(schemas, **kwargs)
     full = None
-    async for chunk in bound.astream([SystemMessage(system_prompt), *messages]):
-        full = chunk if full is None else full + chunk
-        if on_text is not None and chunk.text:
-            await on_text(chunk.text)
-    if full is None:
-        return AIMessage("")
-    return message_chunk_to_message(full)
+    started = time.monotonic()
+    try:
+        async for chunk in bound.astream([SystemMessage(system_prompt), *messages]):
+            full = chunk if full is None else full + chunk
+            if on_text is not None and chunk.text:
+                await on_text(chunk.text)
+    finally:
+        if run is not None:
+            run.record(agent, "model", str(getattr(model, "model_name", type(model).__name__)),
+                       usage=token_usage(full.usage_metadata) if full and full.usage_metadata else None,
+                       duration_ms=int((time.monotonic() - started) * 1000))
+    return AIMessage("") if full is None else message_chunk_to_message(full)
 
 
 async def run_tool_calls(

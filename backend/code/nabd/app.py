@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
+from langchain_core.language_models import BaseChatModel
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from psycopg import Error as DatabaseError
@@ -23,11 +24,13 @@ from pydantic import ValidationError
 
 from nabd.agents.cases import ComplaintStage
 from nabd.agents.mcp_tools import McpConnector, http_connector
-from nabd.agents.models import AgentModels, build_models
+from nabd.agents.models import AgentModels, build_models, build_quality_model
 from nabd.agents.supervisor import Supervisor
 from nabd.api import ChatRuntime, router
 from nabd.database import open_database
 from nabd.migrations import current_revision
+from nabd.runtime.quality_store import QualityStore
+from nabd.runtime.quality_worker import QualityWorker
 from nabd.runtime.staff_sync import StaffSync
 from nabd.agents.staff_translation import StaffTranslator
 from nabd.salesforce.pubsub import PubSubClient
@@ -36,7 +39,8 @@ from nabd.runtime.worker import EventNotifier, RunWorker, TurnExecutor
 from nabd.salesforce.reads import SalesforceReads
 from nabd.salesforce.rest import ClientCredentialsAuth, SalesforceClient
 from nabd.settings import (
-    BusinessSettings, ChatSettings, StaffSyncSettings, ModelSettings, ReadMcpSettings, SalesforceSettings, Settings, WriteMcpSettings,
+    BusinessSettings, ChatSettings, ModelSettings, QualitySettings, ReadMcpSettings, SalesforceSettings, Settings,
+    StaffSyncSettings, WriteMcpSettings,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,6 +60,8 @@ class ChatDependencies:
     write_mcp: WriteMcpSettings
     subscriber: Any = None
     staff_sync: StaffSyncSettings | None = None
+    quality: QualitySettings | None = None
+    evaluator: BaseChatModel | None = None
 
 
 async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
@@ -66,6 +72,12 @@ async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
         missing = sorted({".".join(str(p) for p in item["loc"]) for item in error.errors()})
         logger.warning("NABD chat disabled; missing or invalid settings: %s", ", ".join(missing))
         return None
+    try:
+        quality = QualitySettings()
+        evaluator = build_quality_model(models, quality) if quality.enabled else None
+    except (ValueError, TypeError) as error:
+        logger.warning("NABD quality worker disabled; invalid configuration (%s)", type(error).__name__)
+        quality, evaluator = QualitySettings(enabled=False, _env_file=None), None
     http = await stack.enter_async_context(httpx.AsyncClient(timeout=salesforce.timeout_seconds))
     auth = ClientCredentialsAuth(salesforce.domain_url, salesforce.client_id, salesforce.client_secret, http)
     return ChatDependencies(
@@ -75,6 +87,7 @@ async def _production_chat(stack: AsyncExitStack) -> ChatDependencies | None:
         read_mcp=read_mcp, chat=chat, business=business,
         connect_writes=http_connector(write_mcp.url, write_mcp.timeout_seconds), write_mcp=write_mcp,
         subscriber=PubSubClient(auth), staff_sync=StaffSyncSettings(),
+        quality=quality, evaluator=evaluator,
     )
 
 
@@ -93,15 +106,21 @@ def create_app(settings: Settings | None = None, *, chat: ChatDependencies | Non
                 store = Store(database.pool, local_notify=notifier.wake,
                               lock_conninfo=config.database_url.get_secret_value())
                 stage = ComplaintStage(deps.models.complaints, store, deps.chat.review_confidence)
+                quality = deps.quality or QualitySettings(_env_file=None)
+                quality_enabled = quality.enabled and deps.evaluator is not None
                 executor = TurnExecutor(Supervisor(deps.models.supervisor, deps.models.orders,
                                                    database.checkpointer),
                                         deps.connect, deps.read_mcp, deps.chat, deps.business,
-                                        stage, deps.connect_writes, deps.write_mcp)
+                                        stage, deps.connect_writes, deps.write_mcp, quality_enabled)
                 worker = RunWorker(store, executor, deps.chat)
                 runtime = ChatRuntime(store, notifier, worker, deps.reads, deps.chat)
                 runtime.tasks.append(asyncio.create_task(notifier.listen(), name="nabd-event-listener"))
                 if start_worker:
                     runtime.tasks.append(asyncio.create_task(worker.run_forever(), name="nabd-run-worker"))
+                if start_worker and quality_enabled:
+                    reviewer = QualityWorker(QualityStore(store), deps.evaluator, deps.models.complaints,
+                                             deps.connect_writes, deps.write_mcp, quality, deps.chat.history_messages)
+                    runtime.tasks.append(asyncio.create_task(reviewer.run_forever(), name="nabd-quality"))
                 if start_worker and deps.subscriber is not None and (deps.staff_sync or StaffSyncSettings()).enabled:
                     runtime.staff = StaffSync(store, deps.reads, deps.subscriber,
                                               StaffTranslator(deps.models.supervisor),
