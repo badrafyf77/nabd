@@ -22,7 +22,8 @@ release gates and merge pending.
 | 7 — Quality review and demonstration release | `6864092` implementation, `9d2a352` paid recheck, `2fabd9f` final harness and verification | [Phase 7 handoff](phases/07-quality-release.md#implementation-handoff--19-november-2026) |
 
 Completed phases are merged into `main` on GitHub
-(`badrafyf77/customer-support-voice-agent`, private); Phases 0–3 were merged
+(`badrafyf77/nabd`, public; split out of `badrafyf77/customer-support-voice-agent`
+on 20 November 2026); Phases 0–3 were merged
 on 18 November 2026, Phase 4 later the same day, Phases 6 then 5 on 19 November. Inspect a checkpoint with `git show --stat <commit>`.
 Later documentation commits are handoff updates, not new implementation phases.
 
@@ -190,8 +191,8 @@ voice work is deferred and they do not block NABD phases.
 - `backend/.env.nabd` is present and Git-ignored. Keep Salesforce, OpenAI
   and MCP credentials local. See [setup](README.md#fresh-checkout) for a new
   environment.
-- `origin/main` was checked at `0079407`. The private GitHub repository is
-  `badrafyf77/customer-support-voice-agent`. For a future authorized push,
+- `origin/main` was checked at `0079407`. The public GitHub repository is
+  `badrafyf77/nabd`. For a future authorized push,
   check `gh api user -q .login` for `badrafyf77` and use the GitHub CLI
   credential helper as needed.
 
